@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.*
+!.env.example
+auth/
+data/
+*.db
+*.db-shm
+*.db-wal
+npm-debug.log*
+.DS_Store
+
+# WhatsApp authentication and backups
+auth/
+auth_backup/
+**/creds.json
+**/pre-key-*.json
+**/session-*.json
+**/app-state-sync-key-*.json
