@@ -10,7 +10,8 @@ import {
   getSession,
   updateSession,
   markSessionDisconnected,
-  reserveForwardedMessage
+  reserveForwardedMessage,
+  saveWhatsAppMessage // [ADDED] Persist messages for the Mini App.
 } from "./database.js";
 
 import {
@@ -990,6 +991,53 @@ export function createWhatsAppCallbacks(telegramId) {
         const groupName = isGroup
           ? await getGroupName(socket, id, remoteJid)
           : null;
+
+        // [ADDED] Persist the message for the Mini App. This only writes to
+        // our local database; it does not mark the WhatsApp message as read.
+        const rawTimestamp = toNumber(message.messageTimestamp);
+        const messageTimestamp = rawTimestamp > 0
+          ? rawTimestamp * 1000
+          : Date.now();
+
+        const messageType = info
+          ? info.kind
+          : (
+              content.locationMessage || content.liveLocationMessage
+                ? "location"
+                : content.contactMessage || content.contactsArrayMessage
+                  ? "contact"
+                  : content.reactionMessage
+                    ? "reaction"
+                    : content.conversation || content.extendedTextMessage
+                      ? "text"
+                      : "other"
+            );
+
+        try {
+          saveWhatsAppMessage({
+            telegramId: id,
+            whatsappChatId: remoteJid,
+            messageId,
+            chatType: isGroup ? "group" : "private",
+            chatName: isGroup
+              ? groupName
+              : (isOutgoing ? who : (message.pushName || who)),
+            phoneNumber,
+            senderJid,
+            senderName: isOutgoing ? "You" : (message.pushName || who),
+            direction: isOutgoing ? "outgoing" : "incoming",
+            messageType,
+            body: body || null,
+            mediaMimetype: info?.mimetype || null,
+            mediaFileName: info?.fileName || null,
+            messageTimestamp
+          });
+        } catch (error) {
+          console.error(
+            "Failed to save WhatsApp message to Mini App database:",
+            error.message
+          );
+        }
 
         const header = buildHeader({
           isOutgoing,

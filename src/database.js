@@ -1,26 +1,21 @@
-
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 
-// [ADDED] Resolve database path from environment.
-const configuredPath = process.env.SQLITE_PATH || "./data/bridge.db";
-const databasePath = path.resolve(configuredPath);
+const databasePath = path.resolve(
+  process.env.SQLITE_PATH || "./data/bridge.db"
+);
 
-// [ADDED] Ensure the database directory exists.
 fs.mkdirSync(path.dirname(databasePath), { recursive: true });
 
-// [ADDED] Open SQLite database.
 const db = new Database(databasePath);
 
-// [ADDED] SQLite performance and integrity settings.
 db.pragma("journal_mode = WAL");
 db.pragma("synchronous = NORMAL");
 db.pragma("foreign_keys = ON");
 db.pragma("busy_timeout = 5000");
 
-// [ADDED] Create tables and indexes.
 db.exec(`
   CREATE TABLE IF NOT EXISTS telegram_users (
     telegram_id TEXT PRIMARY KEY,
@@ -40,8 +35,7 @@ db.exec(`
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     FOREIGN KEY (telegram_id)
-      REFERENCES telegram_users(telegram_id)
-      ON DELETE CASCADE
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS forwarded_messages (
@@ -50,8 +44,62 @@ db.exec(`
     forwarded_at INTEGER NOT NULL,
     PRIMARY KEY (message_id, telegram_id),
     FOREIGN KEY (telegram_id)
-      REFERENCES telegram_users(telegram_id)
-      ON DELETE CASCADE
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  -- [ADDED] Daftar chat WhatsApp untuk Mini App.
+  CREATE TABLE IF NOT EXISTS chats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    whatsapp_chat_id TEXT NOT NULL,
+    chat_type TEXT NOT NULL CHECK (chat_type IN ('private', 'group')),
+    name TEXT,
+    phone_number TEXT,
+    is_favorite INTEGER NOT NULL DEFAULT 0,
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    last_message_at INTEGER,
+    last_message_preview TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE (telegram_id, whatsapp_chat_id),
+    FOREIGN KEY (telegram_id)
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  -- [ADDED] Riwayat pesan WhatsApp.
+  CREATE TABLE IF NOT EXISTS messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    whatsapp_chat_id TEXT NOT NULL,
+    whatsapp_message_id TEXT NOT NULL,
+    sender_jid TEXT,
+    sender_name TEXT,
+    direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+    message_type TEXT NOT NULL DEFAULT 'text',
+    body TEXT,
+    media_mimetype TEXT,
+    media_file_name TEXT,
+    message_timestamp INTEGER NOT NULL,
+    miniapp_read_at INTEGER,
+    created_at INTEGER NOT NULL,
+    UNIQUE (telegram_id, whatsapp_chat_id, whatsapp_message_id),
+    FOREIGN KEY (telegram_id, whatsapp_chat_id)
+      REFERENCES chats(telegram_id, whatsapp_chat_id) ON DELETE CASCADE,
+    FOREIGN KEY (telegram_id)
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  -- [ADDED] Preferensi tiap chat.
+  CREATE TABLE IF NOT EXISTS chat_preferences (
+    telegram_id TEXT NOT NULL,
+    whatsapp_chat_id TEXT NOT NULL,
+    is_muted INTEGER NOT NULL DEFAULT 0,
+    custom_name TEXT,
+    last_read_message_id TEXT,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (telegram_id, whatsapp_chat_id),
+    FOREIGN KEY (telegram_id, whatsapp_chat_id)
+      REFERENCES chats(telegram_id, whatsapp_chat_id) ON DELETE CASCADE
   );
 
   CREATE INDEX IF NOT EXISTS idx_forwarded_messages_time
@@ -59,9 +107,17 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_whatsapp_sessions_status
     ON whatsapp_sessions(connection_status);
+
+  CREATE INDEX IF NOT EXISTS idx_chats_owner_last_message
+    ON chats(telegram_id, last_message_at DESC);
+
+  CREATE INDEX IF NOT EXISTS idx_messages_chat_timestamp
+    ON messages(telegram_id, whatsapp_chat_id, message_timestamp DESC);
+
+  CREATE INDEX IF NOT EXISTS idx_messages_owner_unread
+    ON messages(telegram_id, miniapp_read_at, message_timestamp DESC);
 `);
 
-// [ADDED] Prepared statements.
 const statements = {
   upsertUser: db.prepare(`
     INSERT INTO telegram_users (
@@ -78,14 +134,11 @@ const statements = {
   `),
 
   getUser: db.prepare(`
-    SELECT *
-    FROM telegram_users
-    WHERE telegram_id = ?
+    SELECT * FROM telegram_users WHERE telegram_id = ?
   `),
 
   getAllActiveUsers: db.prepare(`
-    SELECT *
-    FROM telegram_users
+    SELECT * FROM telegram_users
     WHERE is_active = 1
     ORDER BY created_at ASC
   `),
@@ -105,16 +158,13 @@ const statements = {
   `),
 
   getSession: db.prepare(`
-    SELECT *
-    FROM whatsapp_sessions
-    WHERE telegram_id = ?
+    SELECT * FROM whatsapp_sessions WHERE telegram_id = ?
   `),
 
   getAllSessions: db.prepare(`
     SELECT s.*, u.is_active
     FROM whatsapp_sessions s
-    INNER JOIN telegram_users u
-      ON u.telegram_id = s.telegram_id
+    INNER JOIN telegram_users u ON u.telegram_id = s.telegram_id
     WHERE u.is_active = 1
     ORDER BY s.created_at ASC
   `),
@@ -144,8 +194,7 @@ const statements = {
   `),
 
   deleteSession: db.prepare(`
-    DELETE FROM whatsapp_sessions
-    WHERE telegram_id = ?
+    DELETE FROM whatsapp_sessions WHERE telegram_id = ?
   `),
 
   insertForwardedMessage: db.prepare(`
@@ -156,17 +205,211 @@ const statements = {
   `),
 
   cleanupForwardedMessages: db.prepare(`
-    DELETE FROM forwarded_messages
-    WHERE forwarded_at < ?
+    DELETE FROM forwarded_messages WHERE forwarded_at < ?
+  `),
+
+  // [ADDED] Simpan atau perbarui informasi chat.
+  upsertChat: db.prepare(`
+    INSERT INTO chats (
+      telegram_id,
+      whatsapp_chat_id,
+      chat_type,
+      name,
+      phone_number,
+      last_message_at,
+      last_message_preview,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      @telegram_id,
+      @whatsapp_chat_id,
+      @chat_type,
+      @name,
+      @phone_number,
+      @last_message_at,
+      @last_message_preview,
+      @now,
+      @now
+    )
+    ON CONFLICT(telegram_id, whatsapp_chat_id) DO UPDATE SET
+      chat_type = excluded.chat_type,
+      name = COALESCE(excluded.name, chats.name),
+      phone_number = COALESCE(excluded.phone_number, chats.phone_number),
+      last_message_at = CASE
+        WHEN chats.last_message_at IS NULL
+          OR excluded.last_message_at >= chats.last_message_at
+        THEN excluded.last_message_at
+        ELSE chats.last_message_at
+      END,
+      last_message_preview = CASE
+        WHEN chats.last_message_at IS NULL
+          OR excluded.last_message_at >= chats.last_message_at
+        THEN excluded.last_message_preview
+        ELSE chats.last_message_preview
+      END,
+      updated_at = excluded.updated_at
+  `),
+
+  // [ADDED] Simpan pesan tanpa menduplikasi ID yang sama.
+  insertMessage: db.prepare(`
+    INSERT OR IGNORE INTO messages (
+      telegram_id,
+      whatsapp_chat_id,
+      whatsapp_message_id,
+      sender_jid,
+      sender_name,
+      direction,
+      message_type,
+      body,
+      media_mimetype,
+      media_file_name,
+      message_timestamp,
+      created_at
+    )
+    VALUES (
+      @telegram_id,
+      @whatsapp_chat_id,
+      @whatsapp_message_id,
+      @sender_jid,
+      @sender_name,
+      @direction,
+      @message_type,
+      @body,
+      @media_mimetype,
+      @media_file_name,
+      @message_timestamp,
+      @now
+    )
+  `),
+
+  updateChatPreview: db.prepare(`
+    UPDATE chats
+    SET last_message_at = @message_timestamp,
+        last_message_preview = @preview,
+        updated_at = @now
+    WHERE telegram_id = @telegram_id
+      AND whatsapp_chat_id = @whatsapp_chat_id
+      AND (
+        last_message_at IS NULL
+        OR last_message_at <= @message_timestamp
+      )
+  `),
+
+  listChats: db.prepare(`
+    SELECT
+      c.*,
+      COALESCE(
+        cp.custom_name,
+        c.name,
+        c.phone_number,
+        c.whatsapp_chat_id
+      ) AS display_name,
+      COALESCE(cp.is_muted, 0) AS is_muted,
+      (
+        SELECT COUNT(*)
+        FROM messages m
+        WHERE m.telegram_id = c.telegram_id
+          AND m.whatsapp_chat_id = c.whatsapp_chat_id
+          AND m.direction = 'incoming'
+          AND m.miniapp_read_at IS NULL
+      ) AS unread_count
+    FROM chats c
+    LEFT JOIN chat_preferences cp
+      ON cp.telegram_id = c.telegram_id
+      AND cp.whatsapp_chat_id = c.whatsapp_chat_id
+    WHERE c.telegram_id = @telegram_id
+      AND (@include_archived = 1 OR c.is_archived = 0)
+    ORDER BY c.is_favorite DESC, c.last_message_at DESC, c.id DESC
+    LIMIT @limit OFFSET @offset
+  `),
+
+  getChat: db.prepare(`
+    SELECT
+      c.*,
+      COALESCE(
+        cp.custom_name,
+        c.name,
+        c.phone_number,
+        c.whatsapp_chat_id
+      ) AS display_name,
+      COALESCE(cp.is_muted, 0) AS is_muted
+    FROM chats c
+    LEFT JOIN chat_preferences cp
+      ON cp.telegram_id = c.telegram_id
+      AND cp.whatsapp_chat_id = c.whatsapp_chat_id
+    WHERE c.telegram_id = ?
+      AND c.whatsapp_chat_id = ?
+  `),
+
+  listMessages: db.prepare(`
+    SELECT *
+    FROM messages
+    WHERE telegram_id = ?
+      AND whatsapp_chat_id = ?
+    ORDER BY message_timestamp DESC, id DESC
+    LIMIT ?
+  `),
+
+  // [ADDED] Status baca lokal Mini App, bukan tanda baca WhatsApp.
+  markChatRead: db.prepare(`
+    UPDATE messages
+    SET miniapp_read_at = ?
+    WHERE telegram_id = ?
+      AND whatsapp_chat_id = ?
+      AND direction = 'incoming'
+      AND miniapp_read_at IS NULL
+  `),
+
+  setChatFavorite: db.prepare(`
+    UPDATE chats
+    SET is_favorite = ?, updated_at = ?
+    WHERE telegram_id = ? AND whatsapp_chat_id = ?
+  `),
+
+  setChatArchived: db.prepare(`
+    UPDATE chats
+    SET is_archived = ?, updated_at = ?
+    WHERE telegram_id = ? AND whatsapp_chat_id = ?
+  `),
+
+  upsertChatPreference: db.prepare(`
+    INSERT INTO chat_preferences (
+      telegram_id,
+      whatsapp_chat_id,
+      is_muted,
+      custom_name,
+      last_read_message_id,
+      updated_at
+    )
+    VALUES (
+      @telegram_id,
+      @whatsapp_chat_id,
+      COALESCE(@is_muted, 0),
+      @custom_name,
+      @last_read_message_id,
+      @updated_at
+    )
+    ON CONFLICT(telegram_id, whatsapp_chat_id) DO UPDATE SET
+      is_muted = COALESCE(@is_muted, chat_preferences.is_muted),
+      custom_name = COALESCE(@custom_name, chat_preferences.custom_name),
+      last_read_message_id = COALESCE(
+        @last_read_message_id,
+        chat_preferences.last_read_message_id
+      ),
+      updated_at = excluded.updated_at
   `)
 };
 
-// [ADDED] Register or update a Telegram user.
+// ---------------------------------------------------------------------------
+// Existing user and session functions
+// ---------------------------------------------------------------------------
+
 export function registerUser(user) {
   const now = Date.now();
   const telegramId = String(user.id);
 
-  const transaction = db.transaction(() => {
+  db.transaction(() => {
     statements.upsertUser.run({
       telegram_id: telegramId,
       username: user.username || null,
@@ -175,24 +418,19 @@ export function registerUser(user) {
     });
 
     statements.ensureSession.run(telegramId, now, now);
-  });
-
-  transaction();
+  })();
 
   return statements.getUser.get(telegramId);
 }
 
-// [ADDED] Get a registered user.
 export function getUser(telegramId) {
   return statements.getUser.get(String(telegramId)) || null;
 }
 
-// [ADDED] Get all active Telegram users.
 export function getAllActiveUsers() {
   return statements.getAllActiveUsers.all();
 }
 
-// [ADDED] Activate or deactivate a user.
 export function setUserActive(telegramId, isActive) {
   return statements.setUserActive.run(
     isActive ? 1 : 0,
@@ -201,17 +439,14 @@ export function setUserActive(telegramId, isActive) {
   ).changes > 0;
 }
 
-// [ADDED] Get a user's WhatsApp session metadata.
 export function getSession(telegramId) {
   return statements.getSession.get(String(telegramId)) || null;
 }
 
-// [ADDED] Get sessions belonging to active users.
 export function getAllSessions() {
   return statements.getAllSessions.all();
 }
 
-// [ADDED] Update WhatsApp connection status.
 export function updateSession(telegramId, status, phoneNumber = null) {
   const allowedStatuses = new Set([
     "disconnected",
@@ -227,11 +462,7 @@ export function updateSession(telegramId, status, phoneNumber = null) {
 
   const now = Date.now();
 
-  statements.ensureSession.run(
-    String(telegramId),
-    now,
-    now
-  );
+  statements.ensureSession.run(String(telegramId), now, now);
 
   statements.updateSession.run({
     telegram_id: String(telegramId),
@@ -243,15 +474,10 @@ export function updateSession(telegramId, status, phoneNumber = null) {
   return getSession(telegramId);
 }
 
-// [ADDED] Mark a session as disconnected without deleting its credentials.
 export function markSessionDisconnected(telegramId) {
   const now = Date.now();
 
-  statements.ensureSession.run(
-    String(telegramId),
-    now,
-    now
-  );
+  statements.ensureSession.run(String(telegramId), now, now);
 
   statements.disconnectSession.run({
     telegram_id: String(telegramId),
@@ -261,31 +487,199 @@ export function markSessionDisconnected(telegramId) {
   return getSession(telegramId);
 }
 
-// [ADDED] Delete a session's database metadata.
 export function deleteSession(telegramId) {
   return statements.deleteSession.run(String(telegramId)).changes > 0;
 }
 
-// [ADDED] Atomically reserve a message ID for deduplication.
-// Returns true if this message has not been recorded before.
 export function reserveForwardedMessage(messageId, telegramId) {
-  const result = statements.insertForwardedMessage.run(
+  return statements.insertForwardedMessage.run(
     String(messageId),
     String(telegramId),
     Date.now()
+  ).changes > 0;
+}
+
+export function cleanupForwardedMessages(
+  maxAgeMs = 7 * 24 * 60 * 60 * 1000
+) {
+  return statements.cleanupForwardedMessages.run(
+    Date.now() - maxAgeMs
+  ).changes;
+}
+
+// ---------------------------------------------------------------------------
+// [ADDED] Mini App message and chat functions
+// ---------------------------------------------------------------------------
+
+// Simpan pesan WhatsApp beserta metadata chat.
+export function saveWhatsAppMessage(input) {
+  const telegramId = String(input.telegramId ?? "");
+  const whatsappChatId = String(input.whatsappChatId ?? "");
+  const messageId = String(input.messageId ?? "");
+
+  if (!/^\d+$/.test(telegramId)) {
+    throw new Error("Invalid Telegram user ID.");
+  }
+
+  if (!whatsappChatId || !messageId) {
+    throw new Error("WhatsApp chat ID and message ID are required.");
+  }
+
+  if (!["private", "group"].includes(input.chatType)) {
+    throw new Error("Invalid chat type.");
+  }
+
+  if (!["incoming", "outgoing"].includes(input.direction)) {
+    throw new Error("Invalid message direction.");
+  }
+
+  const now = Date.now();
+  const timestamp = Number(input.messageTimestamp) || now;
+  const body = input.body == null ? null : String(input.body);
+
+  const preview = (body || `[${input.messageType || "message"}]`)
+    .replace(/\s+/g, " ")
+    .slice(0, 240);
+
+  return db.transaction(() => {
+    statements.upsertChat.run({
+      telegram_id: telegramId,
+      whatsapp_chat_id: whatsappChatId,
+      chat_type: input.chatType,
+      name: input.chatName || null,
+      phone_number: input.phoneNumber || null,
+      last_message_at: timestamp,
+      last_message_preview: preview,
+      now
+    });
+
+    const result = statements.insertMessage.run({
+      telegram_id: telegramId,
+      whatsapp_chat_id: whatsappChatId,
+      whatsapp_message_id: messageId,
+      sender_jid: input.senderJid || null,
+      sender_name: input.senderName || null,
+      direction: input.direction,
+      message_type: input.messageType || "text",
+      body,
+      media_mimetype: input.mediaMimetype || null,
+      media_file_name: input.mediaFileName || null,
+      message_timestamp: timestamp,
+      now
+    });
+
+    if (result.changes > 0) {
+      statements.updateChatPreview.run({
+        telegram_id: telegramId,
+        whatsapp_chat_id: whatsappChatId,
+        message_timestamp: timestamp,
+        preview,
+        now
+      });
+    }
+
+    return result.changes > 0;
+  })();
+}
+
+// Ambil daftar chat milik satu pengguna Telegram.
+export function listChats(telegramId, options = {}) {
+  const limit = Math.min(100, Math.max(1, Number(options.limit) || 50));
+  const offset = Math.max(0, Number(options.offset) || 0);
+
+  return statements.listChats.all({
+    telegram_id: String(telegramId),
+    include_archived: options.includeArchived ? 1 : 0,
+    limit,
+    offset
+  });
+}
+
+// Ambil satu chat milik pengguna yang ditentukan.
+export function getChat(telegramId, whatsappChatId) {
+  return statements.getChat.get(
+    String(telegramId),
+    String(whatsappChatId)
+  ) || null;
+}
+
+// Ambil pesan dari satu chat, dimulai dari yang terbaru.
+export function listMessages(telegramId, whatsappChatId, limit = 100) {
+  if (!getChat(telegramId, whatsappChatId)) {
+    return [];
+  }
+
+  const safeLimit = Math.min(200, Math.max(1, Number(limit) || 100));
+
+  return statements.listMessages.all(
+    String(telegramId),
+    String(whatsappChatId),
+    safeLimit
   );
-
-  return result.changes > 0;
 }
 
-// [ADDED] Remove old deduplication records.
-export function cleanupForwardedMessages(maxAgeMs = 7 * 24 * 60 * 60 * 1000) {
-  const cutoff = Date.now() - maxAgeMs;
+// Tandai pesan dibaca di Mini App saja.
+export function markChatReadInMiniApp(telegramId, whatsappChatId) {
+  if (!getChat(telegramId, whatsappChatId)) {
+    return 0;
+  }
 
-  return statements.cleanupForwardedMessages.run(cutoff).changes;
+  return statements.markChatRead.run(
+    Date.now(),
+    String(telegramId),
+    String(whatsappChatId)
+  ).changes;
 }
 
-// [ADDED] Close database cleanly when the process shuts down.
+// Tandai atau lepaskan favorit chat.
+export function setChatFavorite(telegramId, whatsappChatId, isFavorite) {
+  return statements.setChatFavorite.run(
+    isFavorite ? 1 : 0,
+    Date.now(),
+    String(telegramId),
+    String(whatsappChatId)
+  ).changes > 0;
+}
+
+// Arsipkan atau keluarkan chat dari arsip.
+export function setChatArchived(telegramId, whatsappChatId, isArchived) {
+  return statements.setChatArchived.run(
+    isArchived ? 1 : 0,
+    Date.now(),
+    String(telegramId),
+    String(whatsappChatId)
+  ).changes > 0;
+}
+
+// Perbarui preferensi chat. Nilai null tidak mengubah nilai sebelumnya.
+export function updateChatPreferences(
+  telegramId,
+  whatsappChatId,
+  preferences = {}
+) {
+  if (!getChat(telegramId, whatsappChatId)) {
+    return false;
+  }
+
+  statements.upsertChatPreference.run({
+    telegram_id: String(telegramId),
+    whatsapp_chat_id: String(whatsappChatId),
+    is_muted: preferences.isMuted == null
+      ? null
+      : (preferences.isMuted ? 1 : 0),
+    custom_name: preferences.customName == null
+      ? null
+      : String(preferences.customName).slice(0, 120),
+    last_read_message_id: preferences.lastReadMessageId == null
+      ? null
+      : String(preferences.lastReadMessageId),
+    updated_at: Date.now()
+  });
+
+  return true;
+}
+
+// Tutup database saat aplikasi berhenti.
 export function closeDatabase() {
   if (db.open) {
     db.close();
