@@ -1,83 +1,221 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#101114">
-  <title>WA Connect</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+  >
+  <meta name="theme-color" content="#0f1115">
+  <title>DOOD BOT</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <!-- Ikon (SVG sprite) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12Z"/></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z"/></symbol>
+      <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.7a3.5 3.5 0 0 1 0 6.6M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.5L4 8.5"/><path d="M4 4v4.5h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.5l1.7-2"/><path d="M20 20v-4.5h-4.5"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5 8 12l7 7"/></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9l6-.9L12 3.5Z"/></symbol>
+      <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4.5" rx="1"/><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 13h4"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3Z"/><path d="m14.5 7.5 3 3"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12M9 7V4h6v3"/></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 4h12v16l-6-4-6 4V4Z"/></symbol>
+      <symbol id="i-call-in" viewBox="0 0 24 24"><path d="M19 5 13 11M13 6.5V11h4.5"/><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" opacity=".35"/></symbol>
+      <symbol id="i-call-out" viewBox="0 0 24 24"><path d="M14 10 20 4M15 4h5v5"/><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" opacity=".35"/></symbol>
+      <symbol id="i-call-missed" viewBox="0 0 24 24"><path d="m20 4-6 6m0-4.5V10h4.5"/><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" opacity=".35"/></symbol>
+      <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10.5 6-3.5v10l-6-3.5"/></symbol>
+    </defs>
+  </svg>
+
   <div class="app">
-    <header class="topbar">
+    <header class="topbar" id="topbar">
       <div class="brand">
-        <div class="brand-icon">W</div>
-        <div>
-          <h1>WA Connect</h1>
-          <p id="connectionStatus">Menghubungkan...</p>
+        <div class="brand-icon"><svg class="i"><use href="#i-chat"/></svg></div>
+        <div class="brand-text">
+          <h1>DOOD BOT</h1>
+          <p id="connectionStatus">Menghubungkan…</p>
         </div>
       </div>
-      <button class="icon-button" id="refreshButton" aria-label="Refresh">↻</button>
+      <button class="icon-button" id="refreshButton" type="button" aria-label="Muat ulang">
+        <svg class="i"><use href="#i-refresh"/></svg>
+      </button>
     </header>
 
-    <main id="chatPage">
+    <!-- CHAT -->
+    <main id="chatPage" class="page">
       <div class="search-box">
-        <span>⌕</span>
-        <input id="searchInput" type="search" placeholder="Cari chat atau pesan...">
+        <svg class="i"><use href="#i-search"/></svg>
+        <input id="searchInput" type="search" placeholder="Cari chat atau pesan" autocomplete="off">
       </div>
 
-      <div class="filter-row">
-        <button class="filter active" data-filter="all">Semua</button>
-        <button class="filter" data-filter="unread">Belum dibaca</button>
-        <button class="filter" data-filter="favorites">Favorit</button>
-        <button class="filter" data-filter="archived">Arsip</button>
+      <div class="chips" id="chatFilters">
+        <button class="chip active" data-filter="all" type="button">Semua</button>
+        <button class="chip" data-filter="unread" type="button">Belum dibaca</button>
+        <button class="chip" data-filter="favorites" type="button">Favorit</button>
+        <button class="chip" data-filter="archived" type="button">Arsip</button>
       </div>
 
-      <section class="chat-section">
-        <div class="section-heading">
-          <h2 id="listTitle">Percakapan</h2>
-          <span id="chatCount">0 chat</span>
-        </div>
-        <div id="chatList" class="chat-list">
-          <div class="loading">Memuat percakapan...</div>
-        </div>
-      </section>
+      <div class="section-heading">
+        <h2 id="listTitle">Percakapan</h2>
+        <span id="chatCount" class="count">0 chat</span>
+      </div>
+
+      <div id="chatList" class="list">
+        <div class="loading">Memuat percakapan…</div>
+      </div>
     </main>
 
-    <main id="conversationPage" class="conversation-page hidden">
+    <!-- DETAIL CHAT -->
+    <main id="conversationPage" class="conversation hidden">
       <div class="conversation-header">
-        <button id="backButton" class="icon-button" aria-label="Kembali">←</button>
+        <button id="backButton" class="icon-button plain" type="button" aria-label="Kembali">
+          <svg class="i"><use href="#i-back"/></svg>
+        </button>
         <div class="avatar" id="conversationAvatar">W</div>
         <div class="conversation-info">
           <h2 id="conversationName">Percakapan</h2>
           <p id="conversationSubtitle">Riwayat pesan</p>
         </div>
-        <button id="favoriteButton" class="icon-button" aria-label="Favorit">☆</button>
+        <button id="archiveButton" class="icon-button plain" type="button" aria-label="Arsipkan">
+          <svg class="i"><use href="#i-archive"/></svg>
+        </button>
+        <button id="favoriteButton" class="icon-button plain" type="button" aria-label="Favorit">
+          <svg class="i"><use href="#i-star"/></svg>
+        </button>
       </div>
 
       <div id="messageList" class="message-list">
-        <div class="loading">Memuat pesan...</div>
+        <div class="loading">Memuat pesan…</div>
       </div>
 
-      <div class="read-note">
-        Status baca di aplikasi ini hanya disimpan secara lokal.
+      <div class="read-note">Status baca hanya disimpan di aplikasi ini dan tidak dikirim ke WhatsApp.</div>
+    </main>
+
+    <!-- PANGGILAN -->
+    <main id="callsPage" class="page hidden">
+      <div class="page-title">
+        <div>
+          <h2>Panggilan</h2>
+          <p>Riwayat panggilan WhatsApp yang terdeteksi</p>
+        </div>
+        <span id="callCount" class="count">0</span>
+      </div>
+
+      <div class="search-box">
+        <svg class="i"><use href="#i-search"/></svg>
+        <input id="callsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off">
+      </div>
+
+      <div class="chips" id="callFilters">
+        <button class="chip active" data-call-filter="all" type="button">Semua</button>
+        <button class="chip" data-call-filter="incoming" type="button">Masuk</button>
+        <button class="chip" data-call-filter="outgoing" type="button">Keluar</button>
+        <button class="chip" data-call-filter="missed" type="button">Tak terjawab</button>
+      </div>
+
+      <div id="callsList" class="list">
+        <div class="loading">Memuat panggilan…</div>
       </div>
     </main>
 
-    <footer class="bottom-nav">
-      <button class="nav-item selected" id="chatsNav">
-        <span>▤</span>
-        <small>Chat</small>
-      </button>
-      <button class="nav-item" id="profileNav">
-        <span>◉</span>
-        <small>Akun</small>
-      </button>
-    </footer>
+    <!-- KONTAK -->
+    <main id="contactsPage" class="page hidden">
+      <div class="page-title">
+        <div>
+          <h2>Kontak</h2>
+          <p>Nomor HP yang kamu simpan sendiri</p>
+        </div>
+        <button id="addContactButton" class="primary-button" type="button">
+          <svg class="i"><use href="#i-plus"/></svg>
+          Tambah
+        </button>
+      </div>
 
-    <div id="toast" class="toast hidden"></div>
+      <div class="search-box">
+        <svg class="i"><use href="#i-search"/></svg>
+        <input id="contactsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off">
+      </div>
+
+      <div id="contactsList" class="list">
+        <div class="loading">Memuat kontak…</div>
+      </div>
+    </main>
+
+    <!-- AKUN -->
+    <main id="accountPage" class="page hidden">
+      <div class="page-title">
+        <div>
+          <h2>Akun</h2>
+          <p>Terhubung melalui Telegram</p>
+        </div>
+      </div>
+
+      <section class="card profile-card">
+        <div class="avatar large" id="accountAvatar">?</div>
+        <div>
+          <h3 id="accountName">—</h3>
+          <p id="accountUsername"></p>
+        </div>
+      </section>
+
+      <section class="card tips-card">
+        <h3>Simpan nomor lewat bot</h3>
+        <p>Kirim perintah ini ke bot Telegram:</p>
+        <ul>
+          <li><code>/save Budi 081234567890</code> menyimpan kontak</li>
+          <li>Kirim kartu kontak Telegram ke bot untuk menyimpannya</li>
+          <li><code>/contacts</code> melihat daftar kontak</li>
+          <li><code>/delcontact 081234567890</code> menghapus kontak</li>
+        </ul>
+      </section>
+    </main>
+
+    <!-- NAVIGASI BAWAH -->
+    <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi utama">
+      <button class="nav-item selected" id="chatsNav" type="button">
+        <svg class="i"><use href="#i-chat"/></svg><span>Chat</span>
+      </button>
+      <button class="nav-item" id="callsNav" type="button">
+        <svg class="i"><use href="#i-phone"/></svg><span>Panggilan</span>
+      </button>
+      <button class="nav-item" id="contactsNav" type="button">
+        <svg class="i"><use href="#i-users"/></svg><span>Kontak</span>
+      </button>
+      <button class="nav-item" id="profileNav" type="button">
+        <svg class="i"><use href="#i-user"/></svg><span>Akun</span>
+      </button>
+    </nav>
+
+    <!-- FORM KONTAK (bottom sheet) -->
+    <div id="contactSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="contactFormTitle">
+      <div class="sheet-backdrop" data-close-sheet></div>
+      <form id="contactForm" class="sheet-panel" novalidate>
+        <div class="sheet-handle"></div>
+        <h3 id="contactFormTitle">Tambah kontak</h3>
+
+        <label for="contactNameInput">Nama</label>
+        <input id="contactNameInput" type="text" maxlength="100" placeholder="Contoh: Budi" autocomplete="off">
+
+        <label for="contactPhoneInput">Nomor HP</label>
+        <input id="contactPhoneInput" type="tel" inputmode="tel" maxlength="25" placeholder="Contoh: 081234567890" autocomplete="off">
+        <p class="field-hint">Nomor berawalan 0 otomatis diubah ke format internasional (+62).</p>
+
+        <div class="form-actions">
+          <button type="button" class="secondary-button" data-close-sheet>Batal</button>
+          <button type="submit" id="saveContactButton" class="primary-button">Simpan</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
   </div>
 
   <script src="app.js"></script>

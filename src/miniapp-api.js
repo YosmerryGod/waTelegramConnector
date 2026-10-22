@@ -12,7 +12,14 @@ import {
   listMessages,
   markChatReadInMiniApp,
   setChatFavorite,
-  setChatArchived
+  setChatArchived,
+  // [ADDED] Contacts and call history.
+  ValidationError,
+  saveContact,
+  updateContact,
+  deleteContact,
+  listContacts,
+  listCalls
 } from "./database.js";
 
 const router = express.Router();
@@ -541,6 +548,138 @@ router.get("/search", (req, res) => {
     });
   } catch (error) {
     sendServerError(res, error, "Could not search");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// [ADDED] Contacts
+// ---------------------------------------------------------------------------
+
+// Validation problems are safe to show to the user; everything else is 500.
+function sendContactError(res, error, message) {
+  if (error instanceof ValidationError) {
+    return res.status(error.code === "DUPLICATE_PHONE" ? 409 : 400).json({
+      ok: false,
+      error: error.code,
+      message: error.message
+    });
+  }
+
+  return sendServerError(res, error, message);
+}
+
+function readContactBody(req) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+
+  return {
+    name: typeof body.name === "string" ? body.name : "",
+    phone: typeof body.phone_number === "string"
+      ? body.phone_number
+      : typeof body.phone === "string" ? body.phone : ""
+  };
+}
+
+// GET /api/miniapp/contacts
+router.get("/contacts", (req, res) => {
+  try {
+    res.json({
+      ok: true,
+      contacts: listContacts(req.telegramId)
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not list contacts");
+  }
+});
+
+// POST /api/miniapp/contacts
+// Body: { "name": "Budi", "phone_number": "081234567890" }
+// If the number already exists, its name is updated.
+router.post("/contacts", (req, res) => {
+  try {
+    const { created, contact } = saveContact(
+      req.telegramId,
+      readContactBody(req)
+    );
+
+    res.status(created ? 201 : 200).json({
+      ok: true,
+      created,
+      contact
+    });
+  } catch (error) {
+    sendContactError(res, error, "Could not save contact");
+  }
+});
+
+// PUT /api/miniapp/contacts/:id
+router.put("/contacts/:id", (req, res) => {
+  try {
+    const contact = updateContact(
+      req.telegramId,
+      req.params.id,
+      readContactBody(req)
+    );
+
+    if (!contact) {
+      return res.status(404).json({
+        ok: false,
+        error: "CONTACT_NOT_FOUND"
+      });
+    }
+
+    res.json({
+      ok: true,
+      contact
+    });
+  } catch (error) {
+    sendContactError(res, error, "Could not update contact");
+  }
+});
+
+// DELETE /api/miniapp/contacts/:id
+router.delete("/contacts/:id", (req, res) => {
+  try {
+    if (!deleteContact(req.telegramId, req.params.id)) {
+      return res.status(404).json({
+        ok: false,
+        error: "CONTACT_NOT_FOUND"
+      });
+    }
+
+    res.json({
+      ok: true
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not delete contact");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// [ADDED] Call history
+// ---------------------------------------------------------------------------
+
+// GET /api/miniapp/calls?limit=100&offset=0
+router.get("/calls", (req, res) => {
+  try {
+    const limit = parseLimit(req.query.limit, 100, 200);
+    const offset = Math.max(
+      0,
+      Number.parseInt(req.query.offset, 10) || 0
+    );
+
+    const calls = listCalls(req.telegramId, { limit, offset });
+
+    res.json({
+      ok: true,
+      calls,
+      pagination: {
+        limit,
+        offset,
+        count: calls.length
+      }
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not list calls");
   }
 });
 

@@ -102,6 +102,45 @@ db.exec(`
       REFERENCES chats(telegram_id, whatsapp_chat_id) ON DELETE CASCADE
   );
 
+  -- [ADDED] Buku kontak pribadi (nama + nomor HP) per pengguna Telegram.
+  CREATE TABLE IF NOT EXISTS contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE (telegram_id, phone_number),
+    FOREIGN KEY (telegram_id)
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  -- [ADDED] Riwayat panggilan WhatsApp (satu baris per panggilan).
+  CREATE TABLE IF NOT EXISTS calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    call_id TEXT NOT NULL,
+    direction TEXT NOT NULL CHECK (direction IN ('incoming', 'outgoing')),
+    status TEXT NOT NULL DEFAULT 'ringing'
+      CHECK (status IN ('ringing', 'answered', 'missed', 'rejected', 'no_answer')),
+    is_video INTEGER NOT NULL DEFAULT 0,
+    is_group INTEGER NOT NULL DEFAULT 0,
+    peer_jid TEXT,
+    phone_number TEXT,
+    call_timestamp INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE (telegram_id, call_id),
+    FOREIGN KEY (telegram_id)
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_contacts_owner_name
+    ON contacts(telegram_id, name COLLATE NOCASE);
+
+  CREATE INDEX IF NOT EXISTS idx_calls_owner_time
+    ON calls(telegram_id, call_timestamp DESC);
+
   CREATE INDEX IF NOT EXISTS idx_forwarded_messages_time
     ON forwarded_messages(forwarded_at);
 
@@ -677,6 +716,303 @@ export function updateChatPreferences(
   });
 
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// [ADDED] Contacts and call history
+// ---------------------------------------------------------------------------
+
+const DEFAULT_COUNTRY_CODE =
+  String(process.env.DEFAULT_COUNTRY_CODE || "62").replace(/\D/g, "") || "62";
+
+const MAX_CONTACTS_PER_USER = 2000;
+
+// Error yang aman ditampilkan ke pengguna (input tidak valid, duplikat, dll).
+export class ValidationError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = "ValidationError";
+    this.code = code;
+  }
+}
+
+// Ubah nomor ke format internasional tanpa "+": 0812... -> 62812...
+// Mengembalikan null jika nomor tidak valid (8-15 digit).
+export function normalizePhoneNumber(input) {
+  const raw = String(input ?? "").trim();
+  let digits = raw.replace(/\D/g, "");
+
+  if (!digits) {
+    return null;
+  }
+
+  if (!raw.startsWith("+")) {
+    if (digits.startsWith("00")) {
+      digits = digits.slice(2);
+    } else if (digits.startsWith("0")) {
+      digits = DEFAULT_COUNTRY_CODE + digits.slice(1);
+    }
+  }
+
+  return /^[1-9]\d{7,14}$/.test(digits) ? digits : null;
+}
+
+function normalizeContactName(input) {
+  const name = String(input ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 100);
+
+  return name || null;
+}
+
+function validateContactInput({ name, phone }) {
+  const cleanName = normalizeContactName(name);
+  const cleanPhone = normalizePhoneNumber(phone);
+
+  if (!cleanName) {
+    throw new ValidationError("INVALID_NAME", "Contact name is required.");
+  }
+
+  if (!cleanPhone) {
+    throw new ValidationError("INVALID_PHONE", "Phone number is not valid.");
+  }
+
+  return { cleanName, cleanPhone };
+}
+
+const contactStatements = {
+  getById: db.prepare(`
+    SELECT * FROM contacts WHERE telegram_id = ? AND id = ?
+  `),
+
+  getByPhone: db.prepare(`
+    SELECT * FROM contacts WHERE telegram_id = ? AND phone_number = ?
+  `),
+
+  count: db.prepare(`
+    SELECT COUNT(*) AS total FROM contacts WHERE telegram_id = ?
+  `),
+
+  insert: db.prepare(`
+    INSERT INTO contacts (
+      telegram_id, name, phone_number, created_at, updated_at
+    )
+    VALUES (@telegram_id, @name, @phone_number, @now, @now)
+  `),
+
+  update: db.prepare(`
+    UPDATE contacts
+    SET name = @name,
+        phone_number = @phone_number,
+        updated_at = @now
+    WHERE telegram_id = @telegram_id AND id = @id
+  `),
+
+  remove: db.prepare(`
+    DELETE FROM contacts WHERE telegram_id = ? AND id = ?
+  `),
+
+  removeByPhone: db.prepare(`
+    DELETE FROM contacts WHERE telegram_id = ? AND phone_number = ?
+  `),
+
+  list: db.prepare(`
+    SELECT * FROM contacts
+    WHERE telegram_id = ?
+    ORDER BY name COLLATE NOCASE ASC, id ASC
+    LIMIT ?
+  `)
+};
+
+const callStatements = {
+  // Satu baris per panggilan. Status hanya berubah dari 'ringing'
+  // ke status akhir, sehingga event ganda dari Baileys tidak menimpa hasil.
+  upsert: db.prepare(`
+    INSERT INTO calls (
+      telegram_id, call_id, direction, status, is_video, is_group,
+      peer_jid, phone_number, call_timestamp, created_at, updated_at
+    )
+    VALUES (
+      @telegram_id, @call_id, @direction, @status, @is_video, @is_group,
+      @peer_jid, @phone_number, @call_timestamp, @now, @now
+    )
+    ON CONFLICT(telegram_id, call_id) DO UPDATE SET
+      status = CASE
+        WHEN calls.status = 'ringing' THEN excluded.status
+        ELSE calls.status
+      END,
+      phone_number = COALESCE(calls.phone_number, excluded.phone_number),
+      peer_jid = COALESCE(calls.peer_jid, excluded.peer_jid),
+      updated_at = excluded.updated_at
+  `),
+
+  list: db.prepare(`
+    SELECT
+      c.*,
+      ct.id AS contact_id,
+      ct.name AS contact_name,
+      COALESCE(
+        ct.name,
+        CASE WHEN c.phone_number IS NOT NULL
+          THEN '+' || c.phone_number
+        END,
+        'Nomor tidak diketahui'
+      ) AS display_name,
+      CASE WHEN ct.id IS NULL THEN 0 ELSE 1 END AS is_saved
+    FROM calls c
+    LEFT JOIN contacts ct
+      ON ct.telegram_id = c.telegram_id
+      AND ct.phone_number = c.phone_number
+    WHERE c.telegram_id = @telegram_id
+    ORDER BY c.call_timestamp DESC, c.id DESC
+    LIMIT @limit OFFSET @offset
+  `)
+};
+
+// Simpan kontak baru. Jika nomor sudah ada, nama diperbarui.
+export function saveContact(telegramId, { name, phone }) {
+  const id = String(telegramId);
+  const { cleanName, cleanPhone } = validateContactInput({ name, phone });
+
+  return db.transaction(() => {
+    const existing = contactStatements.getByPhone.get(id, cleanPhone);
+    const now = Date.now();
+
+    if (existing) {
+      contactStatements.update.run({
+        telegram_id: id,
+        id: existing.id,
+        name: cleanName,
+        phone_number: cleanPhone,
+        now
+      });
+    } else {
+      if (contactStatements.count.get(id).total >= MAX_CONTACTS_PER_USER) {
+        throw new ValidationError(
+          "CONTACT_LIMIT",
+          "Contact limit reached."
+        );
+      }
+
+      contactStatements.insert.run({
+        telegram_id: id,
+        name: cleanName,
+        phone_number: cleanPhone,
+        now
+      });
+    }
+
+    return {
+      created: !existing,
+      contact: contactStatements.getByPhone.get(id, cleanPhone)
+    };
+  })();
+}
+
+// Ubah nama/nomor kontak. Mengembalikan null jika kontak tidak ditemukan.
+export function updateContact(telegramId, contactId, { name, phone }) {
+  const id = String(telegramId);
+  const rowId = Number.parseInt(contactId, 10);
+  const { cleanName, cleanPhone } = validateContactInput({ name, phone });
+
+  if (!Number.isInteger(rowId) || !contactStatements.getById.get(id, rowId)) {
+    return null;
+  }
+
+  const duplicate = contactStatements.getByPhone.get(id, cleanPhone);
+
+  if (duplicate && duplicate.id !== rowId) {
+    throw new ValidationError(
+      "DUPLICATE_PHONE",
+      "This number is already saved as another contact."
+    );
+  }
+
+  contactStatements.update.run({
+    telegram_id: id,
+    id: rowId,
+    name: cleanName,
+    phone_number: cleanPhone,
+    now: Date.now()
+  });
+
+  return contactStatements.getById.get(id, rowId);
+}
+
+export function deleteContact(telegramId, contactId) {
+  const rowId = Number.parseInt(contactId, 10);
+
+  if (!Number.isInteger(rowId)) {
+    return false;
+  }
+
+  return contactStatements.remove.run(String(telegramId), rowId).changes > 0;
+}
+
+export function deleteContactByPhone(telegramId, phone) {
+  const cleanPhone = normalizePhoneNumber(phone);
+
+  if (!cleanPhone) {
+    return false;
+  }
+
+  return contactStatements.removeByPhone.run(
+    String(telegramId),
+    cleanPhone
+  ).changes > 0;
+}
+
+export function listContacts(telegramId, limit = 1000) {
+  const safeLimit = Math.min(2000, Math.max(1, Number(limit) || 1000));
+
+  return contactStatements.list.all(String(telegramId), safeLimit);
+}
+
+// Catat event panggilan WhatsApp. Aman dipanggil berulang untuk call_id sama.
+export function recordCall(input) {
+  const telegramId = String(input.telegramId ?? "");
+  const callId = String(input.callId ?? "");
+
+  if (!/^\d+$/.test(telegramId) || !callId) {
+    throw new Error("Telegram ID and call ID are required.");
+  }
+
+  if (!["incoming", "outgoing"].includes(input.direction)) {
+    throw new Error("Invalid call direction.");
+  }
+
+  if (!["ringing", "answered", "missed", "rejected", "no_answer"]
+    .includes(input.status)) {
+    throw new Error("Invalid call status.");
+  }
+
+  const now = Date.now();
+  const timestamp = Number(input.timestampMs);
+
+  callStatements.upsert.run({
+    telegram_id: telegramId,
+    call_id: callId,
+    direction: input.direction,
+    status: input.status,
+    is_video: input.isVideo ? 1 : 0,
+    is_group: input.isGroup ? 1 : 0,
+    peer_jid: input.peerJid || null,
+    phone_number: normalizePhoneNumber(input.phoneNumber),
+    call_timestamp: Number.isFinite(timestamp) && timestamp > 0
+      ? timestamp
+      : now,
+    now
+  });
+}
+
+export function listCalls(telegramId, options = {}) {
+  return callStatements.list.all({
+    telegram_id: String(telegramId),
+    limit: Math.min(200, Math.max(1, Number(options.limit) || 100)),
+    offset: Math.max(0, Number(options.offset) || 0)
+  });
 }
 
 // Tutup database saat aplikasi berhenti.

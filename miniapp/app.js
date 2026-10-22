@@ -1,406 +1,1180 @@
+/* =========================================================
+   DOOD BOT Mini App
+   Halaman: Chat, Panggilan, Kontak, Akun
 
-"use strict";
+   Alamat API default: /api/miniapp (satu domain dengan server).
+   Jika Mini App di-host di domain lain, set sebelum app.js dimuat:
+     <script>window.MINIAPP_API_BASE = "https://domain-kamu.com/api/miniapp";</script>
+   ========================================================= */
 
-// [CONFIG] Ubah jika API berada di domain atau port berbeda.
-const API_BASE = "/api/miniapp";
+(() => {
+  "use strict";
 
-const tg = window.Telegram?.WebApp;
+  const tg = window.Telegram?.WebApp || null;
 
-const state = {
-  chats: [],
-  activeFilter: "all",
-  currentChat: null,
-  currentMessages: [],
-  searchQuery: "",
-  me: null,
-  busy: false
-};
+  const API_BASE = String(
+    window.MINIAPP_API_BASE || "/api/miniapp"
+  ).replace(/\/+$/, "");
 
-const $ = (selector) => document.querySelector(selector);
+  const $ = (selector, root = document) => root.querySelector(selector);
 
-function escapeHTML(value = "") {
-  return String(value).replace(/[&<>"']/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  })[char]);
-}
+  const state = {
+    page: "chats",
+    me: null,
 
-function showToast(message) {
-  const toast = $("#toast");
-  toast.textContent = message;
-  toast.classList.remove("hidden");
+    chats: [],
+    chatsLoaded: false,
+    filter: "all",
+    search: "",
+    messageHits: [],
+    currentChat: null,
 
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => {
-    toast.classList.add("hidden");
-  }, 2600);
-}
+    calls: [],
+    callsLoaded: false,
+    callsStale: false,
+    callFilter: "all",
+    callSearch: "",
 
-function getChatId(chat) {
-  return chat.chat_id ?? chat.whatsapp_chat_id ?? chat.id;
-}
+    contacts: [],
+    contactsLoaded: false,
+    contactSearch: "",
+    editingId: null
+  };
 
-function getChatName(chat) {
-  return chat.chat_name || chat.name || chat.phone_number || getChatId(chat) || "Chat";
-}
+  const PAGES = {
+    chats: "#chatPage",
+    calls: "#callsPage",
+    contacts: "#contactsPage",
+    account: "#accountPage"
+  };
 
-function getLastMessage(chat) {
-  return chat.last_message || chat.last_message_body || chat.lastMessage || "Belum ada pesan";
-}
+  const NAVS = {
+    chats: "#chatsNav",
+    calls: "#callsNav",
+    contacts: "#contactsNav",
+    account: "#profileNav"
+  };
 
-function formatTime(value) {
-  if (!value) return "";
-  let date;
+  const FILTER_TITLES = {
+    all: "Percakapan",
+    unread: "Belum dibaca",
+    favorites: "Favorit",
+    archived: "Arsip"
+  };
 
-  if (typeof value === "number") {
-    date = new Date(value < 1e12 ? value * 1000 : value);
-  } else {
-    date = new Date(value);
+  const MEDIA_LABELS = {
+    image: "Foto",
+    video: "Video",
+    audio: "Audio",
+    ptt: "Pesan suara",
+    document: "Dokumen",
+    sticker: "Stiker",
+    location: "Lokasi",
+    contact: "Kontak",
+    poll: "Polling",
+    call: "Panggilan"
+  };
+
+  const ERROR_TEXT = {
+    INVALID_TELEGRAM_AUTH: "Buka aplikasi ini dari dalam Telegram.",
+    USER_NOT_REGISTERED: "Kirim /start ke bot Telegram terlebih dahulu.",
+    INVALID_NAME: "Nama kontak wajib diisi.",
+    INVALID_PHONE: "Nomor HP tidak valid. Periksa kembali nomornya.",
+    DUPLICATE_PHONE: "Nomor ini sudah tersimpan sebagai kontak lain.",
+    CONTACT_LIMIT: "Batas jumlah kontak sudah tercapai.",
+    CONTACT_NOT_FOUND: "Kontak tidak ditemukan.",
+    CHAT_NOT_FOUND: "Chat tidak ditemukan."
+  };
+
+  /* ---------------------------------------------------------
+     Utilitas
+     --------------------------------------------------------- */
+
+  function escapeHTML(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
-  if (Number.isNaN(date.getTime())) return "";
+  const enc = encodeURIComponent;
 
-  const now = new Date();
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString("id-ID", {
+  function icon(name, extraClass = "") {
+    return `<svg class="i ${extraClass}"><use href="#i-${name}"/></svg>`;
+  }
+
+  function getInitials(name) {
+    const words = String(name || "")
+      .replace(/^\+/, "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (!words.length) return "?";
+
+    if (/^\d/.test(words[0])) return "#";
+
+    const first = [...words[0]][0] || "?";
+    const second = words.length > 1 ? [...words[1]][0] : "";
+
+    return (first + second).toUpperCase();
+  }
+
+  function avatarHue(seed) {
+    let hash = 0;
+
+    for (const char of String(seed || "")) {
+      hash = (hash * 31 + char.codePointAt(0)) % 360;
+    }
+
+    return hash;
+  }
+
+  function avatar(name, seed, extraClass = "") {
+    return `<div class="avatar ${extraClass}" style="--h:${avatarHue(seed || name)}">${escapeHTML(getInitials(name))}</div>`;
+  }
+
+  // Timestamp bisa detik (WhatsApp) atau milidetik.
+  function toMs(value) {
+    const number = Number(value);
+
+    if (!Number.isFinite(number) || number <= 0) return 0;
+
+    return number < 1e12 ? number * 1000 : number;
+  }
+
+  function startOfDay(ms) {
+    const date = new Date(ms);
+
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  }
+
+  function timeOnly(ms) {
+    return new Date(ms).toLocaleTimeString("id-ID", {
       hour: "2-digit",
       minute: "2-digit"
     });
   }
 
-  return date.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short"
-  });
-}
+  function shortDate(ms) {
+    const sameYear = new Date(ms).getFullYear() === new Date().getFullYear();
 
-function getInitials(name) {
-  const parts = String(name || "W").trim().split(/\s+/);
-  return parts.slice(0, 2).map((part) => part[0] || "").join("").toUpperCase();
-}
+    return new Date(ms).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      ...(sameYear ? {} : { year: "numeric" })
+    });
+  }
 
-function getUnread(chat) {
-  return Number(chat.unread_count ?? chat.unreadCount ?? 0);
-}
+  // Waktu di daftar chat: jam / Kemarin / tanggal.
+  function formatListTime(value) {
+    const ms = toMs(value);
 
-function isFavorite(chat) {
-  return Boolean(chat.is_favorite ?? chat.isFavorite ?? chat.favorite);
-}
+    if (!ms) return "";
 
-function isArchived(chat) {
-  return Boolean(chat.is_archived ?? chat.isArchived ?? chat.archived);
-}
+    const today = startOfDay(Date.now());
 
-function isOutgoing(message) {
-  return ["outgoing", "sent", "out"].includes(
-    String(message.direction || "").toLowerCase()
-  );
-}
+    if (ms >= today) return timeOnly(ms);
+    if (ms >= today - 864e5) return "Kemarin";
 
-async function api(path, options = {}) {
-  const initData = tg?.initData;
+    return shortDate(ms);
+  }
 
-  // Jangan memakai initDataUnsafe sebagai autentikasi.
-  if (!initData) {
-    throw new Error(
-      "Mini App harus dibuka dari Telegram agar data autentikasi tersedia."
+  function dayLabel(ms) {
+    const today = startOfDay(Date.now());
+
+    if (ms >= today) return "Hari ini";
+    if (ms >= today - 864e5) return "Kemarin";
+
+    return new Date(ms).toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  }
+
+  function formatPhone(phone) {
+    const digits = String(phone || "").replace(/\D/g, "");
+
+    return digits ? `+${digits}` : "";
+  }
+
+  let toastTimer = 0;
+
+  function showToast(message) {
+    const toast = $("#toast");
+
+    if (!toast) return;
+
+    toast.textContent = message;
+    toast.classList.remove("hidden");
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.add("hidden"), 2800);
+  }
+
+  function confirmAction(message) {
+    return new Promise((resolve) => {
+      if (tg?.showConfirm) {
+        tg.showConfirm(message, (ok) => resolve(Boolean(ok)));
+      } else {
+        resolve(window.confirm(message));
+      }
+    });
+  }
+
+  function openWhatsApp(phone) {
+    const digits = String(phone || "").replace(/\D/g, "");
+
+    if (!digits) return;
+
+    const url = `https://wa.me/${digits}`;
+
+    if (tg?.openLink) {
+      tg.openLink(url);
+    } else {
+      window.open(url, "_blank", "noopener");
+    }
+  }
+
+  function haptic(type) {
+    try {
+      tg?.HapticFeedback?.notificationOccurred(type);
+    } catch {
+      /* tidak penting */
+    }
+  }
+
+  function emptyState(iconName, title, text, actionHTML = "") {
+    return `
+      <div class="empty">
+        <div class="empty-icon">${icon(iconName)}</div>
+        <h3>${escapeHTML(title)}</h3>
+        <p>${escapeHTML(text)}</p>
+        ${actionHTML}
+      </div>`;
+  }
+
+  function errorState(message, retryId) {
+    return `
+      <div class="error-state">
+        <div>${escapeHTML(message)}</div>
+        <button id="${retryId}" class="secondary-button" type="button">Coba lagi</button>
+      </div>`;
+  }
+
+  /* ---------------------------------------------------------
+     API
+     --------------------------------------------------------- */
+
+  async function api(path, options = {}) {
+    const headers = {
+      "X-Telegram-Init-Data": tg?.initData || "",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...options.headers
+    };
+
+    let response;
+
+    try {
+      response = await fetch(API_BASE + path, { ...options, headers });
+    } catch {
+      throw new Error("Tidak dapat terhubung ke server.");
+    }
+
+    let data = null;
+
+    try {
+      data = await response.json();
+    } catch {
+      /* respons bukan JSON */
+    }
+
+    if (!response.ok || data?.ok === false) {
+      throw new Error(
+        ERROR_TEXT[data?.error] ||
+        data?.message ||
+        `Permintaan gagal (${response.status}).`
+      );
+    }
+
+    return data;
+  }
+
+  /* ---------------------------------------------------------
+     Navigasi
+     --------------------------------------------------------- */
+
+  function closeConversationUI() {
+    $("#conversationPage").classList.add("hidden");
+    $("#topbar").classList.remove("hidden");
+    document.body.classList.remove("in-chat");
+    state.currentChat = null;
+
+    try {
+      tg?.BackButton?.hide();
+    } catch {
+      /* tidak penting */
+    }
+  }
+
+  function setPage(page) {
+    state.page = page;
+    closeConversationUI();
+
+    for (const [key, selector] of Object.entries(PAGES)) {
+      $(selector).classList.toggle("hidden", key !== page);
+    }
+
+    for (const [key, selector] of Object.entries(NAVS)) {
+      const nav = $(selector);
+
+      nav.classList.toggle("selected", key === page);
+
+      if (key === page) {
+        nav.setAttribute("aria-current", "page");
+      } else {
+        nav.removeAttribute("aria-current");
+      }
+    }
+
+    if (page === "calls" && (!state.callsLoaded || state.callsStale)) {
+      loadCalls();
+    }
+
+    if (page === "contacts" && !state.contactsLoaded) {
+      loadContacts();
+    }
+
+    if (page === "account") {
+      renderAccount();
+    }
+
+    window.scrollTo(0, 0);
+  }
+
+  function refreshCurrentPage() {
+    if (state.page === "chats") return loadChats();
+    if (state.page === "calls") return loadCalls();
+    if (state.page === "contacts") return loadContacts();
+
+    return loadMe();
+  }
+
+  /* ---------------------------------------------------------
+     Akun
+     --------------------------------------------------------- */
+
+  async function loadMe() {
+    try {
+      const data = await api("/me");
+
+      state.me = data.user;
+
+      const name = state.me.firstName || state.me.username || "pengguna";
+
+      $("#connectionStatus").textContent = `Terhubung sebagai ${name}`;
+      renderAccount();
+    } catch (error) {
+      $("#connectionStatus").textContent = error.message;
+    }
+  }
+
+  function renderAccount() {
+    const me = state.me;
+
+    if (!me) return;
+
+    const fullName = [me.firstName, me.lastName].filter(Boolean).join(" ");
+    const name = fullName || me.username || "Pengguna Telegram";
+
+    $("#accountName").textContent = name;
+    $("#accountUsername").textContent = me.username ? `@${me.username}` : `ID ${me.id}`;
+
+    const accountAvatar = $("#accountAvatar");
+
+    accountAvatar.textContent = getInitials(name);
+    accountAvatar.style.setProperty("--h", avatarHue(name));
+  }
+
+  /* ---------------------------------------------------------
+     Chat
+     --------------------------------------------------------- */
+
+  async function loadChats() {
+    const list = $("#chatList");
+
+    if (!state.chatsLoaded) {
+      list.innerHTML = '<div class="loading">Memuat percakapan…</div>';
+    }
+
+    try {
+      const archived = state.filter === "archived";
+      const data = await api(`/chats?limit=100&archived=${archived}`);
+
+      state.chats = data.chats || [];
+      state.chatsLoaded = true;
+      renderChats();
+    } catch (error) {
+      state.chatsLoaded = false;
+      list.innerHTML = errorState(error.message, "retryChats");
+      $("#retryChats")?.addEventListener("click", loadChats);
+    }
+  }
+
+  function chatName(chat) {
+    return chat.display_name || chat.name || formatPhone(chat.phone_number) || chat.whatsapp_chat_id;
+  }
+
+  function renderChats() {
+    const list = $("#chatList");
+    const query = state.search.trim().toLowerCase();
+
+    let items = state.chats.filter((chat) => {
+      if (state.filter === "unread" && !(chat.unread_count > 0)) return false;
+      if (state.filter === "favorites" && !chat.is_favorite) return false;
+
+      if (!query) return true;
+
+      return [chatName(chat), chat.phone_number, chat.last_message_preview]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+
+    $("#listTitle").textContent = FILTER_TITLES[state.filter] || "Percakapan";
+    $("#chatCount").textContent = `${items.length} chat`;
+
+    const hits = query.length >= 2 ? state.messageHits : [];
+
+    if (!items.length && !hits.length) {
+      list.innerHTML = query
+        ? emptyState("search", "Tidak ada hasil", "Coba kata kunci lain.")
+        : emptyState(
+            "chat",
+            "Belum ada percakapan",
+            state.filter === "all"
+              ? "Pesan WhatsApp yang masuk akan muncul di sini."
+              : "Tidak ada chat pada filter ini."
+          );
+      return;
+    }
+
+    const chatRows = items.map((chat) => {
+      const name = chatName(chat);
+      const unread = Number(chat.unread_count) || 0;
+      const isGroup = chat.chat_type === "group";
+
+      return `
+        <button class="list-item" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}">
+          ${avatar(name)}
+          <div class="item-body">
+            <div class="item-row">
+              <span class="item-title">${escapeHTML(name)}</span>
+              <span class="item-time ${unread ? "is-unread" : ""}">${escapeHTML(formatListTime(chat.last_message_at))}</span>
+            </div>
+            <div class="item-row">
+              <span class="item-sub">${escapeHTML(chat.last_message_preview || (isGroup ? "Grup" : "Belum ada pesan"))}</span>
+              ${chat.is_favorite || unread
+                ? `<span class="item-flags">${chat.is_favorite ? icon("star", "mini-icon fav") : ""}${unread ? `<span class="badge">${unread > 99 ? "99+" : unread}</span>` : ""}</span>`
+                : ""}
+            </div>
+          </div>
+        </button>`;
+    }).join("");
+
+    const hitRows = hits.length
+      ? `<div class="sub-heading">Pesan</div>` + hits.map((hit) => {
+          const name = hit.chat_name || hit.sender_name || "Chat";
+
+          return `
+            <button class="list-item" type="button" data-chat="${escapeHTML(hit.whatsapp_chat_id)}">
+              ${avatar(name, name, "small")}
+              <div class="item-body">
+                <div class="item-row">
+                  <span class="item-title">${escapeHTML(name)}</span>
+                  <span class="item-time">${escapeHTML(formatListTime(hit.message_timestamp))}</span>
+                </div>
+                <div class="item-row">
+                  <span class="item-sub">${escapeHTML(hit.body || "")}</span>
+                </div>
+              </div>
+            </button>`;
+        }).join("")
+      : "";
+
+    list.innerHTML = chatRows + hitRows;
+  }
+
+  let searchTimer = 0;
+  let searchSeq = 0;
+
+  function onChatSearch(event) {
+    state.search = event.target.value;
+
+    const query = state.search.trim();
+
+    clearTimeout(searchTimer);
+
+    if (query.length < 2) {
+      state.messageHits = [];
+      renderChats();
+      return;
+    }
+
+    renderChats();
+
+    searchTimer = setTimeout(async () => {
+      const seq = ++searchSeq;
+
+      try {
+        const data = await api(`/search?q=${enc(query)}`);
+
+        if (seq !== searchSeq) return;
+
+        state.messageHits = data.messages || [];
+        renderChats();
+      } catch {
+        /* pencarian pesan bersifat tambahan */
+      }
+    }, 350);
+  }
+
+  function mediaLabel(message) {
+    const label = MEDIA_LABELS[message.message_type] || `[${message.message_type || "pesan"}]`;
+
+    return message.media_file_name ? `${label} · ${message.media_file_name}` : label;
+  }
+
+  async function openChat(chatId) {
+    const known = state.chats.find((chat) => chat.whatsapp_chat_id === chatId);
+
+    state.currentChat = known || { whatsapp_chat_id: chatId };
+
+    $(PAGES.chats).classList.add("hidden");
+    $("#conversationPage").classList.remove("hidden");
+    $("#topbar").classList.add("hidden");
+    document.body.classList.add("in-chat");
+
+    try {
+      tg?.BackButton?.show();
+    } catch {
+      /* tidak penting */
+    }
+
+    updateConversationHeader();
+
+    const messageList = $("#messageList");
+
+    messageList.innerHTML = '<div class="loading">Memuat pesan…</div>';
+
+    try {
+      const data = await api(`/chats/${enc(chatId)}/messages?limit=200`);
+
+      if (state.currentChat?.whatsapp_chat_id !== chatId) return;
+
+      state.currentChat = { ...state.currentChat, ...data.chat };
+      updateConversationHeader();
+      renderMessages(data.messages || []);
+
+      // Status baca hanya lokal; tidak mengirim read receipt ke WhatsApp.
+      api(`/chats/${enc(chatId)}/read`, { method: "POST" }).catch(() => {});
+
+      if (known) {
+        known.unread_count = 0;
+      }
+    } catch (error) {
+      messageList.innerHTML = errorState(error.message, "retryMessages");
+      $("#retryMessages")?.addEventListener("click", () => openChat(chatId));
+    }
+  }
+
+  function updateConversationHeader() {
+    const chat = state.currentChat;
+
+    if (!chat) return;
+
+    const name = chatName(chat);
+    const isGroup = chat.chat_type === "group";
+
+    $("#conversationName").textContent = name;
+    $("#conversationSubtitle").textContent = isGroup
+      ? "Grup"
+      : formatPhone(chat.phone_number) || "Chat pribadi";
+
+    const conversationAvatar = $("#conversationAvatar");
+
+    conversationAvatar.textContent = getInitials(name);
+    conversationAvatar.style.setProperty("--h", avatarHue(name));
+
+    $("#favoriteButton").classList.toggle("is-on", Boolean(chat.is_favorite));
+    $("#archiveButton").classList.toggle("is-on", Boolean(chat.is_archived));
+    $("#archiveButton").setAttribute(
+      "aria-label",
+      chat.is_archived ? "Keluarkan dari arsip" : "Arsipkan"
     );
   }
 
-  const headers = {
-    "Content-Type": "application/json",
-    "X-Telegram-Init-Data": initData,
-    ...(options.headers || {})
-  };
+  function renderMessages(messages) {
+    const list = $("#messageList");
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(data.error || data.message || `HTTP ${response.status}`);
-  }
-
-  return data;
-}
-
-function extractList(data, keys) {
-  if (Array.isArray(data)) return data;
-
-  for (const key of keys) {
-    if (Array.isArray(data?.[key])) return data[key];
-  }
-
-  return [];
-}
-
-function renderChats() {
-  const list = $("#chatList");
-  const query = state.searchQuery.toLowerCase().trim();
-
-  let chats = state.chats.filter((chat) => {
-    const name = getChatName(chat).toLowerCase();
-    const preview = getLastMessage(chat).toLowerCase();
-
-    if (query && !name.includes(query) && !preview.includes(query)) {
-      return false;
+    if (!messages.length) {
+      list.innerHTML = emptyState("chat", "Belum ada pesan", "Riwayat pesan akan muncul di sini.");
+      return;
     }
 
-    switch (state.activeFilter) {
-      case "unread":
-        return getUnread(chat) > 0;
-      case "favorites":
-        return isFavorite(chat);
-      case "archived":
-        return isArchived(chat);
-      default:
-        return !isArchived(chat);
-    }
-  });
+    const isGroup = state.currentChat?.chat_type === "group";
+    let lastDay = "";
 
-  $("#chatCount").textContent = `${chats.length} chat`;
-  $("#listTitle").textContent = ({
-    all: "Percakapan",
-    unread: "Belum dibaca",
-    favorites: "Favorit",
-    archived: "Arsip"
-  })[state.activeFilter];
+    list.innerHTML = messages.map((message) => {
+      const ms = toMs(message.message_timestamp);
+      const day = ms ? startOfDay(ms) : 0;
+      const outgoing = message.direction === "outgoing";
 
-  if (!chats.length) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div style="font-size:28px;margin-bottom:8px">▤</div>
-        Tidak ada percakapan ditemukan.
-      </div>`;
-    return;
+      let separator = "";
+
+      if (day && String(day) !== lastDay) {
+        lastDay = String(day);
+        separator = `<div class="day-label">${escapeHTML(dayLabel(ms))}</div>`;
+      }
+
+      const sender = isGroup && !outgoing && message.sender_name
+        ? `<div class="message-sender">${escapeHTML(message.sender_name)}</div>`
+        : "";
+
+      const body = message.body
+        ? escapeHTML(message.body)
+        : `<span class="message-media">${escapeHTML(mediaLabel(message))}</span>`;
+
+      return `${separator}
+        <div class="message ${outgoing ? "outgoing" : ""}">
+          ${sender}<div class="message-text">${body}</div>
+          <div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""}</div>
+        </div>`;
+    }).join("");
+
+    list.scrollTop = list.scrollHeight;
   }
 
-  list.innerHTML = chats.map((chat) => {
-    const id = getChatId(chat);
-    const name = getChatName(chat);
-    const last = getLastMessage(chat);
-    const timestamp = chat.last_message_at ||
-      chat.last_message_timestamp ||
-      chat.updated_at ||
-      chat.timestamp;
+  function patchListedChat(chat, changes) {
+    const listed = state.chats.find(
+      (item) => item.whatsapp_chat_id === chat.whatsapp_chat_id
+    );
 
-    return `
-      <article class="chat-item" data-chat-id="${escapeHTML(id)}">
-        <div class="avatar">${escapeHTML(getInitials(name))}</div>
-        <div class="chat-details">
-          <div class="chat-top">
-            <span class="chat-name">${escapeHTML(name)}</span>
-            <span class="chat-time">${escapeHTML(formatTime(timestamp))}</span>
-          </div>
-          <div class="chat-bottom">
-            <span class="chat-preview">${escapeHTML(last)}</span>
-            <span class="chat-tags">
-              ${isFavorite(chat) ? '<span class="tag">★</span>' : ""}
-              ${chat.chat_type === "group" ? '<span class="tag">Grup</span>' : ""}
-              ${getUnread(chat) > 0
-                ? `<span class="unread-dot">${escapeHTML(getUnread(chat))}</span>`
-                : ""}
-            </span>
-          </div>
-        </div>
-      </article>`;
-  }).join("");
-
-  list.querySelectorAll("[data-chat-id]").forEach((element) => {
-    element.addEventListener("click", () => {
-      openChat(element.dataset.chatId);
-    });
-  });
-}
-
-async function loadChats() {
-  $("#chatList").innerHTML = '<div class="loading">Memuat percakapan...</div>';
-
-  try {
-    const data = await api("/chats");
-    state.chats = extractList(data, ["chats", "items", "results"]);
-    $("#connectionStatus").textContent = "Terhubung ke akun";
-    renderChats();
-  } catch (error) {
-    $("#connectionStatus").textContent = "Gagal terhubung";
-    $("#chatList").innerHTML = `
-      <div class="error-state">
-        <div>${escapeHTML(error.message)}</div>
-        <button id="retryButton">Coba lagi</button>
-      </div>`;
-    $("#retryButton").addEventListener("click", loadChats);
-  }
-}
-
-async function openChat(chatId) {
-  const chat = state.chats.find((item) => String(getChatId(item)) === String(chatId));
-
-  if (!chat) {
-    showToast("Data chat tidak ditemukan.");
-    return;
+    if (listed) Object.assign(listed, changes);
   }
 
-  state.currentChat = chat;
-  state.currentMessages = [];
+  async function toggleFavorite() {
+    const chat = state.currentChat;
 
-  $("#chatPage").classList.add("hidden");
-  $("#conversationPage").classList.remove("hidden");
+    if (!chat) return;
 
-  const name = getChatName(chat);
-  $("#conversationName").textContent = name;
-  $("#conversationSubtitle").textContent =
-    chat.chat_type === "group" ? "Grup WhatsApp" : "Percakapan WhatsApp";
-  $("#conversationAvatar").textContent = getInitials(name);
-  $("#favoriteButton").textContent = isFavorite(chat) ? "★" : "☆";
-  $("#messageList").innerHTML = '<div class="loading">Memuat pesan...</div>';
+    const next = !chat.is_favorite;
 
-  try {
-    // [API] ID diencode untuk aman sebagai bagian URL.
-    const id = encodeURIComponent(chatId);
-    const data = await api(`/chats/${id}/messages`);
-    state.currentMessages = extractList(data, ["messages", "items", "results"]);
-    renderMessages();
-
-    // [IMPORTANT] Endpoint ini hanya mengubah status lokal di database.
-    await api(`/chats/${id}/read`, {
-      method: "POST",
-      body: JSON.stringify({})
-    }).catch(() => {});
-
-    chat.unread_count = 0;
-    renderChats();
-  } catch (error) {
-    $("#messageList").innerHTML = `
-      <div class="error-state">${escapeHTML(error.message)}</div>`;
-  }
-}
-
-function renderMessages() {
-  const list = $("#messageList");
-  const messages = state.currentMessages;
-
-  if (!messages.length) {
-    list.innerHTML = '<div class="empty-state">Belum ada pesan tersimpan.</div>';
-    return;
-  }
-
-  list.innerHTML = messages.map((message) => {
-    const outgoing = isOutgoing(message);
-    const body = message.body ||
-      message.text ||
-      message.message_body ||
-      (message.message_type ? `[${message.message_type}]` : "[Pesan]");
-
-    const timestamp = message.message_timestamp ||
-      message.timestamp ||
-      message.created_at;
-
-    return `
-      <div class="message ${outgoing ? "outgoing" : ""}">
-        ${!outgoing && message.sender_name
-          ? `<div style="font-size:10px;color:var(--green);margin-bottom:4px">${escapeHTML(message.sender_name)}</div>`
-          : ""}
-        <div>${escapeHTML(body)}</div>
-        <div class="message-meta">${escapeHTML(formatTime(timestamp))}</div>
-      </div>`;
-  }).join("");
-
-  list.scrollTop = list.scrollHeight;
-}
-
-function showChatList() {
-  $("#conversationPage").classList.add("hidden");
-  $("#chatPage").classList.remove("hidden");
-  state.currentChat = null;
-}
-
-async function toggleFavorite() {
-  const chat = state.currentChat;
-  if (!chat) return;
-
-  const id = encodeURIComponent(getChatId(chat));
-  const next = !isFavorite(chat);
-
-  try {
-    await api(`/chats/${id}/favorite`, {
-      method: "PUT",
-      body: JSON.stringify({ favorite: next })
-    });
-
-    chat.is_favorite = next;
-    $("#favoriteButton").textContent = next ? "★" : "☆";
-    renderChats();
-    showToast(next ? "Ditambahkan ke favorit" : "Dihapus dari favorit");
-  } catch (error) {
-    showToast(error.message);
-  }
-}
-
-function setupEvents() {
-  $("#refreshButton").addEventListener("click", loadChats);
-  $("#backButton").addEventListener("click", showChatList);
-  $("#favoriteButton").addEventListener("click", toggleFavorite);
-  $("#searchInput").addEventListener("input", (event) => {
-    state.searchQuery = event.target.value;
-    renderChats();
-  });
-
-  document.querySelectorAll(".filter").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.activeFilter = button.dataset.filter;
-
-      document.querySelectorAll(".filter").forEach((item) => {
-        item.classList.toggle("active", item === button);
+    try {
+      await api(`/chats/${enc(chat.whatsapp_chat_id)}/favorite`, {
+        method: "PUT",
+        body: JSON.stringify({ favorite: next })
       });
 
-      renderChats();
-    });
-  });
-
-  $("#chatsNav").addEventListener("click", () => {
-    showChatList();
-    $("#chatsNav").classList.add("selected");
-    $("#profileNav").classList.remove("selected");
-  });
-
-  $("#profileNav").addEventListener("click", () => {
-    const user = state.me;
-    showToast(user?.first_name
-      ? `Akun Telegram: ${user.first_name}`
-      : "Akun terhubung melalui Telegram.");
-  });
-}
-
-async function init() {
-  if (tg) {
-    tg.ready();
-    tg.expand();
-
-    // Menyesuaikan warna Telegram dengan tampilan aplikasi.
-    try {
-      tg.setHeaderColor("#101114");
-      tg.setBackgroundColor("#101114");
-    } catch {
-      // Beberapa versi Telegram mungkin tidak mendukung pengaturan ini.
+      chat.is_favorite = next ? 1 : 0;
+      patchListedChat(chat, { is_favorite: chat.is_favorite });
+      updateConversationHeader();
+      showToast(next ? "Ditambahkan ke favorit" : "Dihapus dari favorit");
+    } catch (error) {
+      showToast(error.message);
     }
   }
 
-  setupEvents();
+  async function toggleArchive() {
+    const chat = state.currentChat;
 
-  try {
-    const data = await api("/me");
-    state.me = data.user || data;
-  } catch {
-    // loadChats akan menampilkan pesan autentikasi/API jika gagal.
+    if (!chat) return;
+
+    const next = !chat.is_archived;
+
+    try {
+      await api(`/chats/${enc(chat.whatsapp_chat_id)}/archive`, {
+        method: "PUT",
+        body: JSON.stringify({ archived: next })
+      });
+
+      showToast(next ? "Chat diarsipkan" : "Chat dikeluarkan dari arsip");
+      setPage("chats");
+      loadChats();
+    } catch (error) {
+      showToast(error.message);
+    }
   }
 
-  await loadChats();
-}
+  /* ---------------------------------------------------------
+     Panggilan
+     --------------------------------------------------------- */
 
-document.addEventListener("DOMContentLoaded", init);
+  async function loadCalls() {
+    const list = $("#callsList");
+
+    if (!state.callsLoaded) {
+      list.innerHTML = '<div class="loading">Memuat panggilan…</div>';
+    }
+
+    try {
+      const data = await api("/calls?limit=200");
+
+      state.calls = data.calls || [];
+      state.callsLoaded = true;
+      state.callsStale = false;
+      renderCalls();
+    } catch (error) {
+      state.callsLoaded = false;
+      list.innerHTML = errorState(error.message, "retryCalls");
+      $("#retryCalls")?.addEventListener("click", loadCalls);
+    }
+  }
+
+  function callKind(call) {
+    if (call.direction === "outgoing") return "outgoing";
+
+    return call.status === "missed" ? "missed" : "incoming";
+  }
+
+  function callLabel(call) {
+    if (call.status === "rejected") return "Ditolak";
+
+    if (call.direction === "outgoing") {
+      return call.status === "no_answer" ? "Tidak dijawab" : "Keluar";
+    }
+
+    return call.status === "missed" ? "Tak terjawab" : "Masuk";
+  }
+
+  function renderCalls() {
+    const list = $("#callsList");
+    const query = state.callSearch.trim().toLowerCase();
+    const digits = query.replace(/\D/g, "").replace(/^0+/, "");
+
+    const calls = state.calls.filter((call) => {
+      if (state.callFilter !== "all" && callKind(call) !== state.callFilter) {
+        return false;
+      }
+
+      if (!query) return true;
+
+      return (
+        String(call.display_name || "").toLowerCase().includes(query) ||
+        Boolean(digits && String(call.phone_number || "").includes(digits))
+      );
+    });
+
+    $("#callCount").textContent = `${calls.length} panggilan`;
+
+    if (!calls.length) {
+      list.innerHTML = query || state.callFilter !== "all"
+        ? emptyState("search", "Tidak ada hasil", "Coba ubah filter atau kata kunci.")
+        : emptyState(
+            "phone",
+            "Belum ada panggilan",
+            "Panggilan WhatsApp masuk dan keluar akan dicatat di sini."
+          );
+      return;
+    }
+
+    let lastDay = 0;
+
+    list.innerHTML = calls.map((call) => {
+      const ms = toMs(call.call_timestamp);
+      const day = startOfDay(ms);
+      const kind = callKind(call);
+      const canSave = !call.is_saved && call.phone_number;
+
+      let heading = "";
+
+      if (day !== lastDay) {
+        lastDay = day;
+        heading = `<div class="sub-heading">${escapeHTML(dayLabel(ms))}</div>`;
+      }
+
+      const iconName = kind === "missed" ? "call-missed" : kind === "outgoing" ? "call-out" : "call-in";
+
+      return `${heading}
+        <article class="list-item">
+          <div class="call-icon ${kind}">${icon(iconName)}</div>
+          <div class="item-body">
+            <div class="item-title ${kind === "missed" ? "danger" : ""}">${escapeHTML(call.display_name)}</div>
+            <div class="item-sub call-meta">
+              ${escapeHTML(callLabel(call))}
+              ${call.is_video ? `· ${icon("video", "mini-icon")} Video` : "· Suara"}
+              ${call.is_group ? "· Grup" : ""}
+            </div>
+          </div>
+          <div class="call-side">
+            <span class="item-time">${escapeHTML(timeOnly(ms))}</span>
+            ${canSave
+              ? `<button class="link-button" type="button" data-save-call="${escapeHTML(call.id)}">Simpan</button>`
+              : call.is_saved
+                ? `<span class="saved-tag">${icon("bookmark")}Tersimpan</span>`
+                : ""}
+          </div>
+        </article>`;
+    }).join("");
+  }
+
+  /* ---------------------------------------------------------
+     Kontak
+     --------------------------------------------------------- */
+
+  async function loadContacts() {
+    const list = $("#contactsList");
+
+    if (!state.contactsLoaded) {
+      list.innerHTML = '<div class="loading">Memuat kontak…</div>';
+    }
+
+    try {
+      const data = await api("/contacts");
+
+      state.contacts = data.contacts || [];
+      state.contactsLoaded = true;
+      renderContacts();
+    } catch (error) {
+      state.contactsLoaded = false;
+      list.innerHTML = errorState(error.message, "retryContacts");
+      $("#retryContacts")?.addEventListener("click", loadContacts);
+    }
+  }
+
+  function renderContacts() {
+    const list = $("#contactsList");
+    const query = state.contactSearch.trim().toLowerCase();
+    const digits = query.replace(/\D/g, "").replace(/^0+/, "");
+
+    const contacts = state.contacts.filter((contact) => {
+      if (!query) return true;
+
+      return (
+        contact.name.toLowerCase().includes(query) ||
+        Boolean(digits && contact.phone_number.includes(digits))
+      );
+    });
+
+    if (!contacts.length) {
+      list.innerHTML = query
+        ? emptyState("search", "Kontak tidak ditemukan", "Coba nama atau nomor lain.")
+        : emptyState(
+            "users",
+            "Belum ada kontak",
+            "Simpan nomor HP dari sini, atau kirim /save ke bot Telegram.",
+            `<button class="primary-button" type="button" data-add-contact>${icon("plus")}Tambah kontak</button>`
+          );
+      return;
+    }
+
+    list.innerHTML = contacts.map((contact) => `
+      <article class="list-item">
+        ${avatar(contact.name, contact.name, "small")}
+        <div class="item-body">
+          <div class="item-title">${escapeHTML(contact.name)}</div>
+          <div class="item-sub">${escapeHTML(formatPhone(contact.phone_number))}</div>
+        </div>
+        <div class="contact-actions">
+          <button class="icon-button small" type="button" data-wa="${escapeHTML(contact.phone_number)}" aria-label="Buka di WhatsApp">${icon("chat")}</button>
+          <button class="icon-button small" type="button" data-edit="${escapeHTML(contact.id)}" aria-label="Edit kontak">${icon("edit")}</button>
+          <button class="icon-button small danger" type="button" data-del="${escapeHTML(contact.id)}" aria-label="Hapus kontak">${icon("trash")}</button>
+        </div>
+      </article>`).join("");
+  }
+
+  function openContactSheet(contact = null, prefill = null) {
+    state.editingId = contact ? contact.id : null;
+
+    $("#contactFormTitle").textContent = contact ? "Edit kontak" : "Tambah kontak";
+    $("#saveContactButton").textContent = contact ? "Simpan perubahan" : "Simpan";
+
+    const nameInput = $("#contactNameInput");
+    const phoneInput = $("#contactPhoneInput");
+
+    nameInput.value = contact?.name || prefill?.name || "";
+    phoneInput.value = contact ? formatPhone(contact.phone_number) : formatPhone(prefill?.phone);
+    nameInput.classList.remove("invalid");
+    phoneInput.classList.remove("invalid");
+
+    $("#contactSheet").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+
+    try {
+      tg?.BackButton?.show();
+    } catch {
+      /* tidak penting */
+    }
+
+    setTimeout(() => (nameInput.value ? phoneInput : nameInput).focus(), 60);
+  }
+
+  function closeContactSheet() {
+    $("#contactSheet").classList.add("hidden");
+    $("#contactForm").reset();
+    document.body.style.overflow = "";
+    state.editingId = null;
+
+    if (!document.body.classList.contains("in-chat")) {
+      try {
+        tg?.BackButton?.hide();
+      } catch {
+        /* tidak penting */
+      }
+    }
+  }
+
+  async function submitContact(event) {
+    event.preventDefault();
+
+    const nameInput = $("#contactNameInput");
+    const phoneInput = $("#contactPhoneInput");
+    const name = nameInput.value.trim();
+    const phone = phoneInput.value.trim();
+    const digits = phone.replace(/\D/g, "");
+
+    nameInput.classList.toggle("invalid", !name);
+    phoneInput.classList.toggle("invalid", digits.length < 8 || digits.length > 16);
+
+    if (!name) {
+      showToast(ERROR_TEXT.INVALID_NAME);
+      nameInput.focus();
+      return;
+    }
+
+    if (digits.length < 8 || digits.length > 16) {
+      showToast(ERROR_TEXT.INVALID_PHONE);
+      phoneInput.focus();
+      return;
+    }
+
+    const editingId = state.editingId;
+    const button = $("#saveContactButton");
+
+    button.disabled = true;
+
+    try {
+      const data = await api(
+        editingId == null ? "/contacts" : `/contacts/${enc(editingId)}`,
+        {
+          method: editingId == null ? "POST" : "PUT",
+          body: JSON.stringify({ name, phone_number: phone })
+        }
+      );
+
+      closeContactSheet();
+      haptic("success");
+
+      showToast(
+        editingId != null
+          ? "Kontak diperbarui"
+          : data.created === false
+            ? "Nomor sudah ada, nama diperbarui"
+            : "Kontak disimpan"
+      );
+
+      state.callsStale = true;
+      await loadContacts();
+
+      if (state.page === "calls") loadCalls();
+    } catch (error) {
+      haptic("error");
+      showToast(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function removeContact(id) {
+    const contact = state.contacts.find((item) => String(item.id) === String(id));
+
+    if (!contact) return;
+
+    if (!(await confirmAction(`Hapus ${contact.name} dari kontak?`))) return;
+
+    try {
+      await api(`/contacts/${enc(id)}`, { method: "DELETE" });
+
+      state.callsStale = true;
+      showToast("Kontak dihapus");
+      await loadContacts();
+    } catch (error) {
+      showToast(error.message);
+    }
+  }
+
+  /* ---------------------------------------------------------
+     Event
+     --------------------------------------------------------- */
+
+  function bindEvents() {
+    $("#refreshButton").addEventListener("click", refreshCurrentPage);
+    $("#backButton").addEventListener("click", () => setPage("chats"));
+    $("#favoriteButton").addEventListener("click", toggleFavorite);
+    $("#archiveButton").addEventListener("click", toggleArchive);
+
+    $("#chatsNav").addEventListener("click", () => setPage("chats"));
+    $("#callsNav").addEventListener("click", () => setPage("calls"));
+    $("#contactsNav").addEventListener("click", () => setPage("contacts"));
+    $("#profileNav").addEventListener("click", () => setPage("account"));
+
+    // Chat
+    $("#searchInput").addEventListener("input", onChatSearch);
+
+    $("#chatFilters").addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-filter]");
+
+      if (!chip) return;
+
+      const wasArchived = state.filter === "archived";
+
+      state.filter = chip.dataset.filter;
+
+      document.querySelectorAll("#chatFilters .chip").forEach((item) => {
+        item.classList.toggle("active", item === chip);
+      });
+
+      // Arsip memakai data berbeda dari daftar utama.
+      if (wasArchived !== (state.filter === "archived")) {
+        state.chatsLoaded = false;
+        loadChats();
+      } else {
+        renderChats();
+      }
+    });
+
+    $("#chatList").addEventListener("click", (event) => {
+      const row = event.target.closest("[data-chat]");
+
+      if (row) openChat(row.dataset.chat);
+    });
+
+    // Panggilan
+    $("#callsSearchInput").addEventListener("input", (event) => {
+      state.callSearch = event.target.value;
+      renderCalls();
+    });
+
+    $("#callFilters").addEventListener("click", (event) => {
+      const chip = event.target.closest("[data-call-filter]");
+
+      if (!chip) return;
+
+      state.callFilter = chip.dataset.callFilter;
+
+      document.querySelectorAll("#callFilters .chip").forEach((item) => {
+        item.classList.toggle("active", item === chip);
+      });
+
+      renderCalls();
+    });
+
+    $("#callsList").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-save-call]");
+
+      if (!button) return;
+
+      const call = state.calls.find((item) => String(item.id) === button.dataset.saveCall);
+
+      if (!call?.phone_number) {
+        showToast("Nomor telepon tidak tersedia.");
+        return;
+      }
+
+      openContactSheet(null, { phone: call.phone_number });
+    });
+
+    // Kontak
+    $("#addContactButton").addEventListener("click", () => openContactSheet());
+
+    $("#contactsSearchInput").addEventListener("input", (event) => {
+      state.contactSearch = event.target.value;
+      renderContacts();
+    });
+
+    $("#contactsList").addEventListener("click", (event) => {
+      if (event.target.closest("[data-add-contact]")) {
+        openContactSheet();
+        return;
+      }
+
+      const wa = event.target.closest("[data-wa]");
+      const edit = event.target.closest("[data-edit]");
+      const del = event.target.closest("[data-del]");
+
+      if (wa) {
+        openWhatsApp(wa.dataset.wa);
+      } else if (edit) {
+        const contact = state.contacts.find(
+          (item) => String(item.id) === edit.dataset.edit
+        );
+
+        if (contact) openContactSheet(contact);
+      } else if (del) {
+        removeContact(del.dataset.del);
+      }
+    });
+
+    // Form kontak
+    $("#contactForm").addEventListener("submit", submitContact);
+
+    $("#contactSheet").addEventListener("click", (event) => {
+      if (event.target.closest("[data-close-sheet]")) closeContactSheet();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !$("#contactSheet").classList.contains("hidden")) {
+        closeContactSheet();
+      }
+    });
+  }
+
+  /* ---------------------------------------------------------
+     Telegram & tema
+     --------------------------------------------------------- */
+
+  function applyTheme() {
+    const scheme = tg?.colorScheme ||
+      (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+    document.documentElement.dataset.theme = scheme === "dark" ? "dark" : "light";
+
+    try {
+      tg?.setHeaderColor?.("bg_color");
+      tg?.setBackgroundColor?.("bg_color");
+    } catch {
+      /* versi Telegram lama */
+    }
+  }
+
+  function initTelegram() {
+    applyTheme();
+
+    if (!tg) return;
+
+    tg.ready();
+    tg.expand?.();
+    tg.onEvent?.("themeChanged", applyTheme);
+
+    tg.BackButton?.onClick(() => {
+      if (!$("#contactSheet").classList.contains("hidden")) {
+        closeContactSheet();
+      } else {
+        setPage("chats");
+      }
+    });
+  }
+
+  function init() {
+    initTelegram();
+    bindEvents();
+    loadMe();
+    loadChats();
+  }
+
+  init();
+})();

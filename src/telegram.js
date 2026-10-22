@@ -11,7 +11,13 @@ import {
   updateSession,
   markSessionDisconnected,
   reserveForwardedMessage,
-  saveWhatsAppMessage // [ADDED] Persist messages for the Mini App.
+  saveWhatsAppMessage, // [ADDED] Persist messages for the Mini App.
+  // [ADDED] Contacts and call history.
+  ValidationError,
+  saveContact,
+  listContacts,
+  deleteContactByPhone,
+  recordCall
 } from "./database.js";
 
 import {
@@ -596,10 +602,10 @@ function callTimestamp(call) {
 
 // [ADDED] Build the Telegram message for a WhatsApp call event.
 // Returns null for statuses that should not notify (accept, terminate, ...).
-async function buildCallMessage({ call, socket, telegramId }) {
-  const status = call?.status;
-
-  // [ADDED] A call event whose caller is our own account is outgoing.
+// [ADDED] Work out who is on the other end of a call event.
+// Shared by the Telegram notification and the call history.
+function resolveCallParties(call, socket) {
+  // A call event whose caller is our own account is outgoing.
   const baseUser = (jid) =>
     typeof jid === "string" ? jid.split("@")[0].split(":")[0] : null;
 
@@ -612,13 +618,6 @@ async function buildCallMessage({ call, socket, telegramId }) {
       )
   );
 
-  // "offer"/"ringing" = incoming call, "timeout" = nobody answered (missed).
-  const isIncoming = status === "offer" || status === "ringing";
-
-  if (!isIncoming && status !== "timeout") {
-    return null;
-  }
-
   // Outgoing: show the person being called (chatId), not our own number.
   const peerJid = isOutgoing
     ? call.chatId || call.from
@@ -629,6 +628,75 @@ async function buildCallMessage({ call, socket, telegramId }) {
     : jidToPhone(call.callerPn) ||
       jidToPhone(call.from) ||
       jidToPhone(call.chatId);
+
+  return { isOutgoing, peerJid, phoneNumber };
+}
+
+// [ADDED] Save a call event to the Mini App call history.
+// Baileys sends several events per call (offer, accept, timeout, ...);
+// the database keeps one row per call and only moves it out of "ringing" once.
+function storeCallEvent({ call, socket, telegramId }) {
+  const { isOutgoing, peerJid, phoneNumber } = resolveCallParties(
+    call,
+    socket
+  );
+
+  let status;
+
+  switch (call.status) {
+    case "offer":
+    case "ringing":
+      status = "ringing";
+      break;
+
+    case "accept":
+      status = "answered";
+      break;
+
+    case "reject":
+      status = "rejected";
+      break;
+
+    case "timeout":
+      status = isOutgoing ? "no_answer" : "missed";
+      break;
+
+    default:
+      // "terminate" and unknown events do not change the outcome.
+      return;
+  }
+
+  const seconds = callTimestamp(call);
+
+  recordCall({
+    telegramId,
+    callId: call.id,
+    direction: isOutgoing ? "outgoing" : "incoming",
+    status,
+    isVideo: Boolean(call.isVideo),
+    isGroup: Boolean(call.groupJid || call.isGroup),
+    peerJid,
+    phoneNumber,
+    timestampMs: seconds ? seconds * 1000 : Date.now()
+  });
+}
+
+async function buildCallMessage({ call, socket, telegramId }) {
+  const status = call?.status;
+
+  // "offer"/"ringing" = incoming call, "timeout" = nobody answered (missed).
+  const isIncomingEvent = status === "offer" || status === "ringing";
+
+  if (!isIncomingEvent && status !== "timeout") {
+    return null;
+  }
+
+  const { isOutgoing, peerJid, phoneNumber } = resolveCallParties(
+    call,
+    socket
+  );
+
+  const isIncoming = isIncomingEvent;
 
   const who = formatSenderIdentifier(peerJid, phoneNumber);
   const time = formatShortTime(callTimestamp(call));
@@ -1087,6 +1155,13 @@ export function createWhatsAppCallbacks(telegramId) {
           return;
         }
 
+        // [ADDED] Keep a history of the call for the Mini App.
+        try {
+          storeCallEvent({ call, socket, telegramId: id });
+        } catch (error) {
+          console.error("Failed to store call history:", error.message);
+        }
+
         const text = await buildCallMessage({
           call,
           socket,
@@ -1154,6 +1229,8 @@ bot.onText(/^\/start(?:@\w+)?$/, async (msg) => {
         "/connect — link WhatsApp\n" +
         "/status — connection status\n" +
         "/disconnect — unlink and delete session\n" +
+        "/save Name Number — save a phone number\n" +
+        "/contacts — list saved contacts\n" +
         "/help — usage notes"
     );
   } catch (error) {
@@ -1262,6 +1339,207 @@ bot.onText(/^\/disconnect(?:@\w+)?$/, async (msg) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// [ADDED] Contacts
+// ---------------------------------------------------------------------------
+
+const CONTACT_LIST_LIMIT = 40;
+
+// Parse "/save <name> <number>" where the number is the first or last word.
+function parseSaveArguments(text) {
+  const tokens = String(text || "").trim().split(/\s+/).filter(Boolean);
+
+  if (tokens.length < 2) {
+    return null;
+  }
+
+  const looksLikePhone = (token) => /^\+?[\d().-]{6,}$/.test(token);
+
+  if (looksLikePhone(tokens[tokens.length - 1])) {
+    const phone = tokens.pop();
+
+    return { name: tokens.join(" "), phone };
+  }
+
+  if (looksLikePhone(tokens[0])) {
+    const phone = tokens.shift();
+
+    return { name: tokens.join(" "), phone };
+  }
+
+  return null;
+}
+
+function contactErrorText(error) {
+  if (error instanceof ValidationError) {
+    switch (error.code) {
+      case "INVALID_NAME":
+        return "Please include a name, e.g. /save Budi 081234567890";
+
+      case "INVALID_PHONE":
+        return (
+          "That phone number doesn't look valid.\n" +
+          "Example: /save Budi 081234567890 or /save Budi +6281234567890"
+        );
+
+      case "CONTACT_LIMIT":
+        return "You reached the contact limit. Delete some contacts first.";
+
+      default:
+        return error.message;
+    }
+  }
+
+  console.error("Contact command failed:", error.message);
+
+  return "Could not save the contact. Please try again.";
+}
+
+function contactLine(contact) {
+  return `${contact.name} — +${contact.phone_number}`;
+}
+
+// /save <name> <number> — save a phone number to the Mini App contacts.
+bot.onText(/^\/save(?:@\w+)?(?:\s+([\s\S]+))?$/, async (msg, match) => {
+  const telegramId = String(msg.from.id);
+
+  if (!isAuthorizedUser(telegramId)) {
+    await sendText(telegramId, "Send /start first.");
+    return;
+  }
+
+  const parsed = parseSaveArguments(match[1]);
+
+  if (!parsed) {
+    await sendText(
+      telegramId,
+      "Usage: /save Name Number\n" +
+        "Example: /save Budi 081234567890\n\n" +
+        "You can also share a contact card with this bot."
+    );
+    return;
+  }
+
+  try {
+    const { created, contact } = saveContact(telegramId, parsed);
+
+    await sendText(
+      telegramId,
+      `${created ? "✅ Contact saved" : "✅ Contact updated"}\n` +
+        contactLine(contact)
+    );
+  } catch (error) {
+    await sendText(telegramId, contactErrorText(error));
+  }
+});
+
+// Sharing a Telegram contact card with the bot also saves it.
+bot.on("contact", async (msg) => {
+  if (msg.chat?.type !== "private" || !msg.from || !msg.contact) {
+    return;
+  }
+
+  const telegramId = String(msg.from.id);
+  const shared = msg.contact;
+
+  if (!isAuthorizedUser(telegramId)) {
+    await sendText(telegramId, "Send /start first.");
+    return;
+  }
+
+  const name =
+    [shared.first_name, shared.last_name].filter(Boolean).join(" ") ||
+    String(shared.phone_number || "");
+
+  try {
+    const { created, contact } = saveContact(telegramId, {
+      name,
+      phone: shared.phone_number
+    });
+
+    await sendText(
+      telegramId,
+      `${created ? "✅ Contact saved" : "✅ Contact updated"}\n` +
+        contactLine(contact)
+    );
+  } catch (error) {
+    await sendText(telegramId, contactErrorText(error));
+  }
+});
+
+// /contacts — list saved contacts.
+bot.onText(/^\/contacts(?:@\w+)?$/, async (msg) => {
+  const telegramId = String(msg.from.id);
+
+  if (!isAuthorizedUser(telegramId)) {
+    await sendText(telegramId, "Send /start first.");
+    return;
+  }
+
+  try {
+    const contacts = listContacts(telegramId);
+
+    if (contacts.length === 0) {
+      await sendText(
+        telegramId,
+        "No saved contacts yet.\nUse /save Name Number to add one."
+      );
+      return;
+    }
+
+    const lines = contacts
+      .slice(0, CONTACT_LIST_LIMIT)
+      .map((contact, index) => `${index + 1}. ${contactLine(contact)}`);
+
+    if (contacts.length > CONTACT_LIST_LIMIT) {
+      lines.push(
+        `…and ${contacts.length - CONTACT_LIST_LIMIT} more. ` +
+          "Open the Mini App to see all."
+      );
+    }
+
+    await sendText(
+      telegramId,
+      `📒 Contacts (${contacts.length})\n\n${lines.join("\n")}`
+    );
+  } catch (error) {
+    console.error("Failed to list contacts:", error.message);
+
+    await sendText(telegramId, "Could not load contacts.");
+  }
+});
+
+// /delcontact <number> — delete a saved contact by phone number.
+bot.onText(/^\/delcontact(?:@\w+)?(?:\s+(\S+))?$/, async (msg, match) => {
+  const telegramId = String(msg.from.id);
+
+  if (!isAuthorizedUser(telegramId)) {
+    await sendText(telegramId, "Send /start first.");
+    return;
+  }
+
+  if (!match[1]) {
+    await sendText(
+      telegramId,
+      "Usage: /delcontact Number\nExample: /delcontact 081234567890"
+    );
+    return;
+  }
+
+  try {
+    const removed = deleteContactByPhone(telegramId, match[1]);
+
+    await sendText(
+      telegramId,
+      removed ? "🗑 Contact deleted." : "No contact found with that number."
+    );
+  } catch (error) {
+    console.error("Failed to delete contact:", error.message);
+
+    await sendText(telegramId, "Could not delete the contact.");
+  }
+});
+
 // /help — usage instructions.
 bot.onText(/^\/help(?:@\w+)?$/, async (msg) => {
   await sendText(
@@ -1270,7 +1548,10 @@ bot.onText(/^\/help(?:@\w+)?$/, async (msg) => {
       "/start — register\n" +
       "/connect — link WhatsApp via QR\n" +
       "/status — connection status\n" +
-      "/disconnect — unlink and delete session\n\n" +
+      "/disconnect — unlink and delete session\n" +
+      "/save Name Number — save a phone number (or share a contact card)\n" +
+      "/contacts — list saved contacts\n" +
+      "/delcontact Number — delete a saved contact\n\n" +
       "Forwarded: text, emoji, photos, videos, GIFs, stickers, voice notes, " +
       "audio, documents, locations, contacts and polls — incoming and outgoing.\n" +
       "Calls: incoming and missed voice/video call alerts.\n\n" +
