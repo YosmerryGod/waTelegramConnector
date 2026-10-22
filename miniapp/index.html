@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101114">
+  <title>WA Connect</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">W</div>
+        <div>
+          <h1>WA Connect</h1>
+          <p id="connectionStatus">Menghubungkan...</p>
+        </div>
+      </div>
+      <button class="icon-button" id="refreshButton" aria-label="Refresh">↻</button>
+    </header>
+
+    <main id="chatPage">
+      <div class="search-box">
+        <span>⌕</span>
+        <input id="searchInput" type="search" placeholder="Cari chat atau pesan...">
+      </div>
+
+      <div class="filter-row">
+        <button class="filter active" data-filter="all">Semua</button>
+        <button class="filter" data-filter="unread">Belum dibaca</button>
+        <button class="filter" data-filter="favorites">Favorit</button>
+        <button class="filter" data-filter="archived">Arsip</button>
+      </div>
+
+      <section class="chat-section">
+        <div class="section-heading">
+          <h2 id="listTitle">Percakapan</h2>
+          <span id="chatCount">0 chat</span>
+        </div>
+        <div id="chatList" class="chat-list">
+          <div class="loading">Memuat percakapan...</div>
+        </div>
+      </section>
+    </main>
+
+    <main id="conversationPage" class="conversation-page hidden">
+      <div class="conversation-header">
+        <button id="backButton" class="icon-button" aria-label="Kembali">←</button>
+        <div class="avatar" id="conversationAvatar">W</div>
+        <div class="conversation-info">
+          <h2 id="conversationName">Percakapan</h2>
+          <p id="conversationSubtitle">Riwayat pesan</p>
+        </div>
+        <button id="favoriteButton" class="icon-button" aria-label="Favorit">☆</button>
+      </div>
+
+      <div id="messageList" class="message-list">
+        <div class="loading">Memuat pesan...</div>
+      </div>
+
+      <div class="read-note">
+        Status baca di aplikasi ini hanya disimpan secara lokal.
+      </div>
+    </main>
+
+    <footer class="bottom-nav">
+      <button class="nav-item selected" id="chatsNav">
+        <span>▤</span>
+        <small>Chat</small>
+      </button>
+      <button class="nav-item" id="profileNav">
+        <span>◉</span>
+        <small>Akun</small>
+      </button>
+    </footer>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
