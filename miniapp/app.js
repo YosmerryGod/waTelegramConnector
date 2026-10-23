@@ -550,6 +550,8 @@
   }
 
   async function openChat(chatId) {
+    clearMediaCache();
+
     const known = state.chats.find((chat) => chat.whatsapp_chat_id === chatId);
 
     state.currentChat = known || { whatsapp_chat_id: chatId };
@@ -618,6 +620,183 @@
     );
   }
 
+  /* ---------------------------------------------------------
+     Foto & video
+     --------------------------------------------------------- */
+
+  const MEDIA_ERRORS = {
+    MEDIA_TOO_LARGE: "File terlalu besar untuk ditampilkan di sini (lebih dari 20 MB).",
+    MEDIA_NOT_FOUND: "File tidak ditemukan.",
+    MEDIA_UNAVAILABLE: "File tidak dapat dimuat saat ini."
+  };
+
+  const mediaCache = new Map();
+  let mediaObserver = null;
+  let nearBottom = true;
+
+  function clearMediaCache() {
+    mediaObserver?.disconnect();
+    mediaObserver = null;
+
+    for (const url of mediaCache.values()) {
+      URL.revokeObjectURL(url);
+    }
+
+    mediaCache.clear();
+  }
+
+  // Berkas diminta dengan header autentikasi lalu dijadikan blob lokal.
+  async function fetchMediaURL(messageId) {
+    const key = String(messageId);
+
+    if (mediaCache.has(key)) return mediaCache.get(key);
+
+    let response;
+
+    try {
+      response = await fetch(`${API_BASE}/messages/${enc(key)}/media`, {
+        headers: { "X-Telegram-Init-Data": tg?.initData || "" }
+      });
+    } catch {
+      throw new Error("Tidak dapat terhubung ke server.");
+    }
+
+    if (!response.ok) {
+      let code = "";
+
+      try {
+        code = (await response.json()).error;
+      } catch {
+        /* respons bukan JSON */
+      }
+
+      throw new Error(MEDIA_ERRORS[code] || MEDIA_ERRORS.MEDIA_UNAVAILABLE);
+    }
+
+    const url = URL.createObjectURL(await response.blob());
+
+    mediaCache.set(key, url);
+
+    return url;
+  }
+
+  function mediaHTML(message) {
+    const kind = message.media_kind;
+    const isImage =
+      kind === "photo" ||
+      kind === "sticker" ||
+      (kind === "document" && /^image\//.test(message.media_mimetype || ""));
+
+    if (isImage) {
+      return `<div class="media ${kind === "sticker" ? "sticker" : ""}"><img class="media-img is-loading" alt="${kind === "sticker" ? "Stiker" : "Foto"}" data-media-img="${escapeHTML(message.id)}"></div>`;
+    }
+
+    if (kind === "video" || kind === "animation") {
+      const isGif = kind === "animation";
+
+      return `<button class="media video-card" type="button" data-media-video="${escapeHTML(message.id)}" data-gif="${isGif ? 1 : 0}">${icon("play")}<span>${isGif ? "GIF" : "Putar video"}</span></button>`;
+    }
+
+    return "";
+  }
+
+  function keepBottom() {
+    const list = $("#messageList");
+
+    if (nearBottom) list.scrollTop = list.scrollHeight;
+  }
+
+  async function loadImage(img) {
+    try {
+      const url = await fetchMediaURL(img.dataset.mediaImg);
+
+      img.addEventListener("load", keepBottom, { once: true });
+      img.src = url;
+      img.classList.remove("is-loading");
+    } catch (error) {
+      img.closest(".media")?.replaceWith(
+        Object.assign(document.createElement("div"), {
+          className: "media media-error",
+          textContent: error.message
+        })
+      );
+    }
+  }
+
+  // Foto dimuat saat mendekati layar supaya hemat data.
+  function observeMedia(root) {
+    mediaObserver?.disconnect();
+
+    const images = root.querySelectorAll("[data-media-img]");
+
+    if (!("IntersectionObserver" in window)) {
+      images.forEach(loadImage);
+      return;
+    }
+
+    mediaObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+
+        mediaObserver.unobserve(entry.target);
+        loadImage(entry.target);
+      }
+    }, { root, rootMargin: "300px" });
+
+    images.forEach((img) => mediaObserver.observe(img));
+  }
+
+  async function playVideo(button) {
+    if (button.dataset.busy) return;
+
+    button.dataset.busy = "1";
+
+    const label = button.querySelector("span");
+    const original = label.textContent;
+
+    label.textContent = "Memuat…";
+
+    try {
+      const url = await fetchMediaURL(button.dataset.mediaVideo);
+      const isGif = button.dataset.gif === "1";
+      const video = document.createElement("video");
+
+      video.className = "media-video";
+      video.src = url;
+      video.controls = !isGif;
+      video.playsInline = true;
+      video.autoplay = true;
+      video.loop = isGif;
+      video.muted = isGif;
+      video.addEventListener("loadedmetadata", keepBottom, { once: true });
+
+      button.replaceWith(video);
+      video.play?.().catch(() => {});
+    } catch (error) {
+      label.textContent = original;
+      delete button.dataset.busy;
+      showToast(error.message);
+    }
+  }
+
+  function openLightbox(src) {
+    $("#lightboxImage").src = src;
+    $("#lightbox").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+
+    try {
+      tg?.BackButton?.show();
+    } catch {
+      /* tidak penting */
+    }
+  }
+
+  function closeLightbox() {
+    $("#lightbox").classList.add("hidden");
+    $("#lightboxImage").removeAttribute("src");
+    document.body.style.overflow = "";
+  }
+
   function renderMessages(messages) {
     const list = $("#messageList");
 
@@ -641,22 +820,27 @@
         separator = `<div class="day-label">${escapeHTML(dayLabel(ms))}</div>`;
       }
 
-      const sender = isGroup && !outgoing && message.sender_name
-        ? `<div class="message-sender">${escapeHTML(message.sender_name)}</div>`
+      // Nama dari Kontak diutamakan dibanding nama profil WhatsApp.
+      const senderName = message.contact_name || message.sender_name;
+
+      const sender = isGroup && !outgoing && senderName
+        ? `<div class="message-sender">${escapeHTML(senderName)}</div>`
         : "";
 
-      const body = message.body
-        ? escapeHTML(message.body)
-        : `<span class="message-media">${escapeHTML(mediaLabel(message))}</span>`;
+      const media = message.has_media ? mediaHTML(message) : "";
 
-      return `${separator}
-        <div class="message ${outgoing ? "outgoing" : ""}">
-          ${sender}<div class="message-text">${body}</div>
-          <div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""}</div>
-        </div>`;
+      const body = message.body
+        ? `<div class="message-text">${escapeHTML(message.body)}</div>`
+        : media
+          ? ""
+          : `<div class="message-text"><span class="message-media">${escapeHTML(mediaLabel(message))}</span></div>`;
+
+      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""}">${sender}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""}</div></div>`;
     }).join("");
 
     list.scrollTop = list.scrollHeight;
+    nearBottom = true;
+    observeMedia(list);
   }
 
   function patchListedChat(chat, changes) {
@@ -979,6 +1163,7 @@
 
       state.callsStale = true;
       await loadContacts();
+      loadChats(); // nama kontak ikut tampil di daftar chat
 
       if (state.page === "calls") loadCalls();
     } catch (error) {
@@ -1002,6 +1187,7 @@
       state.callsStale = true;
       showToast("Kontak dihapus");
       await loadContacts();
+      loadChats();
     } catch (error) {
       showToast(error.message);
     }
@@ -1014,6 +1200,46 @@
   function bindEvents() {
     $("#refreshButton").addEventListener("click", refreshCurrentPage);
     $("#backButton").addEventListener("click", () => setPage("chats"));
+
+    // Tema
+    $("#themeButton").addEventListener("click", () => {
+      setThemePref(resolveScheme() === "dark" ? "light" : "dark");
+    });
+
+    $("#themeSegment").addEventListener("click", (event) => {
+      const option = event.target.closest("[data-theme-pref]");
+
+      if (option) setThemePref(option.dataset.themePref);
+    });
+
+    window.matchMedia?.("(prefers-color-scheme: dark)")
+      .addEventListener?.("change", applyTheme);
+
+    // Foto & video
+    const messageList = $("#messageList");
+
+    messageList.addEventListener("scroll", () => {
+      nearBottom =
+        messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 200;
+    });
+
+    messageList.addEventListener("click", (event) => {
+      const img = event.target.closest("[data-media-img]");
+
+      if (img) {
+        if (img.getAttribute("src") && !img.closest(".sticker")) {
+          openLightbox(img.src);
+        }
+
+        return;
+      }
+
+      const video = event.target.closest("[data-media-video]");
+
+      if (video) playVideo(video);
+    });
+
+    $("#lightbox").addEventListener("click", closeLightbox);
     $("#favoriteButton").addEventListener("click", toggleFavorite);
     $("#archiveButton").addEventListener("click", toggleArchive);
 
@@ -1127,7 +1353,11 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !$("#contactSheet").classList.contains("hidden")) {
+      if (event.key !== "Escape") return;
+
+      if (!$("#lightbox").classList.contains("hidden")) {
+        closeLightbox();
+      } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
       }
     });
@@ -1137,15 +1367,61 @@
      Telegram & tema
      --------------------------------------------------------- */
 
-  function applyTheme() {
-    const scheme = tg?.colorScheme ||
-      (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const THEME_KEY = "dood-theme";
 
-    document.documentElement.dataset.theme = scheme === "dark" ? "dark" : "light";
+  function getThemePref() {
+    try {
+      const value = localStorage.getItem(THEME_KEY);
+
+      return ["auto", "light", "dark"].includes(value) ? value : "auto";
+    } catch {
+      return "auto";
+    }
+  }
+
+  function setThemePref(value) {
+    try {
+      localStorage.setItem(THEME_KEY, value);
+    } catch {
+      /* penyimpanan tidak tersedia */
+    }
+
+    applyTheme();
+  }
+
+  // "auto" mengikuti tema Telegram, lalu tema perangkat.
+  function resolveScheme() {
+    const pref = getThemePref();
+
+    if (pref !== "auto") return pref;
+
+    if (tg?.colorScheme) return tg.colorScheme === "dark" ? "dark" : "light";
+
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function applyTheme() {
+    const scheme = resolveScheme();
+    const root = document.documentElement;
+
+    root.dataset.theme = scheme;
+
+    // Tombol tema: bulan saat terang (ketuk -> gelap), matahari saat gelap.
+    $("#themeButton").innerHTML = icon(scheme === "dark" ? "sun" : "moon");
+
+    const pref = getThemePref();
+
+    document.querySelectorAll("#themeSegment [data-theme-pref]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.themePref === pref);
+    });
+
+    const background = getComputedStyle(root).getPropertyValue("--bg").trim();
+
+    $('meta[name="theme-color"]')?.setAttribute("content", background);
 
     try {
-      tg?.setHeaderColor?.("bg_color");
-      tg?.setBackgroundColor?.("bg_color");
+      tg?.setHeaderColor?.(background);
+      tg?.setBackgroundColor?.(background);
     } catch {
       /* versi Telegram lama */
     }
@@ -1161,7 +1437,9 @@
     tg.onEvent?.("themeChanged", applyTheme);
 
     tg.BackButton?.onClick(() => {
-      if (!$("#contactSheet").classList.contains("hidden")) {
+      if (!$("#lightbox").classList.contains("hidden")) {
+        closeLightbox();
+      } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
       } else {
         setPage("chats");

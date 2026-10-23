@@ -17,3 +17,4 @@ auth_backup/
 **/pre-key-*.json
 **/session-*.json
 **/app-state-sync-key-*.json
+backups/

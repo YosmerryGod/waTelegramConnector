@@ -31,6 +31,9 @@
       <symbol id="i-call-in" viewBox="0 0 24 24"><path d="M19 5 13 11M13 6.5V11h4.5"/><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" opacity=".35"/></symbol>
       <symbol id="i-call-out" viewBox="0 0 24 24"><path d="M14 10 20 4M15 4h5v5"/><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" opacity=".35"/></symbol>
       <symbol id="i-call-missed" viewBox="0 0 24 24"><path d="m20 4-6 6m0-4.5V10h4.5"/><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" opacity=".35"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></symbol>
       <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10.5 6-3.5v10l-6-3.5"/></symbol>
     </defs>
   </svg>
@@ -44,9 +47,14 @@
           <p id="connectionStatus">Menghubungkan…</p>
         </div>
       </div>
-      <button class="icon-button" id="refreshButton" type="button" aria-label="Muat ulang">
-        <svg class="i"><use href="#i-refresh"/></svg>
-      </button>
+      <div class="topbar-actions">
+        <button class="icon-button" id="themeButton" type="button" aria-label="Ganti tema terang atau gelap">
+          <svg class="i"><use href="#i-moon"/></svg>
+        </button>
+        <button class="icon-button" id="refreshButton" type="button" aria-label="Muat ulang">
+          <svg class="i"><use href="#i-refresh"/></svg>
+        </button>
+      </div>
     </header>
 
     <!-- CHAT -->
@@ -167,6 +175,16 @@
       </section>
 
       <section class="card tips-card">
+        <h3>Tampilan</h3>
+        <p>Pilih tema aplikasi.</p>
+        <div class="segmented" id="themeSegment" role="group" aria-label="Tema">
+          <button type="button" data-theme-pref="auto">Otomatis</button>
+          <button type="button" data-theme-pref="light">Terang</button>
+          <button type="button" data-theme-pref="dark">Gelap</button>
+        </div>
+      </section>
+
+      <section class="card tips-card">
         <h3>Simpan nomor lewat bot</h3>
         <p>Kirim perintah ini ke bot Telegram:</p>
         <ul>
@@ -213,6 +231,11 @@
           <button type="submit" id="saveContactButton" class="primary-button">Simpan</button>
         </div>
       </form>
+    </div>
+
+    <!-- PRATINJAU FOTO -->
+    <div id="lightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Pratinjau foto">
+      <img id="lightboxImage" alt="Foto">
     </div>
 
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>

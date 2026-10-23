@@ -4,6 +4,9 @@
 
 import express from "express";
 import crypto from "node:crypto";
+import { Readable } from "node:stream";
+
+import { bot } from "./telegram.js";
 
 import {
   getUser,
@@ -19,10 +22,22 @@ import {
   updateContact,
   deleteContact,
   listContacts,
-  listCalls
+  listCalls,
+  getMessageMedia
 } from "./database.js";
 
 const router = express.Router();
+
+// [ADDED] Public shape of a message: hide Telegram file ids.
+function toPublicMessage(message) {
+  const { telegram_file_id: fileId, telegram_file_kind: kind, ...rest } = message;
+
+  return {
+    ...rest,
+    has_media: Boolean(fileId),
+    media_kind: fileId ? kind || null : null
+  };
+}
 
 const MAX_LIMIT = 100;
 const MAX_MESSAGES = 200;
@@ -337,7 +352,7 @@ router.get("/chats/:chatId/messages", (req, res) => {
       req.telegramId,
       chatId,
       limit
-    ).reverse();
+    ).reverse().map(toPublicMessage);
 
     res.json({
       ok: true,
@@ -500,7 +515,9 @@ router.get("/search", (req, res) => {
     });
 
     const matchedChats = chats.filter((chat) => {
-      const name = String(chat.name || "").toLowerCase();
+      const name = String(
+        chat.display_name || chat.name || ""
+      ).toLowerCase();
       const phone = String(chat.phone_number || "").toLowerCase();
       const preview = String(
         chat.last_message_preview || ""
@@ -526,8 +543,8 @@ router.get("/search", (req, res) => {
       for (const message of messages) {
         if (String(message.body || "").toLowerCase().includes(query)) {
           matchedMessages.push({
-            ...message,
-            chat_name: chat.name
+            ...toPublicMessage(message),
+            chat_name: chat.display_name || chat.name
           });
 
           if (matchedMessages.length >= MAX_MESSAGES) {
@@ -680,6 +697,93 @@ router.get("/calls", (req, res) => {
     });
   } catch (error) {
     sendServerError(res, error, "Could not list calls");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// [ADDED] Media (photos, videos, stickers)
+// ---------------------------------------------------------------------------
+
+const MEDIA_TYPES = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  oga: "audio/ogg",
+  ogg: "audio/ogg",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4"
+};
+
+// GET /api/miniapp/messages/:id/media
+// Streams the copy of the file that the bot already sent to Telegram.
+// The bot token never leaves the server. Telegram only serves files up to
+// 20 MB to bots, so bigger videos answer MEDIA_TOO_LARGE.
+router.get("/messages/:id/media", async (req, res) => {
+  try {
+    const rowId = Number.parseInt(req.params.id, 10);
+    const media = Number.isInteger(rowId)
+      ? getMessageMedia(req.telegramId, rowId)
+      : null;
+
+    if (!media?.telegram_file_id) {
+      return res.status(404).json({
+        ok: false,
+        error: "MEDIA_NOT_FOUND"
+      });
+    }
+
+    let file;
+
+    try {
+      file = await bot.getFile(media.telegram_file_id);
+    } catch (error) {
+      const tooLarge = /too big/i.test(String(error?.message));
+
+      return res.status(tooLarge ? 413 : 502).json({
+        ok: false,
+        error: tooLarge ? "MEDIA_TOO_LARGE" : "MEDIA_UNAVAILABLE"
+      });
+    }
+
+    const upstream = await fetch(
+      `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${file.file_path}`
+    );
+
+    if (!upstream.ok || !upstream.body) {
+      return res.status(502).json({
+        ok: false,
+        error: "MEDIA_UNAVAILABLE"
+      });
+    }
+
+    const extension = String(file.file_path).split(".").pop().toLowerCase();
+
+    // Only known image/video/audio types are served with their real type;
+    // anything else is downloaded as opaque bytes (never rendered as HTML).
+    res.setHeader(
+      "Content-Type",
+      MEDIA_TYPES[extension] || "application/octet-stream"
+    );
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cache-Control", "private, max-age=86400");
+
+    const length = upstream.headers.get("content-length");
+
+    if (length) {
+      res.setHeader("Content-Length", length);
+    }
+
+    Readable.fromWeb(upstream.body)
+      .on("error", () => res.destroy())
+      .pipe(res);
+  } catch (error) {
+    sendServerError(res, error, "Could not load media");
   }
 });
 

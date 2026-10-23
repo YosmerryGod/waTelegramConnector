@@ -17,7 +17,9 @@ import {
   saveContact,
   listContacts,
   deleteContactByPhone,
-  recordCall
+  recordCall,
+  findContactName,
+  attachTelegramFile
 } from "./database.js";
 
 import {
@@ -567,6 +569,7 @@ function buildHeader({
   isOutgoing,
   isGroup,
   name,
+  savedName,
   groupName,
   who,
   time
@@ -581,7 +584,7 @@ function buildHeader({
   }
 
   return isOutgoing
-    ? `📤 To ${whoHtml} · ${esc(time)}`
+    ? `📤 To ${savedName ? `<b>${esc(savedName)}</b> · ` : ""}${whoHtml} · ${esc(time)}`
     : `📩 <b>${esc(name)}</b>\n${whoHtml} · ${esc(time)}`;
 }
 
@@ -720,7 +723,13 @@ async function buildCallMessage({ call, socket, telegramId }) {
     lines.push(`👥 ${esc(groupName)}`);
   }
 
-  lines.push(`<code>${esc(who)}</code> · ${esc(time)}`);
+  // [ADDED] Show the saved contact name for calls too.
+  const callName = findContactName(telegramId, phoneNumber);
+
+  lines.push(
+    `${callName ? `<b>${esc(callName)}</b> · ` : ""}` +
+      `<code>${esc(who)}</code> · ${esc(time)}`
+  );
 
   if (isIncoming && call.offline) {
     lines.push("<i>Received while offline</i>");
@@ -777,7 +786,38 @@ async function sendMediaToTelegram(chatId, info, buffer, extra) {
   }
 }
 
+// [ADDED] Pick the file_id out of the message Telegram returned after upload.
+function extractTelegramFile(sent) {
+  if (!sent) {
+    return null;
+  }
+
+  if (Array.isArray(sent.photo) && sent.photo.length > 0) {
+    // Last entry is the largest size.
+    return { fileId: sent.photo[sent.photo.length - 1].file_id, kind: "photo" };
+  }
+
+  // Check animation before document: GIFs carry both.
+  const candidates = [
+    ["animation", sent.animation],
+    ["video", sent.video],
+    ["sticker", sent.sticker],
+    ["voice", sent.voice],
+    ["audio", sent.audio],
+    ["document", sent.document]
+  ];
+
+  for (const [kind, file] of candidates) {
+    if (file?.file_id) {
+      return { fileId: file.file_id, kind };
+    }
+  }
+
+  return null;
+}
+
 // Download WhatsApp media and forward it to Telegram.
+// Returns the Telegram message that carries the media (or undefined).
 async function forwardMedia({ chatId, socket, message, info, header, text }) {
   const escapedChunks = splitEscaped(text, MESSAGE_LIMIT - 200);
   const escapedText = escapedChunks.join("");
@@ -832,12 +872,10 @@ async function forwardMedia({ chatId, socket, message, info, header, text }) {
   if (info.kind === "sticker") {
     const headerMessage = await sendHtml(chatId, header);
 
-    await sendMediaToTelegram(chatId, info, buffer, {
+    return sendMediaToTelegram(chatId, info, buffer, {
       reply_to_message_id: headerMessage.message_id,
       allow_sending_without_reply: true
     });
-
-    return;
   }
 
   const captionWithText = escapedText
@@ -855,6 +893,8 @@ async function forwardMedia({ chatId, socket, message, info, header, text }) {
   if (!fitsInCaption && escapedText) {
     await sendFollowUps(chatId, escapedChunks, sent?.message_id);
   }
+
+  return sent;
 }
 
 // ---------------------------------------------------------------------------
@@ -1054,7 +1094,13 @@ export function createWhatsAppCallbacks(telegramId) {
         const phoneNumber = resolvePhoneNumber(message);
         const senderJid = isGroup ? participant : remoteJid;
         const who = formatSenderIdentifier(senderJid, phoneNumber);
-        const name = message.pushName || who;
+
+        // [ADDED] A name saved in Contacts wins over the WhatsApp push name.
+        const savedName = findContactName(
+          id,
+          phoneNumber || (isGroup ? null : jidToPhone(remoteJid))
+        );
+        const name = savedName || message.pushName || who;
 
         const groupName = isGroup
           ? await getGroupName(socket, id, remoteJid)
@@ -1111,6 +1157,7 @@ export function createWhatsAppCallbacks(telegramId) {
           isOutgoing,
           isGroup,
           name,
+          savedName,
           groupName,
           who,
           time: formatShortTime(message.messageTimestamp)
@@ -1118,7 +1165,7 @@ export function createWhatsAppCallbacks(telegramId) {
 
         // Media: forward the actual file.
         if (info) {
-          await forwardMedia({
+          const sentMedia = await forwardMedia({
             chatId: id,
             socket,
             message,
@@ -1126,6 +1173,23 @@ export function createWhatsAppCallbacks(telegramId) {
             header,
             text: body
           });
+
+          // [ADDED] Let the Mini App show this media.
+          try {
+            const file = extractTelegramFile(sentMedia);
+
+            if (file) {
+              attachTelegramFile({
+                telegramId: id,
+                whatsappChatId: remoteJid,
+                messageId,
+                fileId: file.fileId,
+                kind: file.kind
+              });
+            }
+          } catch (error) {
+            console.error("Failed to store media for Mini App:", error.message);
+          }
 
           return;
         }

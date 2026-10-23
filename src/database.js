@@ -157,6 +157,21 @@ db.exec(`
     ON messages(telegram_id, miniapp_read_at, message_timestamp DESC);
 `);
 
+// [ADDED] Media columns for the Mini App. This must run before any
+// statement is prepared, because "SELECT m.*" is expanded at prepare time.
+const messageColumns = db
+  .prepare("PRAGMA table_info(messages)")
+  .all()
+  .map((column) => column.name);
+
+if (!messageColumns.includes("telegram_file_id")) {
+  db.exec("ALTER TABLE messages ADD COLUMN telegram_file_id TEXT");
+}
+
+if (!messageColumns.includes("telegram_file_kind")) {
+  db.exec("ALTER TABLE messages ADD COLUMN telegram_file_kind TEXT");
+}
+
 const statements = {
   upsertUser: db.prepare(`
     INSERT INTO telegram_users (
@@ -340,10 +355,12 @@ const statements = {
       c.*,
       COALESCE(
         cp.custom_name,
+        ct.name,
         c.name,
         c.phone_number,
         c.whatsapp_chat_id
       ) AS display_name,
+      ct.name AS contact_name,
       COALESCE(cp.is_muted, 0) AS is_muted,
       (
         SELECT COUNT(*)
@@ -357,6 +374,15 @@ const statements = {
     LEFT JOIN chat_preferences cp
       ON cp.telegram_id = c.telegram_id
       AND cp.whatsapp_chat_id = c.whatsapp_chat_id
+    LEFT JOIN contacts ct
+      ON ct.telegram_id = c.telegram_id
+      AND c.chat_type = 'private'
+      AND ct.phone_number = COALESCE(
+        c.phone_number,
+        CASE WHEN c.whatsapp_chat_id LIKE '%@s.whatsapp.net'
+          THEN substr(c.whatsapp_chat_id, 1, instr(c.whatsapp_chat_id, '@') - 1)
+        END
+      )
     WHERE c.telegram_id = @telegram_id
       AND (@include_archived = 1 OR c.is_archived = 0)
     ORDER BY c.is_favorite DESC, c.last_message_at DESC, c.id DESC
@@ -368,25 +394,42 @@ const statements = {
       c.*,
       COALESCE(
         cp.custom_name,
+        ct.name,
         c.name,
         c.phone_number,
         c.whatsapp_chat_id
       ) AS display_name,
+      ct.name AS contact_name,
       COALESCE(cp.is_muted, 0) AS is_muted
     FROM chats c
     LEFT JOIN chat_preferences cp
       ON cp.telegram_id = c.telegram_id
       AND cp.whatsapp_chat_id = c.whatsapp_chat_id
+    LEFT JOIN contacts ct
+      ON ct.telegram_id = c.telegram_id
+      AND c.chat_type = 'private'
+      AND ct.phone_number = COALESCE(
+        c.phone_number,
+        CASE WHEN c.whatsapp_chat_id LIKE '%@s.whatsapp.net'
+          THEN substr(c.whatsapp_chat_id, 1, instr(c.whatsapp_chat_id, '@') - 1)
+        END
+      )
     WHERE c.telegram_id = ?
       AND c.whatsapp_chat_id = ?
   `),
 
   listMessages: db.prepare(`
-    SELECT *
-    FROM messages
-    WHERE telegram_id = ?
-      AND whatsapp_chat_id = ?
-    ORDER BY message_timestamp DESC, id DESC
+    SELECT m.*, ct.name AS contact_name
+    FROM messages m
+    LEFT JOIN contacts ct
+      ON ct.telegram_id = m.telegram_id
+      AND ct.phone_number = CASE
+        WHEN m.sender_jid LIKE '%@s.whatsapp.net'
+          THEN substr(m.sender_jid, 1, instr(m.sender_jid, '@') - 1)
+      END
+    WHERE m.telegram_id = ?
+      AND m.whatsapp_chat_id = ?
+    ORDER BY m.message_timestamp DESC, m.id DESC
     LIMIT ?
   `),
 
@@ -1013,6 +1056,69 @@ export function listCalls(telegramId, options = {}) {
     limit: Math.min(200, Math.max(1, Number(options.limit) || 100)),
     offset: Math.max(0, Number(options.offset) || 0)
   });
+}
+
+// ---------------------------------------------------------------------------
+// [ADDED] Media for the Mini App
+// Files are not stored locally: we keep the Telegram file_id of the copy
+// that the bot already forwarded, and the API streams it on demand.
+// ---------------------------------------------------------------------------
+
+const mediaStatements = {
+  attach: db.prepare(`
+    UPDATE messages
+    SET telegram_file_id = @file_id,
+        telegram_file_kind = @kind
+    WHERE telegram_id = @telegram_id
+      AND whatsapp_chat_id = @chat_id
+      AND whatsapp_message_id = @message_id
+  `),
+
+  get: db.prepare(`
+    SELECT id, telegram_file_id, telegram_file_kind,
+           media_mimetype, media_file_name
+    FROM messages
+    WHERE telegram_id = ? AND id = ?
+  `)
+};
+
+// Remember which Telegram file holds the media of a WhatsApp message.
+export function attachTelegramFile({
+  telegramId,
+  whatsappChatId,
+  messageId,
+  fileId,
+  kind
+}) {
+  if (!fileId || !messageId) {
+    return false;
+  }
+
+  return mediaStatements.attach.run({
+    telegram_id: String(telegramId),
+    chat_id: String(whatsappChatId),
+    message_id: String(messageId),
+    file_id: String(fileId),
+    kind: kind || null
+  }).changes > 0;
+}
+
+// Only returns media that belongs to this Telegram user.
+export function getMessageMedia(telegramId, messageRowId) {
+  return mediaStatements.get.get(String(telegramId), Number(messageRowId)) || null;
+}
+
+// Saved contact name for a phone number (null if not saved).
+export function findContactName(telegramId, phone) {
+  const cleanPhone = normalizePhoneNumber(phone);
+
+  if (!cleanPhone) {
+    return null;
+  }
+
+  const row = contactStatements.getByPhone.get(String(telegramId), cleanPhone);
+
+  return row ? row.name : null;
 }
 
 // Tutup database saat aplikasi berhenti.
