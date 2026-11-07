@@ -66,6 +66,15 @@
 
     <!-- CHAT -->
     <main id="chatPage" class="page">
+      <div class="page-title wagram-page-heading">
+        <div><h2>Pesan</h2><p>Semua percakapan dalam satu tempat</p></div>
+        <span class="count">WhatsApp</span>
+      </div>
+      <div class="message-shortcuts">
+        <span class="shortcut-button active">Chat</span>
+        <button type="button" class="shortcut-button" id="openCallsButton">Panggilan</button>
+        <button type="button" class="shortcut-button" id="openContactsButton">Kontak</button>
+      </div>
       <div class="search-box">
         <svg class="i"><use href="#i-search"/></svg>
         <input id="searchInput" type="search" placeholder="Cari chat atau pesan" autocomplete="off">
@@ -116,6 +125,7 @@
 
     <!-- PANGGILAN -->
     <main id="callsPage" class="page hidden">
+      <div class="message-subpage-back"><button type="button" id="backToMessagesCalls">‹ Pesan</button></div>
       <div class="page-title">
         <div>
           <h2>Panggilan</h2>
@@ -143,6 +153,7 @@
 
     <!-- KONTAK -->
     <main id="contactsPage" class="page hidden">
+      <div class="message-subpage-back"><button type="button" id="backToMessagesContacts">‹ Pesan</button></div>
       <div class="page-title">
         <div>
           <h2>Kontak</h2>
@@ -162,6 +173,20 @@
       <div id="contactsList" class="list">
         <div class="loading">Memuat kontak…</div>
       </div>
+    </main>
+
+    <!-- KONEKSI -->
+    <main id="connectionsPage" class="page hidden">
+      <div class="page-title"><div><h2>Koneksi</h2><p>Perangkat dan layanan yang terhubung</p></div></div>
+      <section class="connection-status-card"><div class="service-symbol whatsapp-symbol">◉</div><div class="service-copy"><strong>WhatsApp</strong><span><i></i> Terhubung</span></div><span class="service-chevron">›</span></section>
+      <section class="connection-status-card"><div class="service-symbol telegram-symbol">➤</div><div class="service-copy"><strong>Telegram</strong><span><i></i> Terautentikasi</span></div><span class="service-chevron">›</span></section>
+      <section class="card tips-card"><h3>Status layanan</h3><p>Mini App berjalan melalui akun Telegram yang sedang digunakan.</p></section>
+    </main>
+
+    <!-- OTOMASI -->
+    <main id="automationPage" class="page hidden">
+      <div class="page-title"><div><h2>Otomasi</h2><p>Atur alur pesan lintas platform</p></div></div>
+      <section class="automation-empty"><div class="automation-empty-icon">⌁</div><h3>Otomasi sedang disiapkan</h3><p>Pengaturan forward otomatis, auto reply, dan aturan pesan akan tersedia di sini setelah backend otomasi siap.</p><span class="coming-soon">DALAM PENGEMBANGAN</span></section>
     </main>
 
     <!-- AKUN -->
@@ -205,18 +230,10 @@
 
     <!-- NAVIGASI BAWAH -->
     <nav class="bottom-nav" id="bottomNav" aria-label="Navigasi utama">
-      <button class="nav-item selected" id="chatsNav" type="button">
-        <svg class="i"><use href="#i-chat"/></svg><span>Chat</span>
-      </button>
-      <button class="nav-item" id="callsNav" type="button">
-        <svg class="i"><use href="#i-phone"/></svg><span>Panggilan</span>
-      </button>
-      <button class="nav-item" id="contactsNav" type="button">
-        <svg class="i"><use href="#i-users"/></svg><span>Kontak</span>
-      </button>
-      <button class="nav-item" id="profileNav" type="button">
-        <svg class="i"><use href="#i-user"/></svg><span>Akun</span>
-      </button>
+      <button class="nav-item selected" id="messagesNav" type="button"><svg class="i"><use href="#i-chat"/></svg><span>Pesan</span></button>
+      <button class="nav-item" id="connectionsNav" type="button"><svg class="i"><use href="#i-users"/></svg><span>Koneksi</span></button>
+      <button class="nav-item" id="automationNav" type="button"><svg class="i"><use href="#i-refresh"/></svg><span>Otomasi</span></button>
+      <button class="nav-item" id="settingsNav" type="button"><svg class="i"><use href="#i-user"/></svg><span>Pengaturan</span></button>
     </nav>
 
     <!-- FORM KONTAK (bottom sheet) -->
