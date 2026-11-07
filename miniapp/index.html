@@ -46,20 +46,23 @@
 
   <div class="app">
     <header class="topbar" id="topbar">
-      <div class="topbar-main">
-        <h1 class="topbar-title" id="topbarTitle">Pesan</h1>
-        <div class="topbar-search" id="topbarSearch">
-          <svg class="i"><use href="#i-search"/></svg>
-          <input id="topbarSearchInput" type="search" placeholder="Cari..." autocomplete="off" aria-label="Cari">
-        </div>
+      <div class="brand topbar-brand">
+        <div class="brand-icon"><img src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM"></div>
+        <div class="brand-text"><h1 class="topbar-title" id="topbarTitle">Pesan</h1></div>
       </div>
       <div class="topbar-actions">
-        <button class="icon-button" id="searchToggleButton" type="button" aria-label="Cari" aria-expanded="false">
-          <svg class="i"><use href="#i-search"/></svg>
-        </button>
         <button class="icon-button" id="themeButton" type="button" aria-label="Ganti tema terang atau gelap">
           <svg class="i"><use href="#i-moon"/></svg>
         </button>
+        <div class="topbar-search-wrap" id="topbarSearchWrap">
+          <div class="topbar-search" id="topbarSearch">
+            <svg class="i"><use href="#i-search"/></svg>
+            <input id="topbarSearchInput" type="search" placeholder="Cari..." autocomplete="off" aria-label="Cari">
+          </div>
+          <button class="icon-button" id="searchToggleButton" type="button" aria-label="Cari" aria-expanded="false">
+            <svg class="i"><use href="#i-search"/></svg>
+          </button>
+        </div>
       </div>
     </header>
 
