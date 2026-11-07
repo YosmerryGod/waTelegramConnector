@@ -1252,7 +1252,7 @@
       const ms = toMs(call.call_timestamp);
       const day = startOfDay(ms);
       const kind = callKind(call);
-      const canSave = !call.is_saved && call.phone_number;
+      const canSave = Boolean(call.phone_number);
 
       let heading = "";
 
@@ -1275,7 +1275,7 @@
               <div class="item-title ${kind === "missed" ? "danger" : ""}">${escapeHTML(call.display_name)}</div>
               <div class="item-sub call-meta">
                 <span class="call-phone-line">${escapeHTML(formatPhone(call.phone_number) || callLabel(call))}
-                  ${canSave ? `<button class="call-inline-save" type="button" data-save-call="${escapeHTML(call.id)}" aria-label="Simpan nomor ke kontak">${icon("bookmark")}</button>` : call.is_saved ? `<span class="call-inline-saved" aria-label="Nomor tersimpan">${icon("bookmark")}</span>` : ""}
+                  ${canSave ? `<button class="call-inline-save" type="button" data-save-call="${escapeHTML(call.id)}" aria-label="${call.is_saved ? "Edit nama kontak" : "Simpan nomor ke kontak"}" title="${call.is_saved ? "Edit nama kontak" : "Simpan kontak"}">${icon("user-plus")}</button>` : ""}
                 </span>
                 <span class="call-detail">${escapeHTML(callLabel(call))} ${call.is_video ? `· ${icon("video", "mini-icon")} Video` : "· Suara"}${call.is_group ? " · Grup" : ""}</span>
               </div>
@@ -1766,7 +1766,17 @@
         event.stopPropagation();
         const call = state.calls.find((item) => String(item.id) === save.dataset.saveCall);
         if (!call?.phone_number) { showToast("Nomor telepon tidak tersedia."); return; }
-        openContactSheet(null, { name: call.display_name, phone: call.phone_number });
+
+        // [MODIFIED] The same person-plus action opens add or edit contact, even when already saved.
+        if (!state.contactsLoaded) await loadContacts();
+        const digits = String(call.phone_number).replace(/\D/g, "");
+        const contact = state.contacts.find((item) =>
+          String(item.phone_number || "").replace(/\D/g, "") === digits
+        );
+        openContactSheet(contact || null, {
+          name: contact?.name || call.display_name,
+          phone: call.phone_number
+        });
         return;
       }
       const favorite = event.target.closest("[data-call-favorite]");
