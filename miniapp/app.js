@@ -1701,6 +1701,17 @@
       showToast("Pembayaran Premium belum diaktifkan.");
     });
 
+    // [ADDED] Expand or collapse all WhatsApp account controls from the status row.
+    $("#whatsappControlsToggle").addEventListener("click", () => {
+      const panel = $("#whatsappAccountControls");
+      const collapsed = panel.classList.toggle("is-collapsed");
+      $("#whatsappControlsToggle").setAttribute("aria-expanded", String(!collapsed));
+      $("#whatsappControlsToggle").setAttribute(
+        "aria-label",
+        collapsed ? "Buka pengaturan akun WhatsApp" : "Tutup pengaturan akun WhatsApp"
+      );
+    });
+
     // [ADDED] Expand or collapse notification preferences within the same card.
     $("#notificationCardToggle").addEventListener("click", () => {
       // [MODIFIED] The notification dropdown now belongs to the embedded WhatsApp card.
