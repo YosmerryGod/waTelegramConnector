@@ -2576,3 +2576,20 @@ body:has(#accountPage:not(.hidden)) .topbar {
   .notification-card-heading { padding:13px; }
   .notification-options { padding-left:13px; padding-right:13px; }
 }
+
+
+/* [MODIFIED] Notification controls are nested inside the WhatsApp connection card. */
+.whatsapp-account-card { overflow:hidden; }
+.whatsapp-account-card .embedded-notification-section {
+  margin-top:14px;
+  border-top:1px solid var(--divider);
+}
+.whatsapp-account-card .notification-card-heading {
+  padding:14px 0 12px;
+}
+.whatsapp-account-card .notification-options {
+  padding:0 0 4px;
+}
+.whatsapp-account-card .notification-option:first-child {
+  border-top:1px solid var(--divider);
+}
