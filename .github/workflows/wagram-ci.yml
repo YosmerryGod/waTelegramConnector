@@ -1,0 +1,71 @@
+name: WAGRAM CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wagram-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Install and validate JavaScript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Show runtime versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' files < <(find src miniapp -type f -name '*.js' -print0)
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No JavaScript files found in src/ or miniapp/"
+            exit 1
+          fi
+
+          failed=0
+          for file in "${files[@]}"; do
+            echo "::group::Checking ${file}"
+            if node --check "${file}"; then
+              echo "Syntax OK: ${file}"
+            else
+              echo "::error file=${file}::JavaScript syntax check failed"
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::One or more JavaScript files contain syntax errors."
+            exit 1
+          fi
+
+          echo "All ${#files[@]} JavaScript files passed syntax checks."
