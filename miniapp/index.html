@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-premium-ui">
+  <link rel="stylesheet" href="style.css?v=20261108-premium-compact">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -369,18 +369,12 @@
         <div class="premium-benefits">
           <h3>Keunggulan Premium</h3>
           <div class="premium-benefit-list">
-            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Pesan teks dan media: foto, video, audio &amp; dokumen</span></div>
-            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Notifikasi pesan pribadi, grup &amp; saluran</span></div>
+            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Foto, video, audio &amp; dokumen</span></div>
+            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Notifikasi pribadi, grup &amp; saluran</span></div>
             <div><svg class="i"><use href="#i-check-circle"/></svg><span>Notifikasi panggilan</span></div>
             <div><svg class="i"><use href="#i-check-circle"/></svg><span>Riwayat pesan lebih panjang</span></div>
             <div><svg class="i"><use href="#i-check-circle"/></svg><span>Prioritas dukungan</span></div>
           </div>
-        </div>
-        <div class="premium-free-comparison">
-          <h3>Perbedaan dengan Free</h3>
-          <div class="premium-comparison-row"><span>WhatsApp session</span><strong id="premiumComparisonSessions">2 vs 1</strong></div>
-          <div class="premium-comparison-row"><span>Media &amp; dokumen</span><strong><span class="premium-no">Free: Tidak</span><span class="premium-yes">Premium: Ya</span></strong></div>
-          <div class="premium-comparison-row"><span>Riwayat pesan</span><strong><span class="premium-no">Free: 3 hari</span><span class="premium-yes">Premium: Lebih panjang</span></strong></div>
         </div>
         <button class="premium-continue-button" id="premiumContinueButton" type="button">Lanjutkan · Rp14.000</button>
         <p class="premium-payment-note">Pembayaran dan aktivasi Premium akan tersedia pada tahap berikutnya.</p>
@@ -443,7 +437,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261108-premium-ui"></script>
+  <script src="app.js?v=20261108-premium-compact"></script>
   <script src="connection.js?v=20261107-1448"></script>
 </body>
 </html>
