@@ -1306,6 +1306,53 @@ export function findContactName(telegramId, phone) {
 }
 
 // Tutup database saat aplikasi berhenti.
+
+
+// [ADDED] Account-scoped cleanup operations used by the Profile settings.
+const cleanupStatements = {
+  media: db.prepare(`
+    UPDATE messages
+    SET telegram_file_id = NULL,
+        telegram_file_kind = NULL,
+        media_mimetype = NULL,
+        media_file_name = NULL
+    WHERE telegram_id = ? AND telegram_file_id IS NOT NULL
+  `),
+  clearChatPreviews: db.prepare(`
+    UPDATE chats
+    SET last_message_at = NULL,
+        last_message_preview = NULL,
+        updated_at = ?
+    WHERE telegram_id = ?
+  `),
+  messages: db.prepare("DELETE FROM messages WHERE telegram_id = ?"),
+  calls: db.prepare("DELETE FROM calls WHERE telegram_id = ?"),
+  contacts: db.prepare("DELETE FROM contacts WHERE telegram_id = ?")
+};
+
+const cleanupTransactions = {
+  media: db.transaction((telegramId) =>
+    cleanupStatements.media.run(String(telegramId)).changes
+  ),
+  messages: db.transaction((telegramId) => {
+    const id = String(telegramId);
+    cleanupStatements.clearChatPreviews.run(Date.now(), id);
+    return cleanupStatements.messages.run(id).changes;
+  }),
+  calls: db.transaction((telegramId) =>
+    cleanupStatements.calls.run(String(telegramId)).changes
+  ),
+  contacts: db.transaction((telegramId) =>
+    cleanupStatements.contacts.run(String(telegramId)).changes
+  )
+};
+
+export function cleanupUserData(telegramId, type) {
+  const cleanup = cleanupTransactions[type];
+  if (!cleanup) throw new Error("INVALID_CLEANUP_TYPE");
+  return cleanup(telegramId);
+}
+
 export function closeDatabase() {
   if (db.open) {
     db.close();
