@@ -8,7 +8,7 @@ import { Readable } from "node:stream";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import QRCode from "qrcode";
-import { connectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppProfile, getWhatsAppPhoneNumber } from "./whatsapp.js";
+import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppProfile, getWhatsAppPhoneNumber } from "./whatsapp.js";
 
 import {
   getUser,
@@ -265,6 +265,17 @@ router.get("/connection", async (req, res) => {
     });
   } catch (error) {
     sendServerError(res, error, "Could not get WhatsApp connection");
+  }
+});
+
+// [ADDED] POST /api/miniapp/connection/disconnect — disconnect this user's WhatsApp session.
+router.post("/connection/disconnect", async (req, res) => {
+  try {
+    const result = await disconnectWhatsApp(req.telegramId);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    sendServerError(res, error, "Could not disconnect WhatsApp");
   }
 });
 
