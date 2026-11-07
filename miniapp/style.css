@@ -2016,3 +2016,29 @@ html[data-theme="dark"] .sheet-panel input {
 @media (prefers-reduced-motion: reduce) {
   .chat-row-content { transition: none; }
 }
+
+
+/* [ADDED] Compact counters inside chat filter chips. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.chip-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.chip.active .chip-count {
+  background: var(--accent);
+  color: var(--on-accent);
+}
