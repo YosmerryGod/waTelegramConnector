@@ -1176,7 +1176,7 @@
     }
 
     try {
-      const data = await api("/calls?limit=200");
+      const data = await api("/calls?limit=200&archived=true");
 
       state.calls = data.calls || [];
       state.callsLoaded = true;
@@ -1211,7 +1211,10 @@
     const digits = query.replace(/\D/g, "").replace(/^0+/, "");
 
     const calls = state.calls.filter((call) => {
-      if (state.callFilter !== "all" && callKind(call) !== state.callFilter) {
+      if (state.callFilter === "archived" && !call.is_archived) return false;
+      if (state.callFilter !== "archived" && call.is_archived) return false;
+      if (state.callFilter === "favorites" && !call.is_favorite) return false;
+      if (["incoming", "outgoing", "missed"].includes(state.callFilter) && callKind(call) !== state.callFilter) {
         return false;
       }
 
