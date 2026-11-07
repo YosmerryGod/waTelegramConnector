@@ -2058,7 +2058,8 @@ html[data-theme="dark"] .sheet-panel input {
 }
 
 
-/* [ADDED] WAGRAM call history swipe-to-save interaction. */
+
+/* [MODIFIED] Call history cards: inline save icon and swipe favorite/archive actions. */
 .call-swipe-row {
   position: relative;
   overflow: hidden;
@@ -2071,35 +2072,40 @@ html[data-theme="dark"] .sheet-panel input {
   z-index: 2;
   width: 100%;
   background: var(--surface);
-  transition: transform .24s cubic-bezier(.2,.75,.25,1), background .15s;
+  transition: transform .24s cubic-bezier(.2,.75,.25,1);
   touch-action: pan-y;
 }
-.call-save-action {
+.call-actions {
   position: absolute;
   inset: 0 0 0 auto;
   z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 76px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: var(--accent);
-  color: var(--on-accent);
+  display: flex;
+  width: 152px;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity .18s ease, visibility .18s ease;
 }
-.call-save-action .i {
-  width: 23px;
-  height: 23px;
-  stroke-width: 2;
+.call-actions button {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  flex: 0 0 76px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
 }
-.call-swipe-row.is-revealed .call-row-content {
-  transform: translateX(-76px);
+.call-favorite-action {
+  background: var(--surface-2);
+  color: var(--accent);
 }
-.call-swipe-row.is-revealed .call-save-action {
+.call-archive-action {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.call-actions .i { width: 23px; height: 23px; stroke-width: 2; }
+.call-swipe-row.is-revealed .call-row-content { transform: translateX(-152px); }
+.call-swipe-row.is-revealed .call-actions {
   z-index: 3;
   opacity: 1;
   visibility: visible;
@@ -2111,10 +2117,28 @@ html[data-theme="dark"] .sheet-panel input {
   align-items: flex-start;
   gap: 3px;
 }
-.call-detail {
+.call-phone-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
   color: var(--muted);
-  font-size: 12px;
 }
-@media (prefers-reduced-motion: reduce) {
-  .call-row-content { transition: none; }
+.call-inline-save,
+.call-inline-saved {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent);
+  flex: 0 0 auto;
 }
+.call-inline-save .i,
+.call-inline-saved .i { width: 17px; height: 17px; stroke-width: 2.2; }
+.call-inline-saved { color: var(--muted); }
+.call-detail { color: var(--muted); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .call-row-content { transition: none; } }
