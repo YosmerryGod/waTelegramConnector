@@ -1951,11 +1951,13 @@ html[data-theme="dark"] .sheet-panel input {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  background: var(--surface);
+  border-radius: 0;
+  background: transparent;
 }
 .chat-row-content {
   position: relative;
   z-index: 1;
+  border-radius: 0;
   background: var(--surface);
   transition: transform .24s cubic-bezier(.2,.75,.25,1), background .15s;
   touch-action: pan-y;
@@ -1971,7 +1973,10 @@ html[data-theme="dark"] .sheet-panel input {
   border-radius: 0;
   background: var(--accent);
   color: var(--on-accent);
-  opacity: .98;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .18s ease, visibility .18s ease;
 }
 .chat-archive-action .i {
   width: 23px;
@@ -1983,6 +1988,9 @@ html[data-theme="dark"] .sheet-panel input {
 }
 .chat-swipe-row.is-revealed .chat-archive-action {
   z-index: 2;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 .chat-archive-action:disabled {
   opacity: .55;
