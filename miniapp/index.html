@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-premium-compact">
+  <link rel="stylesheet" href="style.css?v=20261108-premium-table">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -366,14 +366,24 @@
             <span><strong id="premiumSessionCount">2 WhatsApp session</strong><small id="premiumSessionDescription">Hubungkan hingga 2 akun WhatsApp secara bersamaan.</small></span>
           </div>
         </div>
-        <div class="premium-benefits">
-          <h3>Keunggulan Premium</h3>
-          <div class="premium-benefit-list">
-            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Foto, video, audio &amp; dokumen</span></div>
-            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Notifikasi pribadi, grup &amp; saluran</span></div>
-            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Notifikasi panggilan</span></div>
-            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Riwayat pesan lebih panjang</span></div>
-            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Prioritas dukungan</span></div>
+        <div class="premium-comparison">
+          <h3>Bandingkan Paket</h3>
+          <div class="premium-comparison-scroll">
+            <table class="premium-comparison-table">
+              <thead>
+                <tr><th>Fitur</th><th>Free</th><th>Premium</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Pesan teks</td><td><span class="premium-table-check">✓</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Foto, video, audio &amp; dokumen</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Notifikasi pribadi</td><td><span class="premium-table-check">✓</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Grup &amp; saluran</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Notifikasi panggilan</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Riwayat pesan</td><td>3 hari</td><td>Lebih panjang</td></tr>
+                <tr><td>WhatsApp session</td><td>1</td><td id="premiumTableSessions">2</td></tr>
+                <tr><td>Prioritas dukungan</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
         <button class="premium-continue-button" id="premiumContinueButton" type="button">Lanjutkan · Rp14.000</button>
@@ -437,7 +447,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261108-premium-compact"></script>
+  <script src="app.js?v=20261108-premium-table"></script>
   <script src="connection.js?v=20261107-1448"></script>
 </body>
 </html>
