@@ -855,7 +855,7 @@
      --------------------------------------------------------- */
 
   function profilePhone(jid) {
-    const match = String(jid || "").match(/^(\\d+)(?::\\d+)?@s\\.whatsapp\\.net$/);
+    const match = String(jid || "").match(/^(\d+)(?::\d+)?@s\.whatsapp\.net$/);
     return match ? formatPhone(match[1]) : "";
   }
 
