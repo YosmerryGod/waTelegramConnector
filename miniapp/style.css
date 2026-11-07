@@ -2975,3 +2975,19 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   .premium-comparison-table th,.premium-comparison-table td { padding:6px 4px; }
   .premium-comparison-table th:first-child,.premium-comparison-table td:first-child { padding-left:8px; }
 }
+
+
+/* [MODIFIED] Show the existing WAGRAM brand mark inside the gold Premium tile. */
+.premium-crown { overflow:hidden; }
+.premium-crown img {
+  display:block;
+  width:29px;
+  height:29px;
+  object-fit:contain;
+}
+/* [MODIFIED] WhatsApp mark for the Premium multi-session benefit. */
+.premium-session-icon {
+  background:rgba(37,211,102,.12);
+  color:#25d366;
+}
+.premium-session-icon .i { width:21px; height:21px; }
