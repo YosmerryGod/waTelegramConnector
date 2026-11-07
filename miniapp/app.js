@@ -1451,11 +1451,101 @@
     });
   }
 
+  // [ADDED] WebSocket realtime: server broadcasts only after database commits.
+  let realtimeSocket = null;
+  let realtimeRetryTimer = null;
+  let realtimeRetryDelay = 1000;
+  let realtimeRefreshTimer = null;
+
+  function scheduleRealtimeRefresh(event) {
+    clearTimeout(realtimeRefreshTimer);
+    realtimeRefreshTimer = setTimeout(() => {
+      if (event.type === "message.created") {
+        loadChats();
+
+        const chatId = event.data?.chatId;
+        if (chatId && state.currentChat?.whatsapp_chat_id === chatId) {
+          openChat(chatId);
+        }
+      } else if (event.type === "calls.updated" && state.page === "calls") {
+        loadCalls();
+      } else if (event.type === "connection.status") {
+        const status = event.data?.status;
+        if (status) {
+          $("#connectionStatus").textContent = status === "connected"
+            ? "WhatsApp terhubung"
+            : `WhatsApp ${status}`;
+        }
+      }
+    }, 180);
+  }
+
+  function connectRealtime() {
+    if (!tg?.initData || typeof WebSocket === "undefined") return;
+    if (
+      realtimeSocket &&
+      [WebSocket.CONNECTING, WebSocket.OPEN].includes(realtimeSocket.readyState)
+    ) return;
+
+    clearTimeout(realtimeRetryTimer);
+
+    const apiUrl = new URL(API_BASE, window.location.href);
+    const socketUrl = new URL("/ws/miniapp", apiUrl.origin);
+    socketUrl.protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
+    socketUrl.searchParams.set("initData", tg.initData);
+
+    const socket = new WebSocket(socketUrl.toString());
+    realtimeSocket = socket;
+
+    socket.addEventListener("open", () => {
+      realtimeRetryDelay = 1000;
+    });
+
+    socket.addEventListener("message", (message) => {
+      try {
+        const event = JSON.parse(message.data);
+        if (event?.type && event.type !== "connected") {
+          scheduleRealtimeRefresh(event);
+        }
+      } catch {
+        /* abaikan payload WebSocket yang tidak valid */
+      }
+    });
+
+    socket.addEventListener("close", () => {
+      if (realtimeSocket === socket) realtimeSocket = null;
+      if (document.visibilityState !== "visible") return;
+
+      realtimeRetryTimer = setTimeout(() => {
+        connectRealtime();
+      }, realtimeRetryDelay);
+
+      realtimeRetryDelay = Math.min(realtimeRetryDelay * 2, 30000);
+    });
+
+    socket.addEventListener("error", () => {
+      socket.close();
+    });
+  }
+
+  function handleVisibilityChange() {
+    if (document.visibilityState !== "visible") return;
+
+    connectRealtime();
+
+    // [ADDED] One database snapshot after returning from background.
+    if (state.chatsLoaded) loadChats();
+    if (state.page === "calls" && state.callsLoaded) loadCalls();
+  }
+
   function init() {
     initTelegram();
     bindEvents();
     loadMe();
     loadChats();
+    connectRealtime();
+    window.addEventListener("online", connectRealtime);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
   }
 
   init();
