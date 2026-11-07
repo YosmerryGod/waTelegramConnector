@@ -51,7 +51,7 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 // [ADDED] Verify Telegram Web App initData on the server.
 // Do not trust initDataUnsafe.user.id from the frontend.
-function verifyTelegramInitData(initData) {
+export function verifyTelegramInitData(initData) {
   if (!TELEGRAM_BOT_TOKEN || typeof initData !== "string" || !initData) {
     return null;
   }
