@@ -248,6 +248,52 @@ export function getWhatsAppQr(telegramId) {
   return entry?.status === "qr" ? entry.qr || null : null;
 }
 
+// [ADDED] Fetch a contact or group profile on demand through its own WhatsApp session.
+export async function getWhatsAppProfile(telegramId, whatsappJid) {
+  const entry = connections.get(String(telegramId));
+
+  if (!entry || entry.status !== "connected" || !entry.socket) {
+    throw new Error("WHATSAPP_NOT_CONNECTED");
+  }
+
+  const socket = entry.socket;
+  const jid = String(whatsappJid || "");
+
+  const withTimeout = (promise, timeoutMs) => Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      const timer = setTimeout(
+        () => reject(new Error("PROFILE_REQUEST_TIMEOUT")),
+        timeoutMs
+      );
+      timer.unref?.();
+    })
+  ]);
+
+  const [pictureResult, statusResult] = await Promise.allSettled([
+    withTimeout(socket.profilePictureUrl(jid, "image", 12000), 13000)
+      .catch(() => withTimeout(socket.profilePictureUrl(jid, "preview", 8000), 9000)),
+    withTimeout(socket.fetchStatus(jid), 10000)
+  ]);
+
+  const pictureUrl = pictureResult.status === "fulfilled"
+    ? pictureResult.value || null
+    : null;
+  const status = statusResult.status === "fulfilled"
+    ? statusResult.value || null
+    : null;
+
+  return {
+    pictureUrl,
+    aboutText: typeof status?.status === "string" ? status.status : null,
+    statusSetAt: status?.setAt instanceof Date
+      ? status.setAt.getTime()
+      : status?.setAt
+        ? new Date(status.setAt).getTime() || null
+        : null
+  };
+}
+
 export async function connectWhatsApp(telegramId, callbacks = {}) {
   const id = String(telegramId);
 
