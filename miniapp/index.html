@@ -63,6 +63,10 @@
             <svg class="i"><use href="#i-search"/></svg>
           </button>
         </div>
+        <button id="addContactButton" class="primary-button topbar-add-contact" type="button" aria-label="Tambah kontak">
+          <svg class="i"><use href="#i-plus"/></svg>
+          <span>Tambah</span>
+        </button>
         <button class="icon-button" id="themeButton" type="button" aria-label="Ganti tema terang atau gelap">
           <svg class="i"><use href="#i-moon"/></svg>
         </button>
@@ -139,14 +143,7 @@
     <!-- KONTAK -->
     <main id="contactsPage" class="page hidden">
       <div class="message-subpage-back"><button type="button" id="backToMessagesContacts">‹ Pesan</button></div>
-      <!-- [MODIFIED] Page title and search moved to the global topbar; keep the add-contact action. -->
-      <div class="section-heading contacts-toolbar">
-        <span></span>
-        <button id="addContactButton" class="primary-button" type="button">
-          <svg class="i"><use href="#i-plus"/></svg>
-          Tambah
-        </button>
-      </div>
+      <!-- [MODIFIED] Add contact action is now in the global header. -->
       <input id="contactsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off" hidden>
 
       <div id="contactsList" class="list">
