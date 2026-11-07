@@ -952,6 +952,32 @@ const callStatements = {
       ct.name AS contact_name,
       COALESCE(
         ct.name,
+        (
+          SELECT wpc.display_name
+          FROM whatsapp_profile_cache wpc
+          WHERE wpc.telegram_id = c.telegram_id
+            AND (
+              wpc.whatsapp_jid = c.peer_jid
+              OR wpc.whatsapp_jid = c.phone_number || '@s.whatsapp.net'
+            )
+            AND wpc.display_name IS NOT NULL
+            AND TRIM(wpc.display_name) <> ''
+          ORDER BY CASE WHEN wpc.whatsapp_jid = c.peer_jid THEN 0 ELSE 1 END
+          LIMIT 1
+        ),
+        (
+          SELECT ch.name
+          FROM chats ch
+          WHERE ch.telegram_id = c.telegram_id
+            AND (
+              ch.whatsapp_chat_id = c.peer_jid
+              OR ch.phone_number = c.phone_number
+            )
+            AND ch.name IS NOT NULL
+            AND TRIM(ch.name) <> ''
+          ORDER BY CASE WHEN ch.whatsapp_chat_id = c.peer_jid THEN 0 ELSE 1 END
+          LIMIT 1
+        ),
         CASE WHEN c.phone_number IS NOT NULL
           THEN '+' || c.phone_number
         END,
