@@ -362,7 +362,7 @@
 
     if (page === "account") {
       renderAccount();
-      await loadWhatsAppAccount();
+      loadWhatsAppAccount();
       renderNotificationPreferences();
     }
 
@@ -456,7 +456,7 @@
 
       $("#connectionStatus").textContent = `Terhubung sebagai ${name}`;
       renderAccount();
-      loadWhatsAppAccount();
+      await loadWhatsAppAccount();
       renderNotificationPreferences();
     } catch (error) {
       $("#connectionStatus").textContent = error.message;
