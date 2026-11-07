@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-profile-header-hidden">
+  <link rel="stylesheet" href="style.css?v=20261108-profile-horizontal-header">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -167,28 +167,25 @@
 
     <!-- AKUN -->
     <main id="accountPage" class="page hidden">
-      <div class="page-title">
-        <div>
-          <h2>Profile</h2>
+      <!-- [MODIFIED] Compact horizontal profile header with theme control at the far right. -->
+      <section class="card profile-card profile-identity-card">
+        <div class="avatar large profile-square-avatar" id="accountAvatar">
+          <img id="accountPhoto" class="account-photo hidden" alt="Foto profil Telegram">
+          <span id="accountInitials">?</span>
         </div>
-      </div>
-
-      <section class="card profile-card">
-        <div class="avatar large" id="accountAvatar">?</div>
-        <div>
+        <div class="profile-identity-copy">
           <h3 id="accountName">—</h3>
           <p id="accountUsername"></p>
+          <div class="profile-plan-actions">
+            <span class="profile-tier">FREE TIER</span>
+            <button class="premium-button" id="upgradePremiumButton" type="button">
+              <span aria-hidden="true">♛</span> Upgrade Premium
+            </button>
+          </div>
         </div>
-      </section>
-
-      <section class="card tips-card">
-        <h3>Tampilan</h3>
-        <p>Pilih tema aplikasi.</p>
-        <div class="segmented" id="themeSegment" role="group" aria-label="Tema">
-          <button type="button" data-theme-pref="auto">Otomatis</button>
-          <button type="button" data-theme-pref="light">Terang</button>
-          <button type="button" data-theme-pref="dark">Gelap</button>
-        </div>
+        <button class="icon-button profile-theme-button" id="profileThemeButton" type="button" aria-label="Ganti tema terang atau gelap">
+          <svg class="i"><use href="#i-moon"/></svg>
+        </button>
       </section>
 
       <section class="card tips-card">
