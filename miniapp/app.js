@@ -1671,7 +1671,6 @@
       $("#premiumSessionCount").textContent = `${plan.sessions} WhatsApp session`;
       $("#premiumSessionDescription").textContent = plan.sessionDescription;
       $("#premiumTableSessions").textContent = String(plan.sessions);
-      $("#premiumComparisonSessions").textContent = `${plan.sessions} vs 1`;
       $("#premiumContinueButton").textContent = `Lanjutkan · ${plan.price}`;
       document.querySelectorAll("[data-period]").forEach((tab) => {
         const active = tab.dataset.period === period;
