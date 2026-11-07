@@ -362,6 +362,8 @@
 
     if (page === "account") {
       renderAccount();
+      loadWhatsAppAccount();
+      renderNotificationPreferences();
     }
 
     window.scrollTo(0, 0);
@@ -454,6 +456,8 @@
 
       $("#connectionStatus").textContent = `Terhubung sebagai ${name}`;
       renderAccount();
+      loadWhatsAppAccount();
+      renderNotificationPreferences();
     } catch (error) {
       $("#connectionStatus").textContent = error.message;
     }
@@ -486,6 +490,67 @@
       accountPhoto.classList.add("hidden");
       $("#accountInitials").classList.remove("hidden");
     }
+  }
+
+
+  // [ADDED] Load WhatsApp connection details for the Profile card.
+  async function loadWhatsAppAccount() {
+    const phone = $("#accountWhatsAppPhone");
+    const stateLabel = $("#accountWhatsAppState");
+    const disconnectButton = $("#disconnectWhatsAppButton");
+    try {
+      const data = await api("/connection");
+      const connected = data.status === "connected";
+      phone.textContent = data.phoneNumber ? `+${String(data.phoneNumber).replace(/^\+/, "")}` : "Nomor belum tersedia";
+      $("#accountWhatsAppName").textContent = connected ? "WhatsApp terhubung" : "WhatsApp";
+      stateLabel.classList.toggle("is-connected", connected);
+      stateLabel.innerHTML = `<i></i> ${connected ? "Connected" : "Disconnected"}`;
+      disconnectButton.disabled = !connected;
+    } catch (error) {
+      phone.textContent = "Status koneksi tidak tersedia";
+      stateLabel.classList.remove("is-connected");
+      stateLabel.innerHTML = "<i></i> Tidak dapat memeriksa koneksi";
+      disconnectButton.disabled = true;
+    }
+  }
+
+  // [ADDED] Persist notification preferences locally on this device.
+  const NOTIFICATION_PREFS_KEY = "wagram-notification-preferences";
+  const DEFAULT_NOTIFICATION_PREFS = {
+    private: true, groups: true, channels: true, calls: true, mentions: true, media: true
+  };
+
+  function renderNotificationPreferences() {
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || "{}");
+    } catch {
+      saved = {};
+    }
+    document.querySelectorAll("[data-notification]").forEach((button) => {
+      const key = button.dataset.notification;
+      const enabled = typeof saved[key] === "boolean" ? saved[key] : DEFAULT_NOTIFICATION_PREFS[key];
+      button.setAttribute("aria-checked", String(enabled));
+    });
+  }
+
+  function toggleNotificationPreference(button) {
+    const key = button.dataset.notification;
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_NOTIFICATION_PREFS, key)) return;
+    const enabled = button.getAttribute("aria-checked") !== "true";
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || "{}");
+    } catch {
+      saved = {};
+    }
+    saved[key] = enabled;
+    try {
+      localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(saved));
+    } catch {
+      showToast("Pengaturan tidak dapat disimpan di perangkat ini.");
+    }
+    button.setAttribute("aria-checked", String(enabled));
   }
 
   /* ---------------------------------------------------------
@@ -1542,6 +1607,34 @@
     // [ADDED] Premium upgrade entry point while the subscription flow is prepared.
     $("#upgradePremiumButton").addEventListener("click", () => {
       showToast("Upgrade Premium segera hadir.");
+    });
+
+    // [ADDED] Expand or collapse notification preferences within the same card.
+    $("#notificationCardToggle").addEventListener("click", () => {
+      const card = $("#notificationCard");
+      const collapsed = card.classList.toggle("is-collapsed");
+      $("#notificationCardToggle").setAttribute("aria-expanded", String(!collapsed));
+    });
+
+    // [ADDED] Notification switches are saved locally on this device.
+    $("#notificationOptions").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-notification]");
+      if (button) toggleNotificationPreference(button);
+    });
+
+    // [ADDED] Disconnect the currently linked WhatsApp session.
+    $("#disconnectWhatsAppButton").addEventListener("click", async () => {
+      if (!window.confirm("Putuskan koneksi WhatsApp dari WAGRAM?")) return;
+      const button = $("#disconnectWhatsAppButton");
+      button.disabled = true;
+      try {
+        await api("/connection/disconnect", { method: "POST", body: JSON.stringify({}) });
+        showToast("WhatsApp berhasil diputuskan.");
+        await loadWhatsAppAccount();
+      } catch (error) {
+        showToast(error.message);
+        await loadWhatsAppAccount();
+      }
     });
 
     window.matchMedia?.("(prefers-color-scheme: dark)")
