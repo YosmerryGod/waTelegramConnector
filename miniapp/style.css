@@ -2703,8 +2703,8 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 
 
 /* [MODIFIED] Profile surfaces use the same soft neumorphic treatment as the web UI. */
-#profilePage .profile-identity-card,
-#profilePage .whatsapp-account-card {
+#accountPage .profile-identity-card,
+#accountPage .whatsapp-account-card {
   border:1px solid color-mix(in srgb,var(--text) 5%,transparent);
   background:linear-gradient(145deg,var(--surface),var(--surface-2));
   box-shadow:
@@ -2712,17 +2712,17 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
     -5px -5px 14px color-mix(in srgb,#fff 3%,transparent),
     inset 1px 1px 1px color-mix(in srgb,#fff 4%,transparent);
 }
-#profilePage .settings-heading-icon,
-#profilePage .whatsapp-account-avatar,
-#profilePage .history-cleanup-icon,
-#profilePage .notification-option-icon {
+#accountPage .settings-heading-icon,
+#accountPage .whatsapp-account-avatar,
+#accountPage .history-cleanup-icon,
+#accountPage .notification-option-icon {
   filter:drop-shadow(1px 1px 1px color-mix(in srgb,#000 16%,transparent));
 }
-#profilePage .notification-card-heading,
-#profilePage .history-section-heading {
+#accountPage .notification-card-heading,
+#accountPage .history-section-heading {
   transition:background .18s ease;
 }
-#profilePage .notification-card-heading:active,
-#profilePage .history-section-heading:active {
+#accountPage .notification-card-heading:active,
+#accountPage .history-section-heading:active {
   background:color-mix(in srgb,var(--surface-2) 70%,transparent);
 }
