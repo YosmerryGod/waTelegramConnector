@@ -2205,3 +2205,21 @@ html[data-theme="dark"] .sheet-panel input {
     font-size: 12px;
   }
 }
+
+
+/* [MODIFIED] Compact person-plus icon button to match the header controls. */
+.topbar-add-contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 12px;
+}
+.topbar-add-contact .i {
+  width: 21px;
+  height: 21px;
+}
