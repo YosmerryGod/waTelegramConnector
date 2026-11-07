@@ -3054,3 +3054,103 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   background:rgba(37,211,102,.18);
 }
 .whatsapp-add-session-button .i { width:19px; height:19px; stroke-width:2.2; }
+
+
+/* [ADDED] Full-screen WAGRAM splash loader with an organic, wavy process ring. */
+.app-loading-screen {
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 48%,rgba(8,104,53,.34) 0%,rgba(3,54,31,.20) 34%,transparent 66%),
+    linear-gradient(145deg,#031b11 0%,#052719 48%,#03170f 100%);
+  opacity:1;
+  visibility:visible;
+  transition:opacity .32s ease,visibility .32s ease;
+}
+.app-loading-screen.is-hidden {
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+.loading-brand-wrap {
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:190px;
+  height:190px;
+  isolation:isolate;
+}
+.loading-brand-wrap::before {
+  content:"";
+  position:absolute;
+  inset:20px;
+  z-index:-1;
+  border-radius:50%;
+  background:rgba(0,113,56,.23);
+  filter:blur(24px);
+  animation:loading-pulse 2.4s ease-in-out infinite;
+}
+.loading-process-ring {
+  position:absolute;
+  inset:0;
+  border-radius:48% 52% 55% 45% / 46% 43% 57% 54%;
+  background:conic-gradient(
+    from 0deg,
+    rgba(37,211,102,.12) 0deg,
+    rgba(37,211,102,.22) 75deg,
+    #b6e96b 150deg,
+    #f4d46c 220deg,
+    #d9a441 280deg,
+    rgba(37,211,102,.18) 360deg
+  );
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 3.5px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 5px),#000 calc(100% - 3.5px));
+  filter:drop-shadow(0 0 8px rgba(217,164,65,.36));
+  animation:
+    loading-ring-spin 2.8s linear infinite,
+    loading-ring-morph 3.8s ease-in-out infinite;
+}
+.loading-process-ring::after {
+  content:"";
+  position:absolute;
+  top:4px;
+  left:50%;
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:#fff2b5;
+  box-shadow:0 0 8px 3px rgba(255,220,119,.75),0 0 20px 7px rgba(217,164,65,.35);
+  transform:translateX(-50%);
+}
+.loading-brand-logo {
+  display:block;
+  width:104px;
+  height:104px;
+  object-fit:contain;
+  filter:drop-shadow(0 5px 14px rgba(0,0,0,.28));
+  animation:loading-logo-breathe 2.4s ease-in-out infinite;
+}
+@keyframes loading-ring-spin {
+  to { transform:rotate(360deg); }
+}
+@keyframes loading-ring-morph {
+  0%,100% { border-radius:48% 52% 55% 45% / 46% 43% 57% 54%; }
+  25% { border-radius:55% 45% 48% 52% / 54% 48% 52% 46%; }
+  50% { border-radius:44% 56% 51% 49% / 48% 56% 44% 52%; }
+  75% { border-radius:52% 48% 43% 57% / 42% 52% 48% 58%; }
+}
+@keyframes loading-logo-breathe {
+  0%,100% { transform:scale(1); }
+  50% { transform:scale(1.045); }
+}
+@keyframes loading-pulse {
+  0%,100% { opacity:.55; transform:scale(.92); }
+  50% { opacity:1; transform:scale(1.08); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .loading-process-ring,.loading-brand-logo,.loading-brand-wrap::before { animation:none; }
+}
