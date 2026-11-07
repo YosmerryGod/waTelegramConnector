@@ -52,14 +52,52 @@ let apiServer = null;
 const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
 let webSocketHeartbeat = null;
 
-webSocketServer.on("connection", (socket, _request, telegramId) => {
-  addMiniAppClient(telegramId, socket);
+webSocketServer.on("connection", (socket) => {
+  let telegramId = null;
+  let authenticated = false;
+
   socket.isAlive = true;
   socket.on("pong", () => { socket.isAlive = true; });
+
+  // [ADDED] initData is sent as the first frame, not in the URL or access logs.
+  const authTimer = setTimeout(() => {
+    if (!authenticated) socket.close(1008, "Authentication timeout");
+  }, 5000);
+  authTimer.unref?.();
+
+  socket.on("message", (raw) => {
+    if (authenticated) return;
+
+    try {
+      const payload = JSON.parse(raw.toString());
+      const verified = payload?.type === "auth"
+        ? verifyTelegramInitData(payload.initData)
+        : null;
+      const user = verified ? getUser(verified.id) : null;
+
+      if (!verified || !user || user.is_active !== 1) {
+        socket.close(1008, "Authentication failed");
+        return;
+      }
+
+      authenticated = true;
+      telegramId = verified.id;
+      clearTimeout(authTimer);
+      addMiniAppClient(telegramId, socket);
+      socket.send(JSON.stringify({
+        type: "connected",
+        data: { telegramId },
+        sentAt: Date.now()
+      }));
+    } catch {
+      socket.close(1008, "Invalid authentication payload");
+    }
+  });
+
+  socket.on("close", () => clearTimeout(authTimer));
   socket.on("error", (error) => {
     logger.warn({ err: error, telegramId }, "Mini App WebSocket error");
   });
-  socket.send(JSON.stringify({ type: "connected", data: { telegramId }, sentAt: Date.now() }));
 });
 
 // [ADDED] Prevent simultaneous shutdown execution.
@@ -182,16 +220,8 @@ function startApiServer() {
         return;
       }
 
-      const authenticated = verifyTelegramInitData(requestUrl.searchParams.get("initData"));
-      const user = authenticated ? getUser(authenticated.id) : null;
-      if (!authenticated || !user || user.is_active !== 1) {
-        socket.write("HTTP/1.1 401 Unauthorized\\r\\nConnection: close\\r\\n\\r\\n");
-        socket.destroy();
-        return;
-      }
-
       webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
-        webSocketServer.emit("connection", webSocket, request, authenticated.id);
+        webSocketServer.emit("connection", webSocket, request);
       });
     });
 
