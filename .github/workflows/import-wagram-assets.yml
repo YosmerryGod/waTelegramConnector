@@ -56,6 +56,43 @@ jobs:
             exit 1
           fi
 
+          BRAND_DIR="miniapp/assets/brand-pack/wagram-logo-pack"
+
+          # Copy the official web assets to stable, short paths used by the Mini App.
+          cp "$BRAND_DIR/svg/logo-white-transparent.svg" miniapp/assets/wagram-logo.svg
+          cp "$BRAND_DIR/favicon/favicon.ico" miniapp/assets/favicon.ico
+          cp "$BRAND_DIR/favicon/favicon-16.png" miniapp/assets/favicon-16.png
+          cp "$BRAND_DIR/favicon/favicon-32.png" miniapp/assets/favicon-32.png
+          cp "$BRAND_DIR/favicon/apple-touch-icon.png" miniapp/assets/apple-touch-icon.png
+          cp "$BRAND_DIR/icons/icon-192.png" miniapp/assets/icon-192.png
+          cp "$BRAND_DIR/icons/icon-512.png" miniapp/assets/icon-512.png
+
+          cat > miniapp/manifest.webmanifest <<'EOF'
+          {
+            "name": "WAGRAM",
+            "short_name": "WAGRAM",
+            "description": "WAGRAM WhatsApp Messenger",
+            "start_url": "./",
+            "display": "standalone",
+            "background_color": "#03A233",
+            "theme_color": "#03A233",
+            "icons": [
+              {
+                "src": "./assets/icon-192.png",
+                "sizes": "192x192",
+                "type": "image/png",
+                "purpose": "any"
+              },
+              {
+                "src": "./assets/icon-512.png",
+                "sizes": "512x512",
+                "type": "image/png",
+                "purpose": "any"
+              }
+            ]
+          }
+          EOF
+
       - name: Commit extracted brand assets
         shell: bash
         run: |
