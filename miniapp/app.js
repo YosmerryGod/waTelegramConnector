@@ -45,14 +45,18 @@
     chats: "#chatPage",
     calls: "#callsPage",
     contacts: "#contactsPage",
+    connections: "#connectionsPage",
+    automation: "#automationPage",
     account: "#accountPage"
   };
 
   const NAVS = {
-    chats: "#chatsNav",
-    calls: "#callsNav",
-    contacts: "#contactsNav",
-    account: "#profileNav"
+    chats: "#messagesNav",
+    calls: "#messagesNav",
+    contacts: "#messagesNav",
+    connections: "#connectionsNav",
+    automation: "#automationNav",
+    account: "#settingsNav"
   };
 
   const FILTER_TITLES = {
@@ -1243,10 +1247,14 @@
     $("#favoriteButton").addEventListener("click", toggleFavorite);
     $("#archiveButton").addEventListener("click", toggleArchive);
 
-    $("#chatsNav").addEventListener("click", () => setPage("chats"));
-    $("#callsNav").addEventListener("click", () => setPage("calls"));
-    $("#contactsNav").addEventListener("click", () => setPage("contacts"));
-    $("#profileNav").addEventListener("click", () => setPage("account"));
+    $("#messagesNav").addEventListener("click", () => setPage("chats"));
+    $("#connectionsNav").addEventListener("click", () => setPage("connections"));
+    $("#automationNav").addEventListener("click", () => setPage("automation"));
+    $("#settingsNav").addEventListener("click", () => setPage("account"));
+    $("#openCallsButton").addEventListener("click", () => setPage("calls"));
+    $("#openContactsButton").addEventListener("click", () => setPage("contacts"));
+    $("#backToMessagesCalls").addEventListener("click", () => setPage("chats"));
+    $("#backToMessagesContacts").addEventListener("click", () => setPage("chats"));
 
     // Chat
     $("#searchInput").addEventListener("input", onChatSearch);
