@@ -332,6 +332,8 @@
     state.page = page;
     closeTopbarSearch(false);
     updateTopbarTitle();
+    // [ADDED] Show the add-contact action only on the Contacts page.
+    $("#addContactButton").classList.toggle("hidden", page !== "contacts");
     closeConversationUI();
 
     for (const [key, selector] of Object.entries(PAGES)) {
