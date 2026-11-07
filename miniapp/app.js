@@ -1254,21 +1254,23 @@
       const iconName = kind === "missed" ? "call-missed" : kind === "outgoing" ? "call-out" : "call-in";
 
       return `${heading}
-        <div class="call-swipe-row" data-call-row="${escapeHTML(call.id)}">
-          ${canSave ? `<button class="call-save-action" type="button" data-save-call="${escapeHTML(call.id)}" aria-label="Simpan nomor ke kontak">${icon("bookmark")}</button>` : ""}
+        <div class="call-swipe-row" data-call-row="${escapeHTML(call.id)}" data-call-phone="${escapeHTML(call.phone_number || "")}">
+          <div class="call-actions">
+            <button class="call-favorite-action" type="button" data-call-favorite="${escapeHTML(call.phone_number || "")}" aria-label="Favoritkan chat">${icon("star")}</button>
+            <button class="call-archive-action" type="button" data-call-archive="${escapeHTML(call.phone_number || "")}" aria-label="Arsipkan chat">${icon("archive")}</button>
+          </div>
           <article class="list-item call-row-content">
             <div class="call-icon ${kind}">${icon(iconName)}</div>
             <div class="item-body">
               <div class="item-title ${kind === "missed" ? "danger" : ""}">${escapeHTML(call.display_name)}</div>
               <div class="item-sub call-meta">
-                ${escapeHTML(formatPhone(call.phone_number) || callLabel(call))}
+                <span class="call-phone-line">${escapeHTML(formatPhone(call.phone_number) || callLabel(call))}
+                  ${canSave ? `<button class="call-inline-save" type="button" data-save-call="${escapeHTML(call.id)}" aria-label="Simpan nomor ke kontak">${icon("bookmark")}</button>` : call.is_saved ? `<span class="call-inline-saved" aria-label="Nomor tersimpan">${icon("bookmark")}</span>` : ""}
+                </span>
                 <span class="call-detail">${escapeHTML(callLabel(call))} ${call.is_video ? `· ${icon("video", "mini-icon")} Video` : "· Suara"}${call.is_group ? " · Grup" : ""}</span>
               </div>
             </div>
-            <div class="call-side">
-              <span class="item-time">${escapeHTML(timeOnly(ms))}</span>
-              ${call.is_saved ? `<span class="saved-tag">${icon("bookmark")}Tersimpan</span>` : ""}
-            </div>
+            <div class="call-side"><span class="item-time">${escapeHTML(timeOnly(ms))}</span></div>
           </article>
         </div>`;
     }).join("");
@@ -1689,14 +1691,14 @@
       renderCalls();
     });
 
-    // [MODIFIED] Long-press or swipe a call row left to reveal its save action.
+    // [MODIFIED] Call cards reveal favorite and archive actions on long-press or left-swipe.
     let callPressTimer = null;
     let callPointerStart = null;
     let suppressCallClick = false;
 
     $("#callsList").addEventListener("pointerdown", (event) => {
       const row = event.target.closest(".call-swipe-row");
-      if (!row || event.target.closest("[data-save-call]")) return;
+      if (!row || event.target.closest("button")) return;
       callPointerStart = { row, x: event.clientX, y: event.clientY, revealed: row.classList.contains("is-revealed") };
       clearTimeout(callPressTimer);
       callPressTimer = setTimeout(() => { row.classList.add("is-revealed"); suppressCallClick = true; }, 430);
@@ -1722,15 +1724,49 @@
     $("#callsList").addEventListener("pointerup", finishCallPointer);
     $("#callsList").addEventListener("pointercancel", finishCallPointer);
 
+    async function findChatForCall(phone) {
+      const digits = String(phone || "").replace(/\D/g, "");
+      if (!digits) return null;
+      if (!state.chatsLoaded) await loadChats();
+      let chat = state.chats.find((item) => String(item.phone_number || item.whatsapp_chat_id || "").replace(/\D/g, "").endsWith(digits.slice(-10)));
+      if (!chat) {
+        const data = await api("/chats?limit=100&archived=false");
+        state.chats = data.chats || [];
+        state.chatsLoaded = true;
+        chat = state.chats.find((item) => String(item.phone_number || item.whatsapp_chat_id || "").replace(/\D/g, "").endsWith(digits.slice(-10)));
+      }
+      return chat || null;
+    }
+
+    async function updateCallChatAction(phone, action) {
+      try {
+        const chat = await findChatForCall(phone);
+        if (!chat) { showToast("Chat WhatsApp untuk nomor ini tidak ditemukan."); return; }
+        if (action === "favorite") {
+          const favorite = !chat.is_favorite;
+          await api(`/chats/${enc(chat.whatsapp_chat_id)}/favorite`, { method: "PUT", body: JSON.stringify({ favorite }) });
+          showToast(favorite ? "Chat ditambahkan ke favorit" : "Chat dihapus dari favorit");
+        } else {
+          await api(`/chats/${enc(chat.whatsapp_chat_id)}/archive`, { method: "PUT", body: JSON.stringify({ archived: true }) });
+          showToast("Chat berhasil diarsipkan");
+        }
+        await loadChats();
+      } catch (error) { showToast(error.message); }
+    }
+
     $("#callsList").addEventListener("click", (event) => {
-      const button = event.target.closest("[data-save-call]");
-      if (button) {
+      const save = event.target.closest("[data-save-call]");
+      if (save) {
         event.stopPropagation();
-        const call = state.calls.find((item) => String(item.id) === button.dataset.saveCall);
+        const call = state.calls.find((item) => String(item.id) === save.dataset.saveCall);
         if (!call?.phone_number) { showToast("Nomor telepon tidak tersedia."); return; }
         openContactSheet(null, { name: call.display_name, phone: call.phone_number });
         return;
       }
+      const favorite = event.target.closest("[data-call-favorite]");
+      if (favorite) { event.stopPropagation(); updateCallChatAction(favorite.dataset.callFavorite, "favorite"); return; }
+      const archive = event.target.closest("[data-call-archive]");
+      if (archive) { event.stopPropagation(); updateCallChatAction(archive.dataset.callArchive, "archive"); return; }
       const row = event.target.closest(".call-swipe-row");
       if (!row) return;
       if (suppressCallClick) { suppressCallClick = false; return; }
