@@ -1944,3 +1944,49 @@ html[data-theme="dark"] .sheet-panel input {
 @media (prefers-reduced-motion: reduce) {
   .topbar-title, .topbar-search, #searchToggleButton { transition: none !important; }
 }
+
+
+/* [ADDED] WAGRAM swipe-to-archive interaction: single green archive action. */
+.chat-swipe-row {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--surface);
+}
+.chat-row-content {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  transition: transform .24s cubic-bezier(.2,.75,.25,1), background .15s;
+  touch-action: pan-y;
+}
+.chat-archive-action {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: .98;
+}
+.chat-archive-action .i {
+  width: 23px;
+  height: 23px;
+  stroke-width: 2;
+}
+.chat-swipe-row.is-revealed .chat-row-content {
+  transform: translateX(-76px);
+}
+.chat-swipe-row.is-revealed .chat-archive-action {
+  z-index: 2;
+}
+.chat-archive-action:disabled {
+  opacity: .55;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-row-content { transition: none; }
+}
