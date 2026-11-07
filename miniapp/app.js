@@ -1627,6 +1627,13 @@
       $("#notificationCardToggle").setAttribute("aria-expanded", String(!collapsed));
     });
 
+    // [ADDED] Expand or collapse the history and data cleanup list.
+    $("#historyCleanupToggle").addEventListener("click", () => {
+      const section = $("#historyCleanupToggle").closest(".embedded-history-section");
+      const collapsed = section.classList.toggle("is-collapsed");
+      $("#historyCleanupToggle").setAttribute("aria-expanded", String(!collapsed));
+    });
+
     // [ADDED] Notification switches are saved locally on this device.
     $("#notificationOptions").addEventListener("click", (event) => {
       const button = event.target.closest("[data-notification]");
