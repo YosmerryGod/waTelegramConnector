@@ -1544,12 +1544,6 @@
       showToast("Upgrade Premium segera hadir.");
     });
 
-    $("#themeSegment").addEventListener("click", (event) => {
-      const option = event.target.closest("[data-theme-pref]");
-
-      if (option) setThemePref(option.dataset.themePref);
-    });
-
     window.matchMedia?.("(prefers-color-scheme: dark)")
       .addEventListener?.("change", applyTheme);
 
