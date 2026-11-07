@@ -10,8 +10,8 @@
   gate.innerHTML = `
     <div class="connection-panel">
       <div class="connection-brand">
-        <div class="connection-brand-mark" aria-hidden="true">G</div>
-        <div class="connection-brand-name">WA Telegram<span>Connector</span></div>
+        <div class="connection-brand-mark" aria-hidden="true">W</div>
+        <div class="connection-brand-name">WAGRAM<span>WhatsApp Messenger</span></div>
       </div>
       <div class="connection-eyebrow">WhatsApp pairing</div>
       <h1 class="connection-title" id="connectionTitle">Hubungkan WhatsApp</h1>
