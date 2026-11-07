@@ -14,10 +14,18 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-add-session-ui">
+  <link rel="stylesheet" href="style.css?v=20261108-branded-loader">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <!-- [ADDED] Branded splash loader shown until initial app data has settled. -->
+  <div id="appLoadingScreen" class="app-loading-screen" role="status" aria-label="Memuat WAGRAM">
+    <div class="loading-brand-wrap">
+      <div class="loading-process-ring" aria-hidden="true"></div>
+      <img class="loading-brand-logo" src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM">
+    </div>
+  </div>
+
   <!-- Ikon (SVG sprite) -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
@@ -455,7 +463,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261108-add-session-ui"></script>
+  <script src="app.js?v=20261108-branded-loader"></script>
   <script src="connection.js?v=20261107-1448"></script>
 </body>
 </html>
