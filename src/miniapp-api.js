@@ -8,7 +8,7 @@ import { Readable } from "node:stream";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import QRCode from "qrcode";
-import { connectWhatsApp, getWhatsAppQr, getWhatsAppStatus } from "./whatsapp.js";
+import { connectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppProfile } from "./whatsapp.js";
 
 import {
   getUser,
@@ -25,7 +25,12 @@ import {
   deleteContact,
   listContacts,
   listCalls,
-  getMessageMedia
+  getMessageMedia,
+  // [ADDED] WhatsApp profile cache and participant ownership checks.
+  getWhatsAppProfileCache,
+  saveWhatsAppProfileCache,
+  getWhatsAppParticipantName,
+  hasWhatsAppParticipant
 } from "./database.js";
 
 const router = express.Router();
@@ -297,6 +302,86 @@ router.get("/me", (req, res) => {
       languageCode: req.miniAppUser.language_code || null
     }
   });
+});
+
+// ---------------------------------------------------------------------------
+// [ADDED] WhatsApp contact/group profile
+// ---------------------------------------------------------------------------
+
+// GET /api/miniapp/profile/:jid — only JIDs already present in this account's chats.
+router.get("/profile/:jid", async (req, res) => {
+  try {
+    const jid = String(req.params.jid || "");
+
+    if (!jid || jid.length > 256 || !/^(?:\\d+(?::\\d+)?@s\\.whatsapp\\.net|\\d+(?::\\d+)?@lid|\\d+-\\d+@g\\.us)$/.test(jid)) {
+      return res.status(400).json({ ok: false, error: "INVALID_WHATSAPP_JID" });
+    }
+
+    if (!hasWhatsAppParticipant(req.telegramId, jid)) {
+      return res.status(404).json({ ok: false, error: "PROFILE_NOT_FOUND" });
+    }
+
+    const chat = getChat(req.telegramId, jid);
+    const cached = getWhatsAppProfileCache(req.telegramId, jid);
+    const cacheTtlMs = 30 * 60 * 1000;
+    const cacheFresh = cached && Date.now() - cached.fetched_at < cacheTtlMs;
+
+    if (!cacheFresh) {
+      try {
+        const remote = await getWhatsAppProfile(req.telegramId, jid);
+        const saved = saveWhatsAppProfileCache({
+          telegramId: req.telegramId,
+          whatsappJid: jid,
+          displayName: chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid),
+          aboutText: remote.aboutText,
+          pictureUrl: remote.pictureUrl,
+          statusSetAt: remote.statusSetAt
+        });
+
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.json({
+          ok: true,
+          profile: {
+            jid,
+            displayName: saved.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid) || jid,
+            about: saved.about_text,
+            pictureUrl: saved.picture_url,
+            statusSetAt: saved.status_set_at,
+            cachedAt: saved.fetched_at,
+            stale: false
+          }
+        });
+      } catch (error) {
+        if (!cached) {
+          const notConnected = error.message === "WHATSAPP_NOT_CONNECTED";
+          return res.status(notConnected ? 409 : 502).json({
+            ok: false,
+            error: notConnected ? "WHATSAPP_NOT_CONNECTED" : "PROFILE_UNAVAILABLE",
+            message: notConnected
+              ? "Hubungkan WhatsApp untuk mengambil profil."
+              : "Profil tidak dapat diambil saat ini."
+          });
+        }
+      }
+    }
+
+    const profile = cached || {};
+    res.setHeader("Cache-Control", "private, no-store");
+    return res.json({
+      ok: true,
+      profile: {
+        jid,
+        displayName: profile.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid) || jid,
+        about: profile.about_text || null,
+        pictureUrl: profile.picture_url || null,
+        statusSetAt: profile.status_set_at || null,
+        cachedAt: profile.fetched_at || null,
+        stale: !cacheFresh
+      }
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not fetch WhatsApp profile");
+  }
 });
 
 // ---------------------------------------------------------------------------
