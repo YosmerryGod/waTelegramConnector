@@ -1962,21 +1962,39 @@ html[data-theme="dark"] .sheet-panel input {
   transition: transform .24s cubic-bezier(.2,.75,.25,1), background .15s;
   touch-action: pan-y;
 }
-.chat-archive-action {
+.chat-actions {
   position: absolute;
   inset: 0 0 0 auto;
   z-index: 0;
-  display: grid;
-  place-items: center;
-  width: 76px;
-  border: 0;
-  border-radius: 0;
-  background: var(--accent);
-  color: var(--on-accent);
+  display: flex;
+  width: 152px;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   transition: opacity .18s ease, visibility .18s ease;
+}
+.chat-actions button {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  flex: 0 0 76px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.chat-favorite-action {
+  background: var(--surface-2);
+  color: var(--accent);
+}
+.chat-favorite-action .i {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke-width: 2;
+}
+.chat-archive-action {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 .chat-archive-action .i {
   width: 23px;
@@ -1984,15 +2002,15 @@ html[data-theme="dark"] .sheet-panel input {
   stroke-width: 2;
 }
 .chat-swipe-row.is-revealed .chat-row-content {
-  transform: translateX(-76px);
+  transform: translateX(-152px);
 }
-.chat-swipe-row.is-revealed .chat-archive-action {
+.chat-swipe-row.is-revealed .chat-actions {
   z-index: 2;
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
-.chat-archive-action:disabled {
+.chat-actions button:disabled {
   opacity: .55;
 }
 @media (prefers-reduced-motion: reduce) {
