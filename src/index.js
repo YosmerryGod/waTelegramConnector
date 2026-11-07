@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import pino from "pino";
 import express from "express";
+import { createServer } from "node:http";
+import { WebSocketServer } from "ws";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 
@@ -20,7 +22,9 @@ import {
 } from "./whatsapp.js";
 
 // [ADDED] Mini App REST API router.
-import miniAppApi from "./miniapp-api.js";
+import miniAppApi, { verifyTelegramInitData } from "./miniapp-api.js";
+import { getUser } from "./database.js";
+import { addMiniAppClient, closeMiniAppClients } from "./realtime.js";
 
 // [ADDED] Application configuration.
 const LOG_LEVEL = process.env.LOG_LEVEL || "warn";
@@ -43,6 +47,20 @@ const logger = pino({
 const app = express();
 
 let apiServer = null;
+
+// [ADDED] Authenticated WebSocket endpoint for Mini App updates.
+const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
+let webSocketHeartbeat = null;
+
+webSocketServer.on("connection", (socket, _request, telegramId) => {
+  addMiniAppClient(telegramId, socket);
+  socket.isAlive = true;
+  socket.on("pong", () => { socket.isAlive = true; });
+  socket.on("error", (error) => {
+    logger.warn({ err: error, telegramId }, "Mini App WebSocket error");
+  });
+  socket.send(JSON.stringify({ type: "connected", data: { telegramId }, sentAt: Date.now() }));
+});
 
 // [ADDED] Prevent simultaneous shutdown execution.
 let shuttingDown = false;
@@ -147,10 +165,35 @@ async function restoreSessions() {
 // [ADDED] Start the API server before restoring WhatsApp sessions.
 function startApiServer() {
   return new Promise((resolve, reject) => {
-    const server = app.listen(
-      MINIAPP_API_PORT,
-      MINIAPP_API_HOST
-    );
+    const server = createServer(app);
+
+    // [ADDED] Verify Telegram initData before upgrading to WebSocket.
+    server.on("upgrade", (request, socket, head) => {
+      let requestUrl;
+      try {
+        requestUrl = new URL(request.url, "http://localhost");
+      } catch {
+        socket.destroy();
+        return;
+      }
+
+      if (requestUrl.pathname !== "/ws/miniapp") {
+        socket.destroy();
+        return;
+      }
+
+      const authenticated = verifyTelegramInitData(requestUrl.searchParams.get("initData"));
+      const user = authenticated ? getUser(authenticated.id) : null;
+      if (!authenticated || !user || user.is_active !== 1) {
+        socket.write("HTTP/1.1 401 Unauthorized\\r\\nConnection: close\\r\\n\\r\\n");
+        socket.destroy();
+        return;
+      }
+
+      webSocketServer.handleUpgrade(request, socket, head, (webSocket) => {
+        webSocketServer.emit("connection", webSocket, request, authenticated.id);
+      });
+    });
 
     apiServer = server;
 
@@ -170,6 +213,21 @@ function startApiServer() {
       apiServer = null;
       reject(error);
     });
+
+    server.listen(MINIAPP_API_PORT, MINIAPP_API_HOST);
+
+    // [ADDED] Detect dead mobile WebSocket connections.
+    webSocketHeartbeat = setInterval(() => {
+      for (const socket of webSocketServer.clients) {
+        if (socket.isAlive === false) {
+          socket.terminate();
+          continue;
+        }
+        socket.isAlive = false;
+        socket.ping();
+      }
+    }, 30000);
+    webSocketHeartbeat.unref?.();
   });
 }
 
@@ -204,6 +262,13 @@ async function stopApiServer() {
 
   const server = apiServer;
   apiServer = null;
+
+  if (webSocketHeartbeat) {
+    clearInterval(webSocketHeartbeat);
+    webSocketHeartbeat = null;
+  }
+  closeMiniAppClients();
+  webSocketServer.close();
 
   await new Promise((resolve, reject) => {
     server.close((error) => {
