@@ -1213,6 +1213,12 @@ export function createWhatsAppCallbacks(telegramId) {
                 fileId: file.fileId,
                 kind: file.kind
               });
+
+              // [ADDED] Media metadata is now committed; refresh the open chat.
+              publishToMiniApp(id, {
+                type: "media.ready",
+                data: { chatId: remoteJid, messageId }
+              });
             }
           } catch (error) {
             console.error("Failed to store media for Mini App:", error.message);
