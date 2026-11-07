@@ -498,6 +498,7 @@
     const phone = $("#accountWhatsAppPhone");
     const stateLabel = $("#accountWhatsAppState");
     const disconnectButton = $("#disconnectWhatsAppButton");
+    const disconnectLabel = disconnectButton.querySelector(".disconnect-action-label");
     try {
       const data = await api("/connection");
       const connected = data.status === "connected";
@@ -513,13 +514,17 @@
         photo.removeAttribute("src");
         photo.classList.add("hidden");
       }
-      stateLabel.classList.toggle("is-connected", connected);
-      stateLabel.innerHTML = `<i></i> ${connected ? "Connected" : "Disconnected"}`;
+      disconnectButton.classList.toggle("is-connected", connected);
+      disconnectButton.classList.toggle("is-disconnected", !connected);
+      stateLabel.textContent = connected ? "Connected" : "Disconnected";
+      disconnectLabel.hidden = !connected;
       disconnectButton.disabled = !connected;
     } catch (error) {
       phone.textContent = "Status koneksi tidak tersedia";
-      stateLabel.classList.remove("is-connected");
-      stateLabel.innerHTML = "<i></i> Tidak dapat memeriksa koneksi";
+      disconnectButton.classList.remove("is-connected");
+      disconnectButton.classList.add("is-disconnected");
+      stateLabel.textContent = "Status tidak tersedia";
+      disconnectLabel.hidden = true;
       disconnectButton.disabled = true;
     }
   }
