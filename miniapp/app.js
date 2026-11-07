@@ -1492,13 +1492,16 @@
     const apiUrl = new URL(API_BASE, window.location.href);
     const socketUrl = new URL("/ws/miniapp", apiUrl.origin);
     socketUrl.protocol = apiUrl.protocol === "https:" ? "wss:" : "ws:";
-    socketUrl.searchParams.set("initData", tg.initData);
 
     const socket = new WebSocket(socketUrl.toString());
     realtimeSocket = socket;
 
     socket.addEventListener("open", () => {
       realtimeRetryDelay = 1000;
+      socket.send(JSON.stringify({
+        type: "auth",
+        initData: tg.initData
+      }));
     });
 
     socket.addEventListener("message", (message) => {
