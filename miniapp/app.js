@@ -1338,18 +1338,20 @@
     }
 
     list.innerHTML = contacts.map((contact) => `
-      <article class="list-item">
-        ${avatar(contact.name, contact.name, "small")}
-        <div class="item-body">
-          <div class="item-title">${escapeHTML(contact.name)}</div>
-          <div class="item-sub">${escapeHTML(formatPhone(contact.phone_number))}</div>
+      <div class="contact-swipe-row" data-contact-row="${escapeHTML(contact.id)}">
+        <div class="contact-swipe-actions">
+          <button class="contact-swipe-whatsapp" type="button" data-wa="${escapeHTML(contact.phone_number)}" aria-label="Buka di WhatsApp">${icon("message-circle")}</button>
+          <button class="contact-swipe-edit" type="button" data-edit="${escapeHTML(contact.id)}" aria-label="Edit kontak">${icon("edit")}</button>
+          <button class="contact-swipe-delete" type="button" data-del="${escapeHTML(contact.id)}" aria-label="Hapus kontak">${icon("trash-2")}</button>
         </div>
-        <div class="contact-actions">
-          <button class="icon-button small" type="button" data-wa="${escapeHTML(contact.phone_number)}" aria-label="Buka di WhatsApp">${icon("chat")}</button>
-          <button class="icon-button small" type="button" data-edit="${escapeHTML(contact.id)}" aria-label="Edit kontak">${icon("edit")}</button>
-          <button class="icon-button small danger" type="button" data-del="${escapeHTML(contact.id)}" aria-label="Hapus kontak">${icon("trash")}</button>
-        </div>
-      </article>`).join("");
+        <article class="list-item contact-row-content">
+          ${avatar(contact.name, contact.name, "small")}
+          <div class="item-body">
+            <div class="item-title">${escapeHTML(contact.name)}</div>
+            <div class="item-sub">${escapeHTML(formatPhone(contact.phone_number))}</div>
+          </div>
+        </article>
+      </div>`).join("");
   }
 
   function openContactSheet(contact = null, prefill = null) {
@@ -1812,9 +1814,62 @@
       renderContacts();
     });
 
+    // [ADDED] Contact cards reveal WhatsApp, Edit and Delete actions on long-press or left swipe.
+    let contactPressTimer = null;
+    let contactPointerStart = null;
+    let suppressContactClick = false;
+
+    $("#contactsList").addEventListener("pointerdown", (event) => {
+      const row = event.target.closest(".contact-swipe-row");
+      if (!row || event.target.closest("button")) return;
+      contactPointerStart = { row, x: event.clientX, y: event.clientY, revealed: row.classList.contains("is-revealed") };
+      clearTimeout(contactPressTimer);
+      contactPressTimer = setTimeout(() => {
+        row.classList.add("is-revealed");
+        suppressContactClick = true;
+      }, 430);
+    });
+
+    $("#contactsList").addEventListener("pointermove", (event) => {
+      if (!contactPointerStart) return;
+      const dx = event.clientX - contactPointerStart.x;
+      const dy = event.clientY - contactPointerStart.y;
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+        clearTimeout(contactPressTimer);
+        return;
+      }
+      if (dx < -38) {
+        clearTimeout(contactPressTimer);
+        contactPointerStart.row.classList.add("is-revealed");
+        suppressContactClick = true;
+      } else if (dx > 38 && contactPointerStart.revealed) {
+        clearTimeout(contactPressTimer);
+        contactPointerStart.row.classList.remove("is-revealed");
+        suppressContactClick = true;
+      }
+    });
+
+    const finishContactPointer = () => {
+      clearTimeout(contactPressTimer);
+      contactPressTimer = null;
+      contactPointerStart = null;
+    };
+    $("#contactsList").addEventListener("pointerup", finishContactPointer);
+    $("#contactsList").addEventListener("pointercancel", finishContactPointer);
+
     $("#contactsList").addEventListener("click", (event) => {
       if (event.target.closest("[data-add-contact]")) {
         openContactSheet();
+        return;
+      }
+
+      const contactRow = event.target.closest(".contact-swipe-row");
+      if (contactRow && !event.target.closest("button")) {
+        if (suppressContactClick) {
+          suppressContactClick = false;
+          return;
+        }
+        if (contactRow.classList.contains("is-revealed")) contactRow.classList.remove("is-revealed");
         return;
       }
 
