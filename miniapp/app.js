@@ -1375,13 +1375,13 @@
      Telegram & tema
      --------------------------------------------------------- */
 
-  const THEME_KEY = "dood-theme";
+  const THEME_KEY = "wagram-theme";
 
   function getThemePref() {
     try {
       const value = localStorage.getItem(THEME_KEY);
 
-      return ["auto", "light", "dark"].includes(value) ? value : "auto";
+      return ["auto", "light", "dark"].includes(value) ? value : "light";
     } catch {
       return "auto";
     }
@@ -1397,7 +1397,7 @@
     applyTheme();
   }
 
-  // "auto" mengikuti tema Telegram, lalu tema perangkat.
+  // "auto" mengikuti tema Telegram, lalu tema perangkat. Default WAGRAM adalah tema terang.
   function resolveScheme() {
     const pref = getThemePref();
 
