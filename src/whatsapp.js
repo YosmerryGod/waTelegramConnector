@@ -242,6 +242,35 @@ export function getWhatsAppStatus(telegramId) {
   };
 }
 
+// [ADDED] Read the linked WhatsApp account's display name and profile photo.
+export async function getWhatsAppAccountProfile(telegramId) {
+  const entry = connections.get(String(telegramId));
+  if (!entry || entry.status !== "connected" || !entry.socket) {
+    return { displayName: null, pictureUrl: null };
+  }
+
+  const user = entry.socket.user || {};
+  const jid = String(user.id || "").replace(/:\d+@/, "@");
+  let pictureUrl = null;
+
+  if (jid) {
+    try {
+      pictureUrl = await entry.socket.profilePictureUrl(jid, "image");
+    } catch {
+      try {
+        pictureUrl = await entry.socket.profilePictureUrl(jid, "preview");
+      } catch {
+        pictureUrl = null;
+      }
+    }
+  }
+
+  return {
+    displayName: user.name || user.notify || null,
+    pictureUrl: pictureUrl || null
+  };
+}
+
 // [ADDED] Expose the current pairing QR only to the authenticated Mini App API.
 export function getWhatsAppQr(telegramId) {
   const entry = connections.get(String(telegramId));
