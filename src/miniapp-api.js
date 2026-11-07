@@ -8,7 +8,7 @@ import { Readable } from "node:stream";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import QRCode from "qrcode";
-import { connectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppProfile } from "./whatsapp.js";
+import { connectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppProfile, getWhatsAppPhoneNumber } from "./whatsapp.js";
 
 import {
   getUser,
@@ -322,6 +322,12 @@ router.get("/profile/:jid", async (req, res) => {
     }
 
     const chat = getChat(req.telegramId, jid);
+    // [ADDED] Resolve @lid to its real phone number through Baileys.
+    const resolvedPhoneNumber = await getWhatsAppPhoneNumber(
+      req.telegramId,
+      jid
+    ).catch(() => null);
+    const profilePhoneNumber = resolvedPhoneNumber || chat?.phone_number || null;
     const cached = getWhatsAppProfileCache(req.telegramId, jid);
     const cacheTtlMs = 30 * 60 * 1000;
     const cacheFresh = cached && Date.now() - cached.fetched_at < cacheTtlMs;
@@ -343,7 +349,7 @@ router.get("/profile/:jid", async (req, res) => {
           ok: true,
           profile: {
             jid,
-            phoneNumber: chat?.phone_number || null,
+            phoneNumber: profilePhoneNumber,
             displayName: saved.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid) || jid,
             about: saved.about_text,
             pictureUrl: saved.picture_url,
