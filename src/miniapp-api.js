@@ -343,6 +343,7 @@ router.get("/profile/:jid", async (req, res) => {
           ok: true,
           profile: {
             jid,
+            phoneNumber: chat?.phone_number || null,
             displayName: saved.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid) || jid,
             about: saved.about_text,
             pictureUrl: saved.picture_url,
@@ -371,6 +372,7 @@ router.get("/profile/:jid", async (req, res) => {
       ok: true,
       profile: {
         jid,
+        phoneNumber: chat?.phone_number || null,
         displayName: profile.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid) || jid,
         about: profile.about_text || null,
         pictureUrl: profile.picture_url || null,
