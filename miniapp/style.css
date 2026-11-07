@@ -2042,3 +2042,17 @@ html[data-theme="dark"] .sheet-panel input {
   background: var(--accent);
   color: var(--on-accent);
 }
+
+
+/* [MODIFIED] Make the WhatsApp contact action instantly recognizable. */
+#openChatWhatsAppButton {
+  color: #25D366;
+}
+#openChatWhatsAppButton .i {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2.15;
+}
+#openChatWhatsAppButton:disabled {
+  opacity: .4;
+}
