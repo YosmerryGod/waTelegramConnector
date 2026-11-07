@@ -2151,3 +2151,29 @@ html[data-theme="dark"] .sheet-panel input {
 .call-swipe-row.is-revealed .call-actions button {
   border-radius: 0 !important;
 }
+
+
+/* [MODIFIED] Keep the contact action on the same horizontal line as the call name. */
+.call-name-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-width: 0;
+  width: 100%;
+}
+.call-name-line .item-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 32px);
+}
+.call-name-line .call-inline-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  vertical-align: middle;
+}
