@@ -1340,9 +1340,9 @@
     list.innerHTML = contacts.map((contact) => `
       <div class="contact-swipe-row" data-contact-row="${escapeHTML(contact.id)}">
         <div class="contact-swipe-actions">
-          <button class="contact-swipe-whatsapp" type="button" data-wa="${escapeHTML(contact.phone_number)}" aria-label="Buka di WhatsApp">${icon("message-circle")}</button>
+          <button class="contact-swipe-whatsapp" type="button" data-wa="${escapeHTML(contact.phone_number)}" aria-label="Buka di WhatsApp">${icon("whatsapp")}</button>
           <button class="contact-swipe-edit" type="button" data-edit="${escapeHTML(contact.id)}" aria-label="Edit kontak">${icon("edit")}</button>
-          <button class="contact-swipe-delete" type="button" data-del="${escapeHTML(contact.id)}" aria-label="Hapus kontak">${icon("trash-2")}</button>
+          <button class="contact-swipe-delete" type="button" data-del="${escapeHTML(contact.id)}" aria-label="Hapus kontak">${icon("trash")}</button>
         </div>
         <article class="list-item contact-row-content">
           ${avatar(contact.name, contact.name, "small")}
