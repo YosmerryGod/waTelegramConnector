@@ -138,6 +138,11 @@
     return `<div class="avatar ${extraClass}" style="--h:${avatarHue(seed || name)}">${escapeHTML(getInitials(name))}</div>`;
   }
 
+  // [ADDED] Render profile photos without changing the fallback avatar behavior.
+  function profileAvatar(name, jid, extraClass = "") {
+    return `<div class="avatar profile-avatar ${extraClass}" data-profile-jid="${escapeHTML(jid || "")}" data-profile-name="${escapeHTML(name || "")}" role="button" tabindex="0" style="--h:${avatarHue(name)}">${escapeHTML(getInitials(name))}</div>`;
+  }
+
   // Timestamp bisa detik (WhatsApp) atau milidetik.
   function toMs(value) {
     const number = Number(value);
@@ -610,9 +615,12 @@
       : formatPhone(chat.phone_number) || "Chat pribadi";
 
     const conversationAvatar = $("#conversationAvatar");
-
     conversationAvatar.textContent = getInitials(name);
     conversationAvatar.style.setProperty("--h", avatarHue(name));
+    conversationAvatar.dataset.profileJid = chat.whatsapp_chat_id || "";
+    conversationAvatar.dataset.profileName = name;
+    $("#conversationName").dataset.profileJid = chat.whatsapp_chat_id || "";
+    $("#conversationName").dataset.profileName = name;
 
     $("#favoriteButton").classList.toggle("is-on", Boolean(chat.is_favorite));
     $("#archiveButton").classList.toggle("is-on", Boolean(chat.is_archived));
@@ -826,7 +834,9 @@
       const senderName = message.contact_name || message.sender_name;
 
       const sender = isGroup && !outgoing && senderName
-        ? `<div class="message-sender">${escapeHTML(senderName)}</div>`
+        ? (message.sender_jid
+          ? `<button class="message-sender profile-sender" type="button" data-profile-jid="${escapeHTML(message.sender_jid)}" data-profile-name="${escapeHTML(senderName)}">${escapeHTML(senderName)}</button>`
+          : `<div class="message-sender">${escapeHTML(senderName)}</div>`)
         : "";
 
       const media = message.has_media ? mediaHTML(message) : "";
@@ -843,6 +853,103 @@
     list.scrollTop = list.scrollHeight;
     nearBottom = true;
     observeMedia(list);
+  }
+
+  /* ---------------------------------------------------------
+     Profil WhatsApp
+     --------------------------------------------------------- */
+
+  function profilePhone(jid) {
+    const match = String(jid || "").match(/^(\\d+)(?::\\d+)?@s\\.whatsapp\\.net$/);
+    return match ? formatPhone(match[1]) : "";
+  }
+
+  function openProfileSheet() {
+    $("#profileSheet").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    try {
+      tg?.BackButton?.show();
+    } catch {
+      /* tidak penting */
+    }
+  }
+
+  function closeProfileSheet() {
+    $("#profileSheet").classList.add("hidden");
+    $("#profilePhoto").removeAttribute("src");
+    document.body.style.overflow = "";
+    if (
+      $("#contactSheet").classList.contains("hidden") &&
+      !document.body.classList.contains("in-chat")
+    ) {
+      try {
+        tg?.BackButton?.hide();
+      } catch {
+        /* tidak penting */
+      }
+    }
+  }
+
+  async function openProfile(jid, fallbackName = "") {
+    if (!jid) return;
+
+    const title = $("#profileDisplayName");
+    const about = $("#profileAbout");
+    const phone = $("#profilePhone");
+    const identifier = $("#profileIdentifier");
+    const photo = $("#profilePhoto");
+    const avatarFallback = $("#profileAvatarFallback");
+
+    title.textContent = fallbackName || "Profil WhatsApp";
+    about.textContent = "Memuat info…";
+    phone.textContent = "Memuat…";
+    identifier.textContent = jid;
+    photo.classList.add("hidden");
+    avatarFallback.classList.remove("hidden");
+    avatarFallback.textContent = getInitials(fallbackName || jid);
+    avatarFallback.style.setProperty("--h", avatarHue(fallbackName || jid));
+    $("#profileUpdated").textContent = "";
+    openProfileSheet();
+
+    try {
+      const data = await api(`/profile/${enc(jid)}`);
+      const profile = data.profile || {};
+      const name = profile.displayName || fallbackName || "Pengguna WhatsApp";
+
+      title.textContent = name;
+      about.textContent = profile.about || "Info tidak tersedia atau disembunyikan.";
+      phone.textContent = profilePhone(jid) || (
+        jid.endsWith("@g.us") ? "Grup WhatsApp" : "Nomor tidak tersedia"
+      );
+      identifier.textContent = jid;
+
+      if (profile.pictureUrl) {
+        photo.onload = () => {
+          photo.classList.remove("hidden");
+          avatarFallback.classList.add("hidden");
+        };
+        photo.onerror = () => {
+          photo.classList.add("hidden");
+          avatarFallback.classList.remove("hidden");
+        };
+        photo.src = profile.pictureUrl;
+      }
+
+      if (profile.cachedAt) {
+        const date = new Date(profile.cachedAt);
+        $("#profileUpdated").textContent = `Diperbarui ${date.toLocaleString("id-ID", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit"
+        })}${profile.stale ? " · cache lama" : ""}`;
+      }
+    } catch (error) {
+      about.textContent = error.message;
+      phone.textContent = profilePhone(jid) || "Tidak tersedia";
+      identifier.textContent = jid;
+      showToast(error.message);
+    }
   }
 
   function patchListedChat(chat, changes) {
@@ -1226,6 +1333,12 @@
     });
 
     messageList.addEventListener("click", (event) => {
+      const profile = event.target.closest("[data-profile-jid]");
+      if (profile) {
+        openProfile(profile.dataset.profileJid, profile.dataset.profileName);
+        return;
+      }
+
       const img = event.target.closest("[data-media-img]");
 
       if (img) {
@@ -1281,6 +1394,12 @@
       const row = event.target.closest("[data-chat]");
 
       if (row) openChat(row.dataset.chat);
+    });
+
+    // [ADDED] Open the active chat or group profile from its header.
+    $("#conversationHeader").addEventListener("click", (event) => {
+      const target = event.target.closest("[data-profile-jid]");
+      if (target) openProfile(target.dataset.profileJid, target.dataset.profileName);
     });
 
     // Panggilan
@@ -1356,11 +1475,18 @@
       if (event.target.closest("[data-close-sheet]")) closeContactSheet();
     });
 
+    // [ADDED] Profile sheet dismissal.
+    $("#profileSheet").addEventListener("click", (event) => {
+      if (event.target.closest("[data-close-profile]")) closeProfileSheet();
+    });
+
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
 
       if (!$("#lightbox").classList.contains("hidden")) {
         closeLightbox();
+      } else if (!$("#profileSheet").classList.contains("hidden")) {
+        closeProfileSheet();
       } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
       }
@@ -1443,6 +1569,8 @@
     tg.BackButton?.onClick(() => {
       if (!$("#lightbox").classList.contains("hidden")) {
         closeLightbox();
+      } else if (!$("#profileSheet").classList.contains("hidden")) {
+        closeProfileSheet();
       } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
       } else {
