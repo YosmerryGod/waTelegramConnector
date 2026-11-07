@@ -1614,9 +1614,76 @@
       setThemePref(resolveScheme() === "dark" ? "light" : "dark");
     });
 
-    // [ADDED] Premium upgrade entry point while the subscription flow is prepared.
-    $("#upgradePremiumButton").addEventListener("click", () => {
-      showToast("Upgrade Premium segera hadir.");
+    // [ADDED] Open the Premium plan selector from the Profile page.
+    const premiumSheet = $("#premiumSheet");
+    let selectedPremiumPeriod = "3d";
+    const premiumPlans = {
+      "3d": {
+        label: "PREMIUM 3 HARI",
+        oldPrice: "Rp24.000",
+        price: "Rp14.000",
+        note: "Harga spesial untuk langganan pertama",
+        sessions: 2,
+        sessionDescription: "Hubungkan hingga 2 akun WhatsApp secara bersamaan."
+      },
+      "7d": {
+        label: "PREMIUM 7 HARI",
+        oldPrice: "",
+        price: "Rp44.000",
+        note: "Akses Premium selama 7 hari",
+        sessions: 3,
+        sessionDescription: "Hubungkan hingga 3 akun WhatsApp secara bersamaan."
+      },
+      "30d": {
+        label: "PREMIUM 30 HARI",
+        oldPrice: "",
+        price: "Rp149.000",
+        note: "Akses Premium selama 30 hari",
+        sessions: 5,
+        sessionDescription: "Hubungkan hingga 5 akun WhatsApp secara bersamaan."
+      }
+    };
+
+    function renderPremiumPlan(period) {
+      selectedPremiumPeriod = period;
+      const plan = premiumPlans[period];
+      $("#premiumPlanLabel").textContent = plan.label;
+      $("#premiumOldPrice").textContent = plan.oldPrice;
+      $("#premiumOldPrice").hidden = !plan.oldPrice;
+      $("#premiumCurrentPrice").textContent = plan.price;
+      $("#premiumPriceNote").textContent = plan.note;
+      $("#premiumSessionCount").textContent = `${plan.sessions} WhatsApp session`;
+      $("#premiumSessionDescription").textContent = plan.sessionDescription;
+      $("#premiumComparisonSessions").textContent = `${plan.sessions} vs 1`;
+      $("#premiumContinueButton").textContent = `Lanjutkan · ${plan.price}`;
+      document.querySelectorAll("[data-period]").forEach((tab) => {
+        const active = tab.dataset.period === period;
+        tab.classList.toggle("active", active);
+        tab.setAttribute("aria-selected", String(active));
+      });
+    }
+
+    function openPremiumSheet() {
+      renderPremiumPlan("3d");
+      premiumSheet.classList.remove("hidden");
+      tg?.BackButton?.show?.();
+    }
+
+    function closePremiumSheet() {
+      premiumSheet.classList.add("hidden");
+      if (tg?.BackButton && state.page !== "chats") tg.BackButton.show?.();
+    }
+
+    $("#upgradePremiumButton").addEventListener("click", openPremiumSheet);
+    $("#premiumDurationTabs").addEventListener("click", (event) => {
+      const tab = event.target.closest("[data-period]");
+      if (tab && premiumPlans[tab.dataset.period]) renderPremiumPlan(tab.dataset.period);
+    });
+    premiumSheet.querySelectorAll("[data-close-premium]").forEach((element) => {
+      element.addEventListener("click", closePremiumSheet);
+    });
+    $("#premiumContinueButton").addEventListener("click", () => {
+      showToast("Pembayaran Premium belum diaktifkan.");
     });
 
     // [ADDED] Expand or collapse notification preferences within the same card.
@@ -2185,6 +2252,8 @@
         closeProfileSheet();
       } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
+      } else if (!$("#premiumSheet").classList.contains("hidden")) {
+        closePremiumSheet();
       } else {
         setPage("chats");
       }
