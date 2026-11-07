@@ -1795,3 +1795,7 @@ html[data-theme="dark"] .sheet-panel input {
   font-size: 11px;
   text-align: center;
 }
+
+.conversation-header #conversationAvatar {
+  cursor: pointer;
+}
