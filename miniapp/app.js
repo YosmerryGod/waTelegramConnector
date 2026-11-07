@@ -138,11 +138,6 @@
     return `<div class="avatar ${extraClass}" style="--h:${avatarHue(seed || name)}">${escapeHTML(getInitials(name))}</div>`;
   }
 
-  // [ADDED] Render profile photos without changing the fallback avatar behavior.
-  function profileAvatar(name, jid, extraClass = "") {
-    return `<div class="avatar profile-avatar ${extraClass}" data-profile-jid="${escapeHTML(jid || "")}" data-profile-name="${escapeHTML(name || "")}" role="button" tabindex="0" style="--h:${avatarHue(name)}">${escapeHTML(getInitials(name))}</div>`;
-  }
-
   // Timestamp bisa detik (WhatsApp) atau milidetik.
   function toMs(value) {
     const number = Number(value);
