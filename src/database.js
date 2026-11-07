@@ -367,6 +367,7 @@ const statements = {
   listChats: db.prepare(`
     SELECT
       c.*,
+      wpc.picture_url AS profile_picture_url,
       COALESCE(
         cp.custom_name,
         ct.name,
@@ -388,6 +389,9 @@ const statements = {
     LEFT JOIN chat_preferences cp
       ON cp.telegram_id = c.telegram_id
       AND cp.whatsapp_chat_id = c.whatsapp_chat_id
+    LEFT JOIN whatsapp_profile_cache wpc
+      ON wpc.telegram_id = c.telegram_id
+      AND wpc.whatsapp_jid = c.whatsapp_chat_id
     LEFT JOIN contacts ct
       ON ct.telegram_id = c.telegram_id
       AND c.chat_type = 'private'
