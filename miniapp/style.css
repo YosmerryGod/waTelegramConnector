@@ -2341,21 +2341,21 @@ body:has(#accountPage:not(.hidden)) .topbar {
 .profile-identity-card {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 9px;
   margin-top: 14px;
-  padding: 14px;
+  padding: 11px;
   min-width: 0;
 }
 .profile-square-avatar {
   position: relative;
   display: grid;
   place-items: center;
-  flex: 0 0 58px;
-  width: 58px;
-  height: 58px;
+  flex: 0 0 50px;
+  width: 50px;
+  height: 50px;
   overflow: hidden;
-  border-radius: 10px !important;
-  font-size: 20px;
+  border-radius: 9px !important;
+  font-size: 18px;
 }
 .account-photo {
   position: absolute;
@@ -2366,73 +2366,81 @@ body:has(#accountPage:not(.hidden)) .topbar {
   border-radius: inherit;
 }
 .profile-identity-copy {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-width: 0;
 }
 .profile-identity-copy h3 {
   overflow: hidden;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .profile-identity-copy p {
-  margin-top: 2px;
+  margin-top: 1px;
   overflow: hidden;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .profile-plan-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin-top: 9px;
+  flex-wrap: nowrap;
+  gap: 5px;
+  margin-top: 6px;
+  min-width: 0;
 }
 .profile-tier {
   display: inline-flex;
   align-items: center;
-  min-height: 27px;
-  padding: 0 9px;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-height: 25px;
+  padding: 0 7px;
   border: 1px solid #7d8497;
   border-radius: 7px;
   background: #343a4b;
   color: #f1f3fa;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: .06em;
+  letter-spacing: .04em;
   white-space: nowrap;
 }
 .premium-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 0 10px;
+  flex: 0 1 auto;
+  gap: 4px;
+  min-width: 0;
+  min-height: 25px;
+  padding: 0 7px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   background: linear-gradient(135deg, #ffdc78, #e8a92e);
   color: #352000;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
   white-space: nowrap;
 }
-.premium-button span { font-size: 16px; line-height: 1; }
+.premium-button span { font-size: 13px; line-height: 1; }
 .profile-theme-button {
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--surface-2);
 }
-.profile-theme-button .i { width: 19px; height: 19px; }
+.profile-theme-button .i { width: 17px; height: 17px; }
 @media (max-width: 380px) {
-  .profile-identity-card { gap: 9px; padding: 11px; }
-  .profile-square-avatar { flex-basis: 50px; width: 50px; height: 50px; }
-  .profile-theme-button { flex-basis: 36px; width: 36px; height: 36px; }
-  .premium-button { padding: 0 8px; font-size: 10px; }
+  .profile-identity-card { gap: 7px; padding: 9px; }
+  .profile-square-avatar { flex-basis: 44px; width: 44px; height: 44px; }
+  .profile-theme-button { flex-basis: 32px; width: 32px; height: 32px; }
+  .profile-plan-actions { gap: 4px; }
+  .profile-tier { min-height: 23px; padding: 0 5px; font-size: 8px; }
+  .premium-button { min-height: 23px; padding: 0 5px; font-size: 8px; gap: 3px; }
+  .premium-button span { font-size: 12px; }
 }
