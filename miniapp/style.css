@@ -3032,3 +3032,25 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   .whatsapp-connection-state { padding:0 7px; font-size:9px; }
   .whatsapp-controls-toggle { flex-basis:28px; width:28px; height:28px; }
 }
+
+
+/* [ADDED] Add-session action aligned to the far right of the WhatsApp heading. */
+.whatsapp-add-session-button {
+  display:grid;
+  place-items:center;
+  flex:0 0 34px;
+  width:34px;
+  height:34px;
+  margin-left:auto;
+  border:1px solid rgba(37,211,102,.28);
+  border-radius:11px;
+  background:rgba(37,211,102,.10);
+  color:#25d366;
+  box-shadow:2px 2px 6px rgba(0,0,0,.12),-2px -2px 6px rgba(255,255,255,.025);
+  transition:transform .15s ease,background .15s ease;
+}
+.whatsapp-add-session-button:active {
+  transform:scale(.94);
+  background:rgba(37,211,102,.18);
+}
+.whatsapp-add-session-button .i { width:19px; height:19px; stroke-width:2.2; }
