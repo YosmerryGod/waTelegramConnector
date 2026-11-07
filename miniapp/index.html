@@ -68,14 +68,8 @@
 
     <!-- CHAT -->
     <main id="chatPage" class="page">
-      <div class="page-title wagram-page-heading">
-        <div><h2>Pesan</h2></div>
-        <span class="count">WhatsApp</span>
-      </div>
-      <div class="search-box">
-        <svg class="i"><use href="#i-search"/></svg>
-        <input id="searchInput" type="search" placeholder="Cari chat atau pesan" autocomplete="off">
-      </div>
+      <!-- [MODIFIED] Search is controlled from the global topbar; keep this proxy for existing chat filtering logic. -->
+      <input id="searchInput" type="search" hidden>
 
       <div class="chips" id="chatFilters">
         <button class="chip active" data-filter="all" type="button">Semua</button>
@@ -123,18 +117,9 @@
     <!-- PANGGILAN -->
     <main id="callsPage" class="page hidden">
       <div class="message-subpage-back"><button type="button" id="backToMessagesCalls">‹ Pesan</button></div>
-      <div class="page-title">
-        <div>
-          <h2>Panggilan</h2>
-          
-        </div>
-        <span id="callCount" class="count">0</span>
-      </div>
-
-      <div class="search-box">
-        <svg class="i"><use href="#i-search"/></svg>
-        <input id="callsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off">
-      </div>
+      <!-- [MODIFIED] Page title and search moved to the global topbar. -->
+      <span id="callCount" class="count" hidden>0</span>
+      <input id="callsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off" hidden>
 
       <div class="chips" id="callFilters">
         <button class="chip active" data-call-filter="all" type="button">Semua</button>
@@ -151,21 +136,15 @@
     <!-- KONTAK -->
     <main id="contactsPage" class="page hidden">
       <div class="message-subpage-back"><button type="button" id="backToMessagesContacts">‹ Pesan</button></div>
-      <div class="page-title">
-        <div>
-          <h2>Kontak</h2>
-          
-        </div>
+      <!-- [MODIFIED] Page title and search moved to the global topbar; keep the add-contact action. -->
+      <div class="section-heading contacts-toolbar">
+        <span></span>
         <button id="addContactButton" class="primary-button" type="button">
           <svg class="i"><use href="#i-plus"/></svg>
           Tambah
         </button>
       </div>
-
-      <div class="search-box">
-        <svg class="i"><use href="#i-search"/></svg>
-        <input id="contactsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off">
-      </div>
+      <input id="contactsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off" hidden>
 
       <div id="contactsList" class="list">
         <div class="loading">Memuat kontak…</div>
