@@ -116,6 +116,20 @@ db.exec(`
   );
 
   -- [ADDED] Riwayat panggilan WhatsApp (satu baris per panggilan).
+  -- [ADDED] Cached WhatsApp profile metadata, isolated per Telegram account.
+  CREATE TABLE IF NOT EXISTS whatsapp_profile_cache (
+    telegram_id TEXT NOT NULL,
+    whatsapp_jid TEXT NOT NULL,
+    display_name TEXT,
+    about_text TEXT,
+    picture_url TEXT,
+    status_set_at INTEGER,
+    fetched_at INTEGER NOT NULL,
+    PRIMARY KEY (telegram_id, whatsapp_jid),
+    FOREIGN KEY (telegram_id)
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS calls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     telegram_id TEXT NOT NULL,
@@ -1106,6 +1120,90 @@ export function attachTelegramFile({
 // Only returns media that belongs to this Telegram user.
 export function getMessageMedia(telegramId, messageRowId) {
   return mediaStatements.get.get(String(telegramId), Number(messageRowId)) || null;
+}
+
+// [ADDED] Read and update cached WhatsApp profile data.
+export function getWhatsAppProfileCache(telegramId, whatsappJid) {
+  return db.prepare(`
+    SELECT * FROM whatsapp_profile_cache
+    WHERE telegram_id = ? AND whatsapp_jid = ?
+  `).get(String(telegramId), String(whatsappJid)) || null;
+}
+
+export function saveWhatsAppProfileCache({
+  telegramId,
+  whatsappJid,
+  displayName,
+  aboutText,
+  pictureUrl,
+  statusSetAt
+}) {
+  const now = Date.now();
+
+  db.prepare(`
+    INSERT INTO whatsapp_profile_cache (
+      telegram_id, whatsapp_jid, display_name, about_text,
+      picture_url, status_set_at, fetched_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(telegram_id, whatsapp_jid) DO UPDATE SET
+      display_name = COALESCE(excluded.display_name, whatsapp_profile_cache.display_name),
+      about_text = excluded.about_text,
+      picture_url = excluded.picture_url,
+      status_set_at = excluded.status_set_at,
+      fetched_at = excluded.fetched_at
+  `).run(
+    String(telegramId),
+    String(whatsappJid),
+    displayName || null,
+    aboutText || null,
+    pictureUrl || null,
+    statusSetAt || null,
+    now
+  );
+
+  return getWhatsAppProfileCache(telegramId, whatsappJid);
+}
+
+// [ADDED] Resolve the latest sender name from messages owned by this Telegram account.
+export function getWhatsAppParticipantName(telegramId, whatsappJid) {
+  const row = db.prepare(`
+    SELECT sender_name
+    FROM messages
+    WHERE telegram_id = ?
+      AND sender_jid = ?
+      AND sender_name IS NOT NULL
+      AND sender_name != ''
+    ORDER BY message_timestamp DESC, id DESC
+    LIMIT 1
+  `).get(String(telegramId), String(whatsappJid));
+
+  return row?.sender_name || null;
+}
+
+// [ADDED] Confirm a JID belongs to a chat or participant visible to this account.
+export function hasWhatsAppParticipant(telegramId, whatsappJid) {
+  const id = String(telegramId);
+  const jid = String(whatsappJid);
+
+  const chat = db.prepare(`
+    SELECT 1 FROM chats
+    WHERE telegram_id = ? AND whatsapp_chat_id = ?
+    LIMIT 1
+  `).get(id, jid);
+
+  if (chat) return true;
+
+  return Boolean(db.prepare(`
+    SELECT 1
+    FROM messages m
+    INNER JOIN chats c
+      ON c.telegram_id = m.telegram_id
+      AND c.whatsapp_chat_id = m.whatsapp_chat_id
+    WHERE m.telegram_id = ?
+      AND m.sender_jid = ?
+    LIMIT 1
+  `).get(id, jid));
 }
 
 // Saved contact name for a phone number (null if not saved).
