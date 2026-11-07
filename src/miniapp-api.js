@@ -28,6 +28,8 @@ import {
   setCallFavorite,
   setCallArchived,
   getMessageMedia,
+  // [ADDED] Profile data cleanup.
+  cleanupUserData,
   // [ADDED] WhatsApp profile cache and participant ownership checks.
   getWhatsAppProfileCache,
   saveWhatsAppProfileCache,
@@ -833,6 +835,24 @@ router.delete("/contacts/:id", (req, res) => {
     });
   } catch (error) {
     sendServerError(res, error, "Could not delete contact");
+  }
+});
+
+
+
+// [ADDED] Delete selected data belonging only to the authenticated Telegram user.
+router.post("/data/cleanup", (req, res) => {
+  try {
+    const type = String(req.body?.type || "");
+    if (!["media", "messages", "calls", "contacts"].includes(type)) {
+      return res.status(400).json({ ok: false, error: "INVALID_CLEANUP_TYPE" });
+    }
+
+    const deleted = cleanupUserData(req.telegramId, type);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ok: true, type, deleted });
+  } catch (error) {
+    sendServerError(res, error, "Could not clean up user data");
   }
 });
 
