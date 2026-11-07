@@ -1210,6 +1210,13 @@
     const query = state.callSearch.trim().toLowerCase();
     const digits = query.replace(/\D/g, "").replace(/^0+/, "");
 
+    const favoriteCount = state.calls.filter((call) => Boolean(call.is_favorite) && !call.is_archived).length;
+    const archivedCount = state.calls.filter((call) => Boolean(call.is_archived)).length;
+    const favoriteCountNode = $('#callFavoriteCount');
+    const archivedCountNode = $('#callArchivedCount');
+    if (favoriteCountNode) favoriteCountNode.textContent = favoriteCount;
+    if (archivedCountNode) archivedCountNode.textContent = archivedCount;
+
     const calls = state.calls.filter((call) => {
       if (state.callFilter === "archived" && !call.is_archived) return false;
       if (state.callFilter !== "archived" && call.is_archived) return false;
