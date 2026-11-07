@@ -502,7 +502,17 @@
       const data = await api("/connection");
       const connected = data.status === "connected";
       phone.textContent = data.phoneNumber ? `+${String(data.phoneNumber).replace(/^\+/, "")}` : "Nomor belum tersedia";
-      $("#accountWhatsAppName").textContent = connected ? "WhatsApp terhubung" : "WhatsApp";
+      $("#accountWhatsAppName").textContent = connected
+        ? (data.displayName || "WhatsApp")
+        : "WhatsApp";
+      const photo = $("#accountWhatsAppPhoto");
+      if (connected && data.pictureUrl) {
+        photo.src = data.pictureUrl;
+        photo.classList.remove("hidden");
+      } else {
+        photo.removeAttribute("src");
+        photo.classList.add("hidden");
+      }
       stateLabel.classList.toggle("is-connected", connected);
       stateLabel.innerHTML = `<i></i> ${connected ? "Connected" : "Disconnected"}`;
       disconnectButton.disabled = !connected;
