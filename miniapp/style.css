@@ -1808,3 +1808,128 @@ html[data-theme="dark"] .sheet-panel input {
 .conversation-header #conversationAvatar {
   cursor: pointer;
 }
+
+
+/* [ADDED] Compact dynamic top bar with a smooth expanding search field. */
+.topbar {
+  min-height: 66px;
+  gap: 12px;
+}
+
+.topbar-main {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+}
+
+.topbar-title {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  color: var(--text);
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -.55px;
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity .22s ease, transform .28s cubic-bezier(.2,.8,.2,1);
+  pointer-events: none;
+}
+
+.topbar-search {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  padding: 0;
+  background: var(--surface-2);
+  color: var(--muted);
+  opacity: 0;
+  transform: translateX(10px) scale(.985);
+  transform-origin: left center;
+  transition:
+    width .34s cubic-bezier(.22,.8,.25,1),
+    opacity .2s ease,
+    transform .34s cubic-bezier(.22,.8,.25,1),
+    padding .3s ease,
+    border-color .25s ease;
+}
+
+.topbar-search .i {
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  margin-left: 2px;
+}
+
+.topbar-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.topbar-search input::placeholder { color: var(--muted); }
+
+.topbar.search-open .topbar-title {
+  opacity: 0;
+  transform: translateX(-9px);
+}
+
+.topbar.search-open .topbar-search {
+  width: 100%;
+  padding: 0 13px;
+  border-color: var(--border);
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+
+.topbar-actions {
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+#searchToggleButton {
+  font-size: 24px;
+  line-height: 1;
+  transition: transform .22s ease, background .18s ease;
+}
+
+#searchToggleButton:active { transform: scale(.9); }
+
+.topbar .icon-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.page > .search-box,
+.page > .page-title,
+#callsPage > .message-subpage-back,
+#contactsPage > .message-subpage-back {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topbar-title,
+  .topbar-search,
+  #searchToggleButton {
+    transition: none !important;
+  }
+}
