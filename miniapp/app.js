@@ -1433,9 +1433,16 @@
 
       state.callsStale = true;
       await loadContacts();
-      loadChats(); // nama kontak ikut tampil di daftar chat
 
-      if (state.page === "calls") loadCalls();
+      // [MODIFIED] Refresh the active chat header and chat list immediately after saving a contact.
+      if (state.currentChat && String(state.currentChat.phone_number || "").replace(/\D/g, "") === digits) {
+        state.currentChat.display_name = name;
+        state.currentChat.name = name;
+        updateConversationHeader();
+      }
+
+      await loadChats(); // [MODIFIED] Wait for the chat list refresh so the saved contact name appears immediately.
+      if (state.page === "calls") await loadCalls();
     } catch (error) {
       haptic("error");
       showToast(error.message);
