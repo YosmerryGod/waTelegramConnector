@@ -52,11 +52,9 @@
 
   const NAVS = {
     chats: "#messagesNav",
-    calls: "#messagesNav",
-    contacts: "#messagesNav",
-    connections: "#connectionsNav",
-    automation: "#automationNav",
-    account: "#settingsNav"
+    calls: "#callsNav",
+    contacts: "#contactsNav",
+    account: "#profileNav"
   };
 
   const FILTER_TITLES = {
@@ -1248,11 +1246,9 @@
     $("#archiveButton").addEventListener("click", toggleArchive);
 
     $("#messagesNav").addEventListener("click", () => setPage("chats"));
-    $("#connectionsNav").addEventListener("click", () => setPage("connections"));
-    $("#automationNav").addEventListener("click", () => setPage("automation"));
-    $("#settingsNav").addEventListener("click", () => setPage("account"));
-    $("#openCallsButton").addEventListener("click", () => setPage("calls"));
-    $("#openContactsButton").addEventListener("click", () => setPage("contacts"));
+    $("#callsNav").addEventListener("click", () => setPage("calls"));
+    $("#contactsNav").addEventListener("click", () => setPage("contacts"));
+    $("#profileNav").addEventListener("click", () => setPage("account"));
     $("#backToMessagesCalls").addEventListener("click", () => setPage("chats"));
     $("#backToMessagesContacts").addEventListener("click", () => setPage("chats"));
 
