@@ -160,9 +160,18 @@ body.in-chat .app {
   place-items: center;
   width: 38px;
   height: 38px;
+  padding: 5px;
+  overflow: hidden;
   border-radius: 12px;
   background: var(--accent);
   color: var(--on-accent);
+}
+
+.brand-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .brand h1 {
@@ -1164,13 +1173,19 @@ body.in-chat .toast,
   display: grid;
   width: 52px;
   height: 52px;
+  padding: 9px;
   place-items: center;
+  overflow: hidden;
   border-radius: 17px;
   background: linear-gradient(145deg, #10c85a, #008c3e);
   box-shadow: 6px 6px 14px rgba(0,120,55,.22), -5px -5px 12px #fff;
-  color: white;
-  font-size: 27px;
-  font-weight: 800;
+}
+
+.connection-brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .connection-brand-name {
   color: #15251d;
