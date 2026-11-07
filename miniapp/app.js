@@ -1578,6 +1578,13 @@
     // [MODIFIED] Use document-level delegation so the Premium trigger remains reliable
     // even if another optional control fails to initialize earlier in this function.
     document.addEventListener("click", (event) => {
+      const addSessionButton = event.target.closest("#addWhatsAppSessionButton");
+      if (addSessionButton) {
+        event.preventDefault();
+        showToast("Tambah session WhatsApp akan tersedia pada pembaruan berikutnya.");
+        return;
+      }
+
       const upgradeButton = event.target.closest("#upgradePremiumButton");
       if (!upgradeButton) return;
       event.preventDefault();
