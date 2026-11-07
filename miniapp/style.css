@@ -1669,3 +1669,129 @@ html[data-theme="dark"] .sheet-panel input {
   background: #0b120d;
   box-shadow: inset 3px 3px 7px rgba(0, 0, 0, .35);
 }
+
+
+/* [ADDED] WhatsApp profile detail sheet. */
+.profile-avatar {
+  cursor: pointer;
+}
+
+.profile-avatar:active,
+.profile-sender:active {
+  opacity: .72;
+}
+
+.profile-sender {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.conversation-header .profile-avatar,
+.conversation-info [data-profile-jid] {
+  cursor: pointer;
+}
+
+.profile-panel {
+  max-height: min(82dvh, 680px);
+  overflow-y: auto;
+  padding-top: 12px;
+}
+
+.profile-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.profile-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 0 22px;
+  text-align: center;
+}
+
+.profile-photo-wrap {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  margin-bottom: 6px;
+}
+
+.profile-avatar-large,
+.profile-photo {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  font-size: 34px;
+}
+
+.profile-photo {
+  position: absolute;
+  inset: 0;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.profile-hero h3 {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.profile-hero > p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.profile-detail {
+  margin-top: 10px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.profile-detail span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-detail p {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.profile-detail .profile-jid {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-updated {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
