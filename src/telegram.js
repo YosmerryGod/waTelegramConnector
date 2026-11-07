@@ -3,6 +3,7 @@ import pino from "pino";
 import TelegramBot from "node-telegram-bot-api";
 import QRCode from "qrcode";
 import { downloadMediaMessage } from "@whiskeysockets/baileys";
+import { publishToMiniApp } from "./realtime.js";
 
 import {
   registerUser,
@@ -950,6 +951,15 @@ export function createWhatsAppCallbacks(telegramId) {
           status === "replaced" ? "disconnected" : status,
           phoneNumber || null
         );
+
+        // [ADDED] Broadcast connection state after persisting it.
+        publishToMiniApp(id, {
+          type: "connection.status",
+          data: {
+            status: status === "replaced" ? "disconnected" : status,
+            phoneNumber: phoneNumber || null
+          }
+        });
       } catch (error) {
         console.error("Failed to update session:", error.message);
       }
@@ -1128,7 +1138,7 @@ export function createWhatsAppCallbacks(telegramId) {
             );
 
         try {
-          saveWhatsAppMessage({
+          const saved = saveWhatsAppMessage({
             telegramId: id,
             whatsappChatId: remoteJid,
             messageId,
@@ -1146,6 +1156,23 @@ export function createWhatsAppCallbacks(telegramId) {
             mediaFileName: info?.fileName || null,
             messageTimestamp
           });
+
+          // [ADDED] Notify Mini App only after the SQLite transaction commits.
+          if (saved) {
+            publishToMiniApp(id, {
+              type: "message.created",
+              data: {
+                chatId: remoteJid,
+                messageId,
+                direction: isOutgoing ? "outgoing" : "incoming",
+                messageType,
+                body: body || null,
+                senderName: isOutgoing ? "You" : (message.pushName || who),
+                phoneNumber,
+                messageTimestamp
+              }
+            });
+          }
         } catch (error) {
           console.error(
             "Failed to save WhatsApp message to Mini App database:",
@@ -1222,6 +1249,12 @@ export function createWhatsAppCallbacks(telegramId) {
         // [ADDED] Keep a history of the call for the Mini App.
         try {
           storeCallEvent({ call, socket, telegramId: id });
+
+          // [ADDED] Refresh call history after the database write.
+          publishToMiniApp(id, {
+            type: "calls.updated",
+            data: { callId: call.id }
+          });
         } catch (error) {
           console.error("Failed to store call history:", error.message);
         }
