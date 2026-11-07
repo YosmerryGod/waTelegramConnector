@@ -544,21 +544,26 @@
       const isGroup = chat.chat_type === "group";
 
       return `
-        <button class="list-item" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}">
-          ${avatar(name, name, "", chat.profile_picture_url)}
-          <div class="item-body">
-            <div class="item-row">
-              <span class="item-title">${escapeHTML(name)}</span>
-              <span class="item-time ${unread ? "is-unread" : ""}">${escapeHTML(formatListTime(chat.last_message_at))}</span>
+        <div class="chat-swipe-row" data-chat-row="${escapeHTML(chat.whatsapp_chat_id)}">
+          <button class="chat-archive-action" type="button" data-archive-chat="${escapeHTML(chat.whatsapp_chat_id)}" aria-label="Arsipkan chat">
+            ${icon("archive")}
+          </button>
+          <button class="list-item chat-row-content" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}">
+            ${avatar(name, name, "", chat.profile_picture_url)}
+            <div class="item-body">
+              <div class="item-row">
+                <span class="item-title">${escapeHTML(name)}</span>
+                <span class="item-time ${unread ? "is-unread" : ""}">${escapeHTML(formatListTime(chat.last_message_at))}</span>
+              </div>
+              <div class="item-row">
+                <span class="item-sub">${escapeHTML(chat.last_message_preview || (isGroup ? "Grup" : "Belum ada pesan"))}</span>
+                ${chat.is_favorite || unread
+                  ? `<span class="item-flags">${chat.is_favorite ? icon("star", "mini-icon fav") : ""}${unread ? `<span class="badge">${unread > 99 ? "99+" : unread}</span>` : ""}</span>`
+                  : ""}
+              </div>
             </div>
-            <div class="item-row">
-              <span class="item-sub">${escapeHTML(chat.last_message_preview || (isGroup ? "Grup" : "Belum ada pesan"))}</span>
-              ${chat.is_favorite || unread
-                ? `<span class="item-flags">${chat.is_favorite ? icon("star", "mini-icon fav") : ""}${unread ? `<span class="badge">${unread > 99 ? "99+" : unread}</span>` : ""}</span>`
-                : ""}
-            </div>
-          </div>
-        </button>`;
+          </button>
+        </div>`;
     }).join("");
 
     const hitRows = hits.length
@@ -1084,6 +1089,27 @@
     }
   }
 
+  // [ADDED] Archive a chat directly from its swipe action in the chat list.
+  async function archiveChatFromList(chatId, button) {
+    const chat = state.chats.find((item) => String(item.whatsapp_chat_id) === String(chatId));
+    if (!chat || button.disabled) return;
+
+    button.disabled = true;
+    try {
+      await api(`/chats/${enc(chatId)}/archive`, {
+        method: "PUT",
+        body: JSON.stringify({ archived: true })
+      });
+
+      chat.is_archived = 1;
+      showToast("Chat berhasil diarsipkan");
+      await loadChats();
+    } catch (error) {
+      button.disabled = false;
+      showToast(error.message);
+    }
+  }
+
   /* ---------------------------------------------------------
      Panggilan
      --------------------------------------------------------- */
@@ -1484,10 +1510,71 @@
       }
     });
 
-    $("#chatList").addEventListener("click", (event) => {
-      const row = event.target.closest("[data-chat]");
+    // [MODIFIED] Chat rows support long-press and left-swipe to reveal one archive action.
+    let chatPressTimer = null;
+    let chatPointerStart = null;
+    let suppressChatClick = false;
 
-      if (row) openChat(row.dataset.chat);
+    $("#chatList").addEventListener("pointerdown", (event) => {
+      const row = event.target.closest(".chat-swipe-row");
+      if (!row || event.target.closest("button[data-archive-chat]")) return;
+
+      chatPointerStart = { row, x: event.clientX, y: event.clientY, revealed: row.classList.contains("is-revealed") };
+      clearTimeout(chatPressTimer);
+      chatPressTimer = setTimeout(() => {
+        row.classList.add("is-revealed");
+        suppressChatClick = true;
+      }, 430);
+    });
+
+    $("#chatList").addEventListener("pointermove", (event) => {
+      if (!chatPointerStart) return;
+      const dx = event.clientX - chatPointerStart.x;
+      const dy = event.clientY - chatPointerStart.y;
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+        clearTimeout(chatPressTimer);
+        return;
+      }
+      if (dx < -38) {
+        clearTimeout(chatPressTimer);
+        chatPointerStart.row.classList.add("is-revealed");
+        suppressChatClick = true;
+      } else if (dx > 38 && chatPointerStart.revealed) {
+        clearTimeout(chatPressTimer);
+        chatPointerStart.row.classList.remove("is-revealed");
+        suppressChatClick = true;
+      }
+    });
+
+    const finishChatPointer = () => {
+      clearTimeout(chatPressTimer);
+      chatPressTimer = null;
+      chatPointerStart = null;
+    };
+    $("#chatList").addEventListener("pointerup", finishChatPointer);
+    $("#chatList").addEventListener("pointercancel", finishChatPointer);
+
+    $("#chatList").addEventListener("click", (event) => {
+      const archive = event.target.closest("[data-archive-chat]");
+      if (archive) {
+        event.stopPropagation();
+        archiveChatFromList(archive.dataset.archiveChat, archive);
+        return;
+      }
+
+      const row = event.target.closest("[data-chat]");
+      if (!row) return;
+
+      const wrapper = row.closest(".chat-swipe-row");
+      if (suppressChatClick) {
+        suppressChatClick = false;
+        return;
+      }
+      if (wrapper?.classList.contains("is-revealed")) {
+        wrapper.classList.remove("is-revealed");
+        return;
+      }
+      openChat(row.dataset.chat);
     });
 
     // [ADDED] Open the active chat or group profile from its header.
