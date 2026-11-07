@@ -134,8 +134,12 @@
     return hash;
   }
 
-  function avatar(name, seed, extraClass = "") {
-    return `<div class="avatar ${extraClass}" style="--h:${avatarHue(seed || name)}">${escapeHTML(getInitials(name))}</div>`;
+  function avatar(name, seed, extraClass = "", pictureUrl = "") {
+    const photo = pictureUrl
+      ? `<img class="avatar-photo" src="${escapeHTML(pictureUrl)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
+      : escapeHTML(getInitials(name));
+
+    return `<div class="avatar ${extraClass}" style="--h:${avatarHue(seed || name)}">${photo}</div>`;
   }
 
   // Timestamp bisa detik (WhatsApp) atau milidetik.
@@ -472,7 +476,7 @@
 
       return `
         <button class="list-item" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}">
-          ${avatar(name)}
+          ${avatar(name, name, "", chat.profile_picture_url)}
           <div class="item-body">
             <div class="item-row">
               <span class="item-title">${escapeHTML(name)}</span>
@@ -610,7 +614,9 @@
       : formatPhone(chat.phone_number) || "Chat pribadi";
 
     const conversationAvatar = $("#conversationAvatar");
-    conversationAvatar.textContent = getInitials(name);
+    conversationAvatar.innerHTML = chat.profile_picture_url
+      ? `<img class="avatar-photo" src="${escapeHTML(chat.profile_picture_url)}" alt="" referrerpolicy="no-referrer">`
+      : escapeHTML(getInitials(name));
     conversationAvatar.style.setProperty("--h", avatarHue(name));
     conversationAvatar.dataset.profileJid = chat.whatsapp_chat_id || "";
     conversationAvatar.dataset.profileName = name;
@@ -919,6 +925,17 @@
       identifier.textContent = jid;
 
       if (profile.pictureUrl) {
+        // [ADDED] Reuse the fetched profile photo in chat list and conversation header.
+        if (state.currentChat?.whatsapp_chat_id === jid) {
+          state.currentChat.profile_picture_url = profile.pictureUrl;
+          updateConversationHeader();
+        }
+        const listedChat = state.chats.find((chat) => chat.whatsapp_chat_id === jid);
+        if (listedChat) {
+          listedChat.profile_picture_url = profile.pictureUrl;
+          renderChats();
+        }
+
         photo.onload = () => {
           photo.classList.remove("hidden");
           avatarFallback.classList.add("hidden");
