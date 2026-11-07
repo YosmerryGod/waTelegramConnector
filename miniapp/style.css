@@ -2244,3 +2244,34 @@ html[data-theme="dark"] .sheet-panel input {
 .topbar.search-open .topbar-search-clear {
   display: inline-flex;
 }
+
+
+/* [MODIFIED] Expanded search fills the entire space between WAGRAM logo and theme toggle. */
+.topbar.search-open #searchToggleButton,
+.topbar.search-open #addContactButton {
+  display: none !important;
+}
+.topbar.search-open .topbar-search {
+  left: 69px;
+  right: 66px;
+  top: 12px;
+  width: auto;
+  max-width: none;
+  padding: 0 10px;
+  transform: translateX(0) scaleX(1);
+}
+.topbar.search-open .topbar-search > .i {
+  display: none;
+}
+.topbar.search-open .topbar-search-wrap {
+  flex-basis: 0;
+  width: 0;
+}
+@media (max-width: 380px) {
+  .topbar.search-open .topbar-search {
+    left: 64px;
+    right: 62px;
+    width: auto;
+    max-width: none;
+  }
+}
