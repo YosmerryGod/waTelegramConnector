@@ -2492,9 +2492,22 @@ body:has(#accountPage:not(.hidden)) .topbar {
 .whatsapp-account-copy { display:flex; flex:1; min-width:0; flex-direction:column; gap:2px; }
 .whatsapp-account-copy strong { overflow:hidden; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }
 .whatsapp-account-copy > span:not(.whatsapp-connection-state) { overflow:hidden; color:var(--muted); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
-.whatsapp-connection-state { display:flex; align-items:center; gap:5px; color:var(--muted); font-size:10px; }
+.whatsapp-connection-state {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  flex:0 0 auto;
+  min-height:30px;
+  padding:0 10px;
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--muted);
+  font-size:10px;
+  white-space:nowrap;
+}
 .whatsapp-connection-state i { width:7px; height:7px; border-radius:50%; background:#98a2b3; }
-.whatsapp-connection-state.is-connected { color:#22a66a; }
+.whatsapp-connection-state.is-connected { border-color:rgba(34,199,122,.28); color:#22a66a; }
 .whatsapp-connection-state.is-connected i { background:#22c77a; }
 .whatsapp-disconnect-row {
   display:flex;
@@ -2507,27 +2520,14 @@ body:has(#accountPage:not(.hidden)) .topbar {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:7px;
   min-height:34px;
-  padding:0 12px;
+  padding:0 14px;
   border:1px solid var(--danger);
   border-radius:9px;
   background:transparent;
   color:var(--danger);
   font-size:11px;
   font-weight:700;
-}
-.disconnect-status-dot {
-  width:7px;
-  height:7px;
-  flex:0 0 7px;
-  border-radius:50%;
-  background:#98a2b3;
-}
-.disconnect-button.is-connected .disconnect-status-dot { background:#22c77a; }
-.disconnect-button.is-disconnected {
-  border-color:var(--border);
-  color:var(--muted);
 }
 .disconnect-button:disabled { opacity:.55; }
 .notification-card { padding:0; overflow:hidden; }
