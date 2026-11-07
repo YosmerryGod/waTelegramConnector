@@ -313,7 +313,7 @@ router.get("/profile/:jid", async (req, res) => {
   try {
     const jid = String(req.params.jid || "");
 
-    if (!jid || jid.length > 256 || !/^(?:\\d+(?::\\d+)?@s\\.whatsapp\\.net|\\d+(?::\\d+)?@lid|\\d+-\\d+@g\\.us)$/.test(jid)) {
+    if (!jid || jid.length > 256 || !/^(?:\d+(?::\d+)?@s\.whatsapp\.net|\d+(?::\d+)?@lid|\d+-\d+@g\.us)$/.test(jid)) {
       return res.status(400).json({ ok: false, error: "INVALID_WHATSAPP_JID" });
     }
 
