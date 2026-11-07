@@ -362,7 +362,7 @@
 
     if (page === "account") {
       renderAccount();
-      loadWhatsAppAccount();
+      await loadWhatsAppAccount();
       renderNotificationPreferences();
     }
 
@@ -2400,8 +2400,17 @@
   function init() {
     initTelegram();
     bindEvents();
-    loadMe();
-    loadChats();
+
+    // [ADDED] Keep the WAGRAM splash visible until the first account, WhatsApp
+    // connection, and chat requests have all completed (successfully or with an error).
+    const loadingScreen = $("#appLoadingScreen");
+    Promise.allSettled([loadMe(), loadChats()]).then(() => {
+      requestAnimationFrame(() => {
+        loadingScreen?.classList.add("is-hidden");
+        window.setTimeout(() => loadingScreen?.remove(), 380);
+      });
+    });
+
     connectRealtime();
     window.addEventListener("online", connectRealtime);
     document.addEventListener("visibilitychange", handleVisibilityChange);
