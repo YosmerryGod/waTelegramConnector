@@ -2068,7 +2068,8 @@ html[data-theme="dark"] .sheet-panel input {
 }
 .call-row-content {
   position: relative;
-  z-index: 1;
+  z-index: 2;
+  width: 100%;
   background: var(--surface);
   transition: transform .24s cubic-bezier(.2,.75,.25,1), background .15s;
   touch-action: pan-y;
@@ -2076,7 +2077,7 @@ html[data-theme="dark"] .sheet-panel input {
 .call-save-action {
   position: absolute;
   inset: 0 0 0 auto;
-  z-index: 0;
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 76px;
@@ -2099,7 +2100,7 @@ html[data-theme="dark"] .sheet-panel input {
   transform: translateX(-76px);
 }
 .call-swipe-row.is-revealed .call-save-action {
-  z-index: 2;
+  z-index: 3;
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
