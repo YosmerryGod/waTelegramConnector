@@ -2142,3 +2142,12 @@ html[data-theme="dark"] .sheet-panel input {
 .call-inline-saved { color: var(--muted); }
 .call-detail { color: var(--muted); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .call-row-content { transition: none; } }
+
+
+/* [MODIFIED] Square call card edges only while swipe actions are revealed. */
+.call-swipe-row.is-revealed,
+.call-swipe-row.is-revealed .call-row-content,
+.call-swipe-row.is-revealed .call-actions,
+.call-swipe-row.is-revealed .call-actions button {
+  border-radius: 0 !important;
+}
