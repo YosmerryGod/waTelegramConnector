@@ -731,12 +731,10 @@
     $("#conversationName").dataset.profileJid = chat.whatsapp_chat_id || "";
     $("#conversationName").dataset.profileName = name;
 
-    $("#favoriteButton").classList.toggle("is-on", Boolean(chat.is_favorite));
-    $("#archiveButton").classList.toggle("is-on", Boolean(chat.is_archived));
-    $("#archiveButton").setAttribute(
-      "aria-label",
-      chat.is_archived ? "Keluarkan dari arsip" : "Arsipkan"
-    );
+    // [MODIFIED] Enable contact and WhatsApp actions only when a phone number is available.
+    const hasPhone = Boolean(String(chat.phone_number || "").replace(/\D/g, ""));
+    $("#saveChatContactButton").disabled = !hasPhone;
+    $("#openChatWhatsAppButton").disabled = !hasPhone;
   }
 
   /* ---------------------------------------------------------
@@ -1530,8 +1528,28 @@
     });
 
     $("#lightbox").addEventListener("click", closeLightbox);
-    $("#favoriteButton").addEventListener("click", toggleFavorite);
-    $("#archiveButton").addEventListener("click", toggleArchive);
+    // [MODIFIED] Save the current chat number to WAGRAM contacts.
+    $("#saveChatContactButton").addEventListener("click", () => {
+      const chat = state.currentChat;
+      if (!chat?.phone_number) {
+        showToast("Nomor telepon tidak tersedia.");
+        return;
+      }
+      openContactSheet(null, {
+        name: chatName(chat),
+        phone: chat.phone_number
+      });
+    });
+
+    // [MODIFIED] Open a direct WhatsApp conversation with this contact.
+    $("#openChatWhatsAppButton").addEventListener("click", () => {
+      const chat = state.currentChat;
+      if (!chat?.phone_number) {
+        showToast("Nomor telepon tidak tersedia.");
+        return;
+      }
+      openWhatsApp(chat.phone_number);
+    });
 
     $("#messagesNav").addEventListener("click", () => setPage("chats"));
     $("#callsNav").addEventListener("click", () => setPage("calls"));
