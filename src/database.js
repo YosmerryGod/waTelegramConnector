@@ -186,6 +186,24 @@ if (!messageColumns.includes("telegram_file_kind")) {
   db.exec("ALTER TABLE messages ADD COLUMN telegram_file_kind TEXT");
 }
 
+// [ADDED] Migrate existing profile-cache databases before preparing queries.
+const profileCacheColumns = db
+  .prepare("PRAGMA table_info(whatsapp_profile_cache)")
+  .all()
+  .map((column) => column.name);
+
+if (!profileCacheColumns.includes("picture_url")) {
+  db.exec("ALTER TABLE whatsapp_profile_cache ADD COLUMN picture_url TEXT");
+}
+
+if (!profileCacheColumns.includes("about_text")) {
+  db.exec("ALTER TABLE whatsapp_profile_cache ADD COLUMN about_text TEXT");
+}
+
+if (!profileCacheColumns.includes("status_set_at")) {
+  db.exec("ALTER TABLE whatsapp_profile_cache ADD COLUMN status_set_at INTEGER");
+}
+
 const statements = {
   upsertUser: db.prepare(`
     INSERT INTO telegram_users (
