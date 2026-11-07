@@ -2275,3 +2275,57 @@ html[data-theme="dark"] .sheet-panel input {
     max-width: none;
   }
 }
+
+
+/* [ADDED] Neumorphic contact swipe actions: WhatsApp, edit and delete. */
+.contact-swipe-row {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 16px;
+  background: transparent;
+}
+.contact-row-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  background: var(--surface);
+  transition: transform .24s cubic-bezier(.2,.75,.25,1);
+  touch-action: pan-y;
+}
+.contact-swipe-actions {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 1;
+  display: flex;
+  width: 174px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .18s ease, visibility .18s ease;
+}
+.contact-swipe-actions button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 58px;
+  width: 58px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+}
+.contact-swipe-actions .i { width: 21px; height: 21px; stroke-width: 2; }
+.contact-swipe-whatsapp { background: #25D366; color: #fff; }
+.contact-swipe-edit { background: var(--surface-2); color: var(--text); }
+.contact-swipe-delete { background: var(--danger); color: #fff; }
+.contact-swipe-row.is-revealed .contact-row-content { transform: translateX(-174px); }
+.contact-swipe-row.is-revealed .contact-swipe-actions {
+  z-index: 3;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.contact-swipe-row.is-revealed,
+.contact-swipe-row.is-revealed .contact-row-content,
+.contact-swipe-row.is-revealed .contact-swipe-actions,
+.contact-swipe-row.is-revealed .contact-swipe-actions button { border-radius: 0 !important; }
+@media (prefers-reduced-motion: reduce) { .contact-row-content { transition: none; } }
