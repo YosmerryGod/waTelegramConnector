@@ -8,7 +8,7 @@ import { Readable } from "node:stream";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import QRCode from "qrcode";
-import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppProfile, getWhatsAppPhoneNumber } from "./whatsapp.js";
+import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppAccountProfile, getWhatsAppProfile, getWhatsAppPhoneNumber } from "./whatsapp.js";
 
 import {
   getUser,
@@ -245,6 +245,9 @@ router.use(requireMiniAppAuth);
 router.get("/connection", async (req, res) => {
   try {
     const connection = getWhatsAppStatus(req.telegramId);
+    const accountProfile = connection.status === "connected"
+      ? await getWhatsAppAccountProfile(req.telegramId)
+      : { displayName: null, pictureUrl: null };
     const qr = connection.status === "qr"
       ? getWhatsAppQr(req.telegramId)
       : null;
@@ -254,6 +257,8 @@ router.get("/connection", async (req, res) => {
       ok: true,
       status: connection.status,
       phoneNumber: connection.phoneNumber,
+      displayName: accountProfile.displayName,
+      pictureUrl: accountProfile.pictureUrl,
       qr: qr
         ? await QRCode.toDataURL(qr, {
             width: 320,
