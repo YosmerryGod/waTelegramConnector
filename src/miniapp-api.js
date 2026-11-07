@@ -25,6 +25,8 @@ import {
   deleteContact,
   listContacts,
   listCalls,
+  setCallFavorite,
+  setCallArchived,
   getMessageMedia,
   // [ADDED] WhatsApp profile cache and participant ownership checks.
   getWhatsAppProfileCache,
@@ -831,7 +833,7 @@ router.get("/calls", (req, res) => {
       Number.parseInt(req.query.offset, 10) || 0
     );
 
-    const calls = listCalls(req.telegramId, { limit, offset });
+    const calls = listCalls(req.telegramId, { limit, offset, archived: req.query.archived === "true" });
 
     res.json({
       ok: true,
@@ -846,6 +848,38 @@ router.get("/calls", (req, res) => {
     sendServerError(res, error, "Could not list calls");
   }
 });
+
+// [ADDED] Favorite or archive an individual call record, independent of chats.
+router.put("/calls/:id/favorite", (req, res) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0 || typeof req.body?.favorite !== "boolean") {
+      return res.status(400).json({ ok: false, error: "INVALID_CALL_UPDATE" });
+    }
+    if (!setCallFavorite(req.telegramId, id, req.body.favorite)) {
+      return res.status(404).json({ ok: false, error: "CALL_NOT_FOUND" });
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    sendServerError(res, error, "Could not update call favorite");
+  }
+});
+
+router.put("/calls/:id/archive", (req, res) => {
+  try {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0 || typeof req.body?.archived !== "boolean") {
+      return res.status(400).json({ ok: false, error: "INVALID_CALL_UPDATE" });
+    }
+    if (!setCallArchived(req.telegramId, id, req.body.archived)) {
+      return res.status(404).json({ ok: false, error: "CALL_NOT_FOUND" });
+    }
+    res.json({ ok: true });
+  } catch (error) {
+    sendServerError(res, error, "Could not archive call");
+  }
+});
+
 
 // ---------------------------------------------------------------------------
 // [ADDED] Media (photos, videos, stickers)
