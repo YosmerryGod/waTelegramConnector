@@ -550,9 +550,8 @@
         .includes(query);
     });
 
-    $("#listTitle").textContent = FILTER_TITLES[state.filter] || "Percakapan";
-    $("#chatCount").textContent = `${items.length} chat`;
-
+    // [MODIFIED] The duplicate conversation heading and count were removed from the page.
+    // Filter totals are displayed directly in the filter chips.
     const hits = query.length >= 2 ? state.messageHits : [];
 
     if (!items.length && !hits.length) {
