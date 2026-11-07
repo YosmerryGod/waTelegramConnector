@@ -2518,9 +2518,9 @@ body:has(#accountPage:not(.hidden)) .topbar {
   text-align:left;
 }
 .notification-chevron { width:17px; height:17px; transform:rotate(-90deg); transition:transform .18s ease; }
-.notification-card.is-collapsed .notification-chevron { transform:rotate(-180deg); }
+.embedded-notification-section.is-collapsed .notification-chevron { transform:rotate(-180deg); }
 .notification-options { padding:0 15px 8px; }
-.notification-card.is-collapsed .notification-options { display:none; }
+.embedded-notification-section.is-collapsed .notification-options { display:none; }
 .notification-option {
   display:flex;
   align-items:center;
