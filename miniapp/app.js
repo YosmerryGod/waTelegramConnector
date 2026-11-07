@@ -24,6 +24,7 @@
 
     chats: [],
     chatsLoaded: false,
+    chatCounts: { all: 0, unread: 0, favorites: 0, archived: 0 },
     filter: "all",
     search: "",
     messageHits: [],
@@ -487,17 +488,46 @@
     }
 
     try {
-      const archived = state.filter === "archived";
-      const data = await api(`/chats?limit=100&archived=${archived}`);
+      // [MODIFIED] Fetch active and archived chats together so every filter count stays accurate.
+      const [activeData, archivedData] = await Promise.all([
+        api("/chats?limit=100&archived=false"),
+        api("/chats?limit=100&archived=true")
+      ]);
+      const activeChats = activeData.chats || [];
+      const archivedChats = archivedData.chats || [];
 
-      state.chats = data.chats || [];
+      state.chatCounts = {
+        all: activeChats.length,
+        unread: activeChats.filter((chat) => Number(chat.unread_count) > 0).length,
+        favorites: activeChats.filter((chat) => Boolean(chat.is_favorite)).length,
+        archived: archivedChats.length
+      };
+      state.chats = state.filter === "archived" ? archivedChats : activeChats;
       state.chatsLoaded = true;
+      updateChatFilterCounts();
       renderChats();
     } catch (error) {
       state.chatsLoaded = false;
       list.innerHTML = errorState(error.message, "retryChats");
       $("#retryChats")?.addEventListener("click", loadChats);
     }
+  }
+
+  // [ADDED] Keep the count badges on chat filters synchronized with server data.
+  function updateChatFilterCounts() {
+    const counts = state.chatCounts;
+    const labels = {
+      all: "Semua",
+      unread: "Belum dibaca",
+      favorites: "Favorit",
+      archived: "Arsip"
+    };
+
+    Object.entries(labels).forEach(([filter, label]) => {
+      const button = document.querySelector(`#chatFilters [data-filter="${filter}"]`);
+      if (!button) return;
+      button.innerHTML = `${label}<span class="chip-count">${counts[filter] || 0}</span>`;
+    });
   }
 
   function chatName(chat) {
