@@ -248,6 +248,34 @@ export function getWhatsAppQr(telegramId) {
   return entry?.status === "qr" ? entry.qr || null : null;
 }
 
+// [ADDED] Resolve a WhatsApp LID to its public phone number for profile display.
+export async function getWhatsAppPhoneNumber(telegramId, whatsappJid) {
+  const entry = connections.get(String(telegramId));
+
+  if (!entry || entry.status !== "connected" || !entry.socket) {
+    return null;
+  }
+
+  const jid = String(whatsappJid || "");
+  const direct = normalizePhoneJid(jid);
+
+  if (direct) {
+    return direct.split("@")[0];
+  }
+
+  if (!jid.endsWith("@lid")) {
+    return null;
+  }
+
+  const phoneJid = await resolveLidToPhone(
+    entry.socket,
+    jid,
+    entry.lidCache
+  );
+
+  return phoneJid ? phoneJid.split("@")[0] : null;
+}
+
 // [ADDED] Fetch a contact or group profile on demand through its own WhatsApp session.
 export async function getWhatsAppProfile(telegramId, whatsappJid) {
   const entry = connections.get(String(telegramId));
