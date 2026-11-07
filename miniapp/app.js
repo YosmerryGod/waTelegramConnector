@@ -1621,8 +1621,9 @@
 
     // [ADDED] Expand or collapse notification preferences within the same card.
     $("#notificationCardToggle").addEventListener("click", () => {
-      const card = $("#notificationCard");
-      const collapsed = card.classList.toggle("is-collapsed");
+      // [MODIFIED] The notification dropdown now belongs to the embedded WhatsApp card.
+      const section = $("#notificationCardToggle").closest(".embedded-notification-section");
+      const collapsed = section.classList.toggle("is-collapsed");
       $("#notificationCardToggle").setAttribute("aria-expanded", String(!collapsed));
     });
 
