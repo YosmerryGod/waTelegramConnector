@@ -1254,25 +1254,23 @@
       const iconName = kind === "missed" ? "call-missed" : kind === "outgoing" ? "call-out" : "call-in";
 
       return `${heading}
-        <article class="list-item">
-          <div class="call-icon ${kind}">${icon(iconName)}</div>
-          <div class="item-body">
-            <div class="item-title ${kind === "missed" ? "danger" : ""}">${escapeHTML(call.display_name)}</div>
-            <div class="item-sub call-meta">
-              ${escapeHTML(callLabel(call))}
-              ${call.is_video ? `· ${icon("video", "mini-icon")} Video` : "· Suara"}
-              ${call.is_group ? "· Grup" : ""}
+        <div class="call-swipe-row" data-call-row="${escapeHTML(call.id)}">
+          ${canSave ? `<button class="call-save-action" type="button" data-save-call="${escapeHTML(call.id)}" aria-label="Simpan nomor ke kontak">${icon("bookmark")}</button>` : ""}
+          <article class="list-item call-row-content">
+            <div class="call-icon ${kind}">${icon(iconName)}</div>
+            <div class="item-body">
+              <div class="item-title ${kind === "missed" ? "danger" : ""}">${escapeHTML(call.display_name)}</div>
+              <div class="item-sub call-meta">
+                ${escapeHTML(formatPhone(call.phone_number) || callLabel(call))}
+                <span class="call-detail">${escapeHTML(callLabel(call))} ${call.is_video ? `· ${icon("video", "mini-icon")} Video` : "· Suara"}${call.is_group ? " · Grup" : ""}</span>
+              </div>
             </div>
-          </div>
-          <div class="call-side">
-            <span class="item-time">${escapeHTML(timeOnly(ms))}</span>
-            ${canSave
-              ? `<button class="link-button" type="button" data-save-call="${escapeHTML(call.id)}">Simpan</button>`
-              : call.is_saved
-                ? `<span class="saved-tag">${icon("bookmark")}Tersimpan</span>`
-                : ""}
-          </div>
-        </article>`;
+            <div class="call-side">
+              <span class="item-time">${escapeHTML(timeOnly(ms))}</span>
+              ${call.is_saved ? `<span class="saved-tag">${icon("bookmark")}Tersimpan</span>` : ""}
+            </div>
+          </article>
+        </div>`;
     }).join("");
   }
 
@@ -1691,19 +1689,52 @@
       renderCalls();
     });
 
+    // [MODIFIED] Long-press or swipe a call row left to reveal its save action.
+    let callPressTimer = null;
+    let callPointerStart = null;
+    let suppressCallClick = false;
+
+    $("#callsList").addEventListener("pointerdown", (event) => {
+      const row = event.target.closest(".call-swipe-row");
+      if (!row || event.target.closest("[data-save-call]")) return;
+      callPointerStart = { row, x: event.clientX, y: event.clientY, revealed: row.classList.contains("is-revealed") };
+      clearTimeout(callPressTimer);
+      callPressTimer = setTimeout(() => { row.classList.add("is-revealed"); suppressCallClick = true; }, 430);
+    });
+
+    $("#callsList").addEventListener("pointermove", (event) => {
+      if (!callPointerStart) return;
+      const dx = event.clientX - callPointerStart.x;
+      const dy = event.clientY - callPointerStart.y;
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { clearTimeout(callPressTimer); return; }
+      if (dx < -38) {
+        clearTimeout(callPressTimer);
+        callPointerStart.row.classList.add("is-revealed");
+        suppressCallClick = true;
+      } else if (dx > 38 && callPointerStart.revealed) {
+        clearTimeout(callPressTimer);
+        callPointerStart.row.classList.remove("is-revealed");
+        suppressCallClick = true;
+      }
+    });
+
+    const finishCallPointer = () => { clearTimeout(callPressTimer); callPressTimer = null; callPointerStart = null; };
+    $("#callsList").addEventListener("pointerup", finishCallPointer);
+    $("#callsList").addEventListener("pointercancel", finishCallPointer);
+
     $("#callsList").addEventListener("click", (event) => {
       const button = event.target.closest("[data-save-call]");
-
-      if (!button) return;
-
-      const call = state.calls.find((item) => String(item.id) === button.dataset.saveCall);
-
-      if (!call?.phone_number) {
-        showToast("Nomor telepon tidak tersedia.");
+      if (button) {
+        event.stopPropagation();
+        const call = state.calls.find((item) => String(item.id) === button.dataset.saveCall);
+        if (!call?.phone_number) { showToast("Nomor telepon tidak tersedia."); return; }
+        openContactSheet(null, { name: call.display_name, phone: call.phone_number });
         return;
       }
-
-      openContactSheet(null, { phone: call.phone_number });
+      const row = event.target.closest(".call-swipe-row");
+      if (!row) return;
+      if (suppressCallClick) { suppressCallClick = false; return; }
+      if (row.classList.contains("is-revealed")) row.classList.remove("is-revealed");
     });
 
     // Kontak
