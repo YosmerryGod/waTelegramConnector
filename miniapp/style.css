@@ -1127,3 +1127,141 @@ body.in-chat .toast,
     transition-duration: .01ms !important;
   }
 }
+
+
+/* [ADDED] WhatsApp QR pairing gate — green neumorphic brand surface. */
+.connection-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 12% 8%, rgba(0, 190, 85, .18), transparent 34%),
+    radial-gradient(circle at 92% 88%, rgba(0, 160, 75, .16), transparent 36%),
+    #edf6f1;
+  color: #15251d;
+}
+.connection-panel {
+  width: min(100%, 430px);
+  padding: 26px 22px 22px;
+  border: 1px solid rgba(255,255,255,.9);
+  border-radius: 30px;
+  background: linear-gradient(145deg, #f8fffb, #e7f1ec);
+  box-shadow: 14px 14px 32px rgba(25, 78, 52, .13), -12px -12px 30px rgba(255,255,255,.95);
+  text-align: center;
+}
+.connection-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+.connection-brand-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #10c85a, #008c3e);
+  box-shadow: 6px 6px 14px rgba(0,120,55,.22), -5px -5px 12px #fff;
+  color: white;
+  font-size: 27px;
+  font-weight: 800;
+}
+.connection-brand-name {
+  color: #15251d;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -.6px;
+  text-align: left;
+}
+.connection-brand-name span { display: block; color: #078c42; }
+.connection-eyebrow {
+  margin-bottom: 8px;
+  color: #078c42;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+.connection-title {
+  margin-bottom: 9px;
+  color: #17231c;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -.8px;
+}
+.connection-description {
+  max-width: 310px;
+  margin: 0 auto 22px;
+  color: #64746b;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.connection-qr-wrap {
+  display: grid;
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  place-items: center;
+  margin: 0 auto 20px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.95);
+  border-radius: 25px;
+  background: #f4faf6;
+  box-shadow: inset 5px 5px 12px rgba(35,80,54,.09), inset -5px -5px 12px #fff, 8px 8px 20px rgba(25,78,52,.10);
+}
+.connection-qr-wrap img { display: block; width: 100%; height: 100%; object-fit: contain; border-radius: 12px; }
+.connection-wait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 54px;
+  margin: 0 auto 18px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: #e9f4ed;
+  box-shadow: inset 4px 4px 9px rgba(32,79,51,.08), inset -4px -4px 9px #fff;
+  color: #3e5c49;
+  font-size: 13px;
+}
+.connection-pulse {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #0ab653;
+  box-shadow: 0 0 0 5px rgba(10,182,83,.12);
+  animation: connectionPulse 1.4s infinite;
+}
+@keyframes connectionPulse { 50% { opacity: .35; transform: scale(.78); } }
+.connection-steps {
+  padding: 17px 18px;
+  border-radius: 18px;
+  background: rgba(12,177,76,.08);
+  color: #456151;
+  font-size: 13px;
+  line-height: 1.75;
+  text-align: left;
+}
+.connection-steps strong { display: block; margin-bottom: 5px; color: #173b27; }
+.connection-error { color: #b42318; font-size: 13px; }
+.connection-retry {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 14px;
+  border: 0;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #11c95a, #00933f);
+  box-shadow: 6px 6px 14px rgba(0,120,55,.2), -5px -5px 12px #fff;
+  color: #fff;
+  font-weight: 750;
+}
+body.connection-pending .app { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .connection-pulse { animation: none; }
+}
