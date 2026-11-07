@@ -1760,7 +1760,7 @@
       }
     }
 
-    $("#callsList").addEventListener("click", (event) => {
+    $("#callsList").addEventListener("click", async (event) => {
       const save = event.target.closest("[data-save-call]");
       if (save) {
         event.stopPropagation();
