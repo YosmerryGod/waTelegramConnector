@@ -1280,3 +1280,169 @@ body.connection-pending .app { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .connection-pulse { animation: none; }
 }
+
+
+/* [ADDED] WAGRAM visual refresh — light green neumorphic mobile shell. */
+:root {
+  --bg: #eef8f2;
+  --surface: #f7fcf9;
+  --surface-2: #e6f2eb;
+  --border: #dcebe2;
+  --divider: #e3eee7;
+  --text: #17251d;
+  --muted: #718078;
+  --accent: #03a84f;
+  --accent-soft: rgba(3, 168, 79, .11);
+  --on-accent: #ffffff;
+  --shadow: 8px 8px 20px rgba(43, 91, 63, .10), -8px -8px 20px rgba(255,255,255,.92);
+  color-scheme: light;
+}
+html[data-theme="dark"] {
+  --bg: #0f1115;
+  --surface: #171a20;
+  --surface-2: #1f232b;
+  --border: #272c35;
+  --divider: #1e222a;
+  --text: #eef0f3;
+  --muted: #8b93a1;
+  --accent: #34c58b;
+  --accent-soft: rgba(52,197,139,.14);
+  --on-accent: #04281a;
+  color-scheme: dark;
+}
+.topbar {
+  padding: 14px 18px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+}
+.brand-icon {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 15px;
+  background: linear-gradient(145deg,#10c85a,#008c3e);
+  box-shadow: 5px 5px 12px rgba(0,120,55,.18),-5px -5px 12px rgba(255,255,255,.8);
+}
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+}
+.page-title { padding-top: 18px; }
+.page-title h2 { font-size: 25px; letter-spacing: -.6px; }
+.search-box {
+  height: 48px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: inset 3px 3px 8px rgba(43,91,63,.055), inset -3px -3px 8px rgba(255,255,255,.85);
+}
+.card,.connection-status-card,.automation-empty {
+  border: 1px solid rgba(255,255,255,.8);
+  border-radius: 20px;
+  background: linear-gradient(145deg,var(--surface),var(--surface-2));
+  box-shadow: var(--shadow);
+}
+.bottom-nav {
+  max-width: 720px;
+  padding: 9px 10px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb,var(--surface) 94%,transparent);
+}
+.nav-item { min-height: 54px; gap: 5px; border-radius: 16px; }
+.nav-item.selected {
+  background: linear-gradient(145deg,#0ac65b,#009640);
+  color: #fff;
+  box-shadow: 4px 5px 12px rgba(0,145,65,.2);
+}
+.nav-item .i { width: 21px; height: 21px; }
+.message-shortcuts {
+  display:flex;
+  gap:8px;
+  padding:0 16px 14px;
+}
+.shortcut-button {
+  min-height:36px;
+  padding:7px 15px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:var(--surface);
+  color:var(--muted);
+  font-size:13px;
+  font-weight:600;
+}
+.shortcut-button.active {
+  border-color:transparent;
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+.message-subpage-back { padding:10px 16px 0; }
+.message-subpage-back button {
+  border:0;
+  padding:7px 0;
+  background:transparent;
+  color:var(--accent);
+  font-weight:700;
+}
+.connection-status-card {
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin:0 16px 13px;
+  padding:16px;
+}
+.service-symbol {
+  display:grid;
+  width:46px;
+  height:46px;
+  flex:0 0 auto;
+  place-items:center;
+  border-radius:15px;
+  color:#fff;
+  font-size:25px;
+  font-weight:800;
+}
+.whatsapp-symbol { background:#18bd61; }
+.telegram-symbol { background:#269bd7; }
+.service-copy { display:flex; flex:1; flex-direction:column; gap:4px; }
+.service-copy strong { font-size:15px; }
+.service-copy span { color:var(--accent); font-size:12px; font-weight:650; }
+.service-copy i {
+  display:inline-block;
+  width:7px;
+  height:7px;
+  margin-right:5px;
+  border-radius:50%;
+  background:var(--accent);
+}
+.service-chevron { color:var(--muted); font-size:25px; }
+.automation-empty {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin:18px 16px;
+  padding:34px 24px;
+  text-align:center;
+}
+.automation-empty-icon {
+  display:grid;
+  width:68px;
+  height:68px;
+  margin-bottom:18px;
+  place-items:center;
+  border-radius:22px;
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-size:40px;
+}
+.automation-empty h3 { margin-bottom:8px; font-size:17px; }
+.automation-empty p { max-width:300px; color:var(--muted); font-size:13px; line-height:1.6; }
+.coming-soon {
+  margin-top:18px;
+  padding:7px 12px;
+  border-radius:999px;
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.7px;
+}
