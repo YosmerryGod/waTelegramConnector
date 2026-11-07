@@ -410,6 +410,7 @@ const statements = {
   getChat: db.prepare(`
     SELECT
       c.*,
+      wpc.picture_url AS profile_picture_url,
       COALESCE(
         cp.custom_name,
         ct.name,
