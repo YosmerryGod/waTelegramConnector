@@ -3,7 +3,7 @@
   "use strict";
 
   const tg = window.Telegram?.WebApp || null;
-  const apiBase = String(window.MINIAPP_API_BASE || "/api/miniapp").replace(/\\/+$/, "");
+  const apiBase = String(window.MINIAPP_API_BASE || "/api/miniapp").replace(/\/+$/, "");
   const gate = document.createElement("section");
   gate.className = "connection-gate";
   gate.id = "connectionGate";
