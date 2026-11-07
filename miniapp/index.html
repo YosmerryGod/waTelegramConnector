@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-profile-data-cleanup">
+  <link rel="stylesheet" href="style.css?v=20261108-cleanup-functional">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -281,46 +281,46 @@
           <svg class="i history-chevron"><use href="#i-back"/></svg>
         </button>
         <div class="history-cleanup-list" id="historyCleanupOptions">
-          <div class="history-cleanup-item">
+          <button class="history-cleanup-item" type="button" data-cleanup="media">
             <span class="history-cleanup-icon"><svg class="i"><use href="#i-image"/></svg></span>
             <span class="history-cleanup-copy">
               <strong>Hapus semua media</strong>
               <small>Foto, video, audio, dan dokumen tersimpan</small>
             </span>
             <span class="history-trash-action" aria-hidden="true"><svg class="i"><use href="#i-trash"/></svg></span>
-          </div>
-          <div class="history-cleanup-item">
+          </button>
+          <button class="history-cleanup-item" type="button" data-cleanup="messages">
             <span class="history-cleanup-icon"><svg class="i"><use href="#i-chat"/></svg></span>
             <span class="history-cleanup-copy">
               <strong>Hapus riwayat pesan</strong>
               <small>Seluruh percakapan dan pesan tersimpan</small>
             </span>
             <span class="history-trash-action" aria-hidden="true"><svg class="i"><use href="#i-trash"/></svg></span>
-          </div>
-          <div class="history-cleanup-item">
+          </button>
+          <button class="history-cleanup-item" type="button" data-cleanup="calls">
             <span class="history-cleanup-icon"><svg class="i"><use href="#i-phone"/></svg></span>
             <span class="history-cleanup-copy">
               <strong>Hapus riwayat panggilan</strong>
               <small>Semua catatan panggilan WhatsApp</small>
             </span>
             <span class="history-trash-action" aria-hidden="true"><svg class="i"><use href="#i-trash"/></svg></span>
-          </div>
-          <div class="history-cleanup-item">
+          </button>
+          <button class="history-cleanup-item" type="button" data-cleanup="contacts">
             <span class="history-cleanup-icon"><svg class="i"><use href="#i-users"/></svg></span>
             <span class="history-cleanup-copy">
               <strong>Hapus kontak tersimpan</strong>
               <small>Kontak yang disimpan secara manual di WAGRAM</small>
             </span>
             <span class="history-trash-action" aria-hidden="true"><svg class="i"><use href="#i-trash"/></svg></span>
-          </div>
-          <div class="history-cleanup-item">
+          </button>
+          <button class="history-cleanup-item" type="button" data-cleanup="cache">
             <span class="history-cleanup-icon"><svg class="i"><use href="#i-layers"/></svg></span>
             <span class="history-cleanup-copy">
               <strong>Bersihkan cache aplikasi</strong>
               <small>Data sementara untuk membantu mengosongkan ruang</small>
             </span>
             <span class="history-trash-action" aria-hidden="true"><svg class="i"><use href="#i-trash"/></svg></span>
-          </div>
+          </button>
         </div>
       </div>
       </section>
@@ -390,7 +390,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261108-history-dropdown"></script>
+  <script src="app.js?v=20261108-cleanup-functional"></script>
   <script src="connection.js?v=20261107-1448"></script>
 </body>
 </html>
