@@ -2496,18 +2496,40 @@ body:has(#accountPage:not(.hidden)) .topbar {
 .whatsapp-connection-state i { width:7px; height:7px; border-radius:50%; background:#98a2b3; }
 .whatsapp-connection-state.is-connected { color:#22a66a; }
 .whatsapp-connection-state.is-connected i { background:#22c77a; }
+.whatsapp-disconnect-row {
+  display:flex;
+  justify-content:flex-end;
+  margin-top:14px;
+  padding-top:13px;
+  border-top:1px solid var(--divider);
+}
 .disconnect-button {
-  flex:0 0 auto;
-  min-height:31px;
-  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:34px;
+  padding:0 12px;
   border:1px solid var(--danger);
-  border-radius:8px;
+  border-radius:9px;
   background:transparent;
   color:var(--danger);
-  font-size:10px;
+  font-size:11px;
   font-weight:700;
 }
-.disconnect-button:disabled { opacity:.45; }
+.disconnect-status-dot {
+  width:7px;
+  height:7px;
+  flex:0 0 7px;
+  border-radius:50%;
+  background:#98a2b3;
+}
+.disconnect-button.is-connected .disconnect-status-dot { background:#22c77a; }
+.disconnect-button.is-disconnected {
+  border-color:var(--border);
+  color:var(--muted);
+}
+.disconnect-button:disabled { opacity:.55; }
 .notification-card { padding:0; overflow:hidden; }
 .notification-card-heading {
   width:100%;
