@@ -276,7 +276,7 @@ router.get("/connection", async (req, res) => {
 // [ADDED] POST /api/miniapp/connection/disconnect — disconnect this user's WhatsApp session.
 router.post("/connection/disconnect", async (req, res) => {
   try {
-    const result = await disconnectWhatsApp(req.telegramId);
+    const result = await disconnectWhatsApp(req.telegramId, { logout: true, clearAuth: true });
     res.setHeader("Cache-Control", "no-store");
     res.json({ ok: true, ...result });
   } catch (error) {
