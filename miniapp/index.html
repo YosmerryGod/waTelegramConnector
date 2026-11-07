@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261107-profile1">
+  <link rel="stylesheet" href="style.css?v=20261107-topbar2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -46,20 +46,19 @@
 
   <div class="app">
     <header class="topbar" id="topbar">
-      <div class="brand">
-        <!-- [MODIFIED] Versioned logo URL forces Telegram to fetch the current brand asset. -->
-        <div class="brand-icon"><img src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM"></div>
-        <div class="brand-text">
-          <h1>WAGRAM</h1>
-          <p id="connectionStatus">Menghubungkan…</p>
+      <div class="topbar-main">
+        <h1 class="topbar-title" id="topbarTitle">Pesan</h1>
+        <div class="topbar-search" id="topbarSearch">
+          <svg class="i"><use href="#i-search"/></svg>
+          <input id="topbarSearchInput" type="search" placeholder="Cari..." autocomplete="off" aria-label="Cari">
         </div>
       </div>
       <div class="topbar-actions">
+        <button class="icon-button" id="searchToggleButton" type="button" aria-label="Cari" aria-expanded="false">
+          <svg class="i"><use href="#i-search"/></svg>
+        </button>
         <button class="icon-button" id="themeButton" type="button" aria-label="Ganti tema terang atau gelap">
           <svg class="i"><use href="#i-moon"/></svg>
-        </button>
-        <button class="icon-button" id="refreshButton" type="button" aria-label="Muat ulang">
-          <svg class="i"><use href="#i-refresh"/></svg>
         </button>
       </div>
     </header>
@@ -286,7 +285,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261107-profile1"></script>
+  <script src="app.js?v=20261107-topbar2"></script>
   <script src="connection.js?v=20261107-1448"></script>
 </body>
 </html>
