@@ -329,6 +329,8 @@
 
   function setPage(page) {
     state.page = page;
+    closeTopbarSearch(false);
+    updateTopbarTitle();
     closeConversationUI();
 
     for (const [key, selector] of Object.entries(PAGES)) {
@@ -360,6 +362,73 @@
     }
 
     window.scrollTo(0, 0);
+  }
+
+  // [ADDED] Keep the compact top bar title in sync with the active tab.
+  function updateTopbarTitle() {
+    const titles = {
+      chats: "Pesan",
+      calls: "Panggilan",
+      contacts: "Kontak",
+      account: "Profil"
+    };
+
+    $("#topbarTitle").textContent = titles[state.page] || "Pesan";
+    $("#topbarSearchInput").placeholder = state.page === "calls"
+      ? "Cari nama atau nomor"
+      : state.page === "contacts"
+        ? "Cari nama atau nomor"
+        : "Cari chat atau pesan";
+  }
+
+  // [ADDED] Expand/collapse the top-bar search without shifting the theme button.
+  function openTopbarSearch() {
+    const topbar = $("#topbar");
+    const input = $("#topbarSearchInput");
+    const target = state.page === "calls"
+      ? $("#callsSearchInput")
+      : state.page === "contacts"
+        ? $("#contactsSearchInput")
+        : state.page === "chats"
+          ? $("#searchInput")
+          : null;
+
+    topbar.classList.add("search-open");
+    $("#searchToggleButton").setAttribute("aria-expanded", "true");
+    $("#searchToggleButton").setAttribute("aria-label", "Tutup pencarian");
+    $("#searchToggleButton").innerHTML = "×";
+    input.value = target?.value || "";
+    requestAnimationFrame(() => input.focus());
+  }
+
+  function closeTopbarSearch(restoreFocus = true) {
+    const topbar = $("#topbar");
+    if (!topbar.classList.contains("search-open")) return;
+
+    topbar.classList.remove("search-open");
+    $("#searchToggleButton").setAttribute("aria-expanded", "false");
+    $("#searchToggleButton").setAttribute("aria-label", "Cari");
+    $("#searchToggleButton").innerHTML = '<svg class="i"><use href="#i-search"/></svg>';
+    $("#topbarSearchInput").blur();
+
+    if (restoreFocus) {
+      $("#topbarTitle").focus?.();
+    }
+  }
+
+  function handleTopbarSearch() {
+    const value = $("#topbarSearchInput").value;
+    const target = state.page === "calls"
+      ? $("#callsSearchInput")
+      : state.page === "contacts"
+        ? $("#contactsSearchInput")
+        : state.page === "chats"
+          ? $("#searchInput")
+          : null;
+
+    if (!target) return;
+    target.value = value;
+    target.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   function refreshCurrentPage() {
@@ -1319,7 +1388,19 @@
      --------------------------------------------------------- */
 
   function bindEvents() {
-    $("#refreshButton").addEventListener("click", refreshCurrentPage);
+    // [ADDED] Animated global search control in the top bar.
+    $("#searchToggleButton").addEventListener("click", () => {
+      if ($("#topbar").classList.contains("search-open")) {
+        closeTopbarSearch();
+      } else {
+        openTopbarSearch();
+      }
+    });
+    $("#topbarSearchInput").addEventListener("input", handleTopbarSearch);
+    $("#topbarSearchInput").addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeTopbarSearch();
+    });
+
     $("#backButton").addEventListener("click", () => setPage("chats"));
 
     // Tema
@@ -1374,6 +1455,7 @@
     $("#callsNav").addEventListener("click", () => setPage("calls"));
     $("#contactsNav").addEventListener("click", () => setPage("contacts"));
     $("#profileNav").addEventListener("click", () => setPage("account"));
+    updateTopbarTitle();
     $("#backToMessagesCalls").addEventListener("click", () => setPage("chats"));
     $("#backToMessagesContacts").addEventListener("click", () => setPage("chats"));
 
