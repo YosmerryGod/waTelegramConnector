@@ -471,9 +471,21 @@
     $("#accountUsername").textContent = me.username ? `@${me.username}` : `ID ${me.id}`;
 
     const accountAvatar = $("#accountAvatar");
+    const accountPhoto = $("#accountPhoto");
+    const photoUrl = me.photoUrl || me.photo_url || me.photoURL || "";
 
-    accountAvatar.textContent = getInitials(name);
+    $("#accountInitials").textContent = getInitials(name);
     accountAvatar.style.setProperty("--h", avatarHue(name));
+
+    if (photoUrl) {
+      accountPhoto.src = photoUrl;
+      accountPhoto.classList.remove("hidden");
+      $("#accountInitials").classList.add("hidden");
+    } else {
+      accountPhoto.removeAttribute("src");
+      accountPhoto.classList.add("hidden");
+      $("#accountInitials").classList.remove("hidden");
+    }
   }
 
   /* ---------------------------------------------------------
@@ -1522,6 +1534,16 @@
       setThemePref(resolveScheme() === "dark" ? "light" : "dark");
     });
 
+    // [ADDED] Profile theme control mirrors the global light/dark toggle.
+    $("#profileThemeButton").addEventListener("click", () => {
+      setThemePref(resolveScheme() === "dark" ? "light" : "dark");
+    });
+
+    // [ADDED] Premium upgrade entry point while the subscription flow is prepared.
+    $("#upgradePremiumButton").addEventListener("click", () => {
+      showToast("Upgrade Premium segera hadir.");
+    });
+
     $("#themeSegment").addEventListener("click", (event) => {
       const option = event.target.closest("[data-theme-pref]");
 
@@ -1960,12 +1982,11 @@
 
     // Tombol tema: bulan saat terang (ketuk -> gelap), matahari saat gelap.
     $("#themeButton").innerHTML = icon(scheme === "dark" ? "sun" : "moon");
+    $("#profileThemeButton").innerHTML = icon(scheme === "dark" ? "sun" : "moon");
 
     const pref = getThemePref();
 
-    document.querySelectorAll("#themeSegment [data-theme-pref]").forEach((button) => {
-      button.classList.toggle("active", button.dataset.themePref === pref);
-    });
+
 
     const background = getComputedStyle(root).getPropertyValue("--bg").trim();
 
