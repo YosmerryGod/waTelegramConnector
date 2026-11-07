@@ -885,7 +885,7 @@
     }
   }
 
-  async function openProfile(jid, fallbackName = "") {
+  async function openProfile(jid, fallbackName = "", fallbackPhone = "") {
     if (!jid) return;
 
     const title = $("#profileDisplayName");
@@ -897,7 +897,7 @@
 
     title.textContent = fallbackName || "Profil WhatsApp";
     about.textContent = "Memuat info…";
-    phone.textContent = "Memuat…";
+    phone.textContent = formatPhone(fallbackPhone) || "Memuat…";
     identifier.textContent = jid;
     photo.classList.add("hidden");
     avatarFallback.classList.remove("hidden");
@@ -913,7 +913,7 @@
 
       title.textContent = name;
       about.textContent = profile.about || "Info tidak tersedia atau disembunyikan.";
-      phone.textContent = profilePhone(jid) || (
+      phone.textContent = formatPhone(profile.phoneNumber) || formatPhone(fallbackPhone) || profilePhone(jid) || (
         jid.endsWith("@g.us") ? "Grup WhatsApp" : "Nomor tidak tersedia"
       );
       identifier.textContent = jid;
@@ -941,7 +941,7 @@
       }
     } catch (error) {
       about.textContent = error.message;
-      phone.textContent = profilePhone(jid) || "Tidak tersedia";
+      phone.textContent = formatPhone(fallbackPhone) || profilePhone(jid) || "Tidak tersedia";
       identifier.textContent = jid;
       showToast(error.message);
     }
@@ -1394,7 +1394,7 @@
     // [ADDED] Open the active chat or group profile from its header.
     $("#conversationHeader").addEventListener("click", (event) => {
       const target = event.target.closest("[data-profile-jid]");
-      if (target) openProfile(target.dataset.profileJid, target.dataset.profileName);
+      if (target) openProfile(target.dataset.profileJid, target.dataset.profileName, state.currentChat?.phone_number || "");
     });
 
     // Panggilan
