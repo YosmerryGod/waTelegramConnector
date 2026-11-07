@@ -2329,3 +2329,9 @@ html[data-theme="dark"] .sheet-panel input {
 .contact-swipe-row.is-revealed .contact-swipe-actions,
 .contact-swipe-row.is-revealed .contact-swipe-actions button { border-radius: 0 !important; }
 @media (prefers-reduced-motion: reduce) { .contact-row-content { transition: none; } }
+
+
+/* [ADDED] Hide the global header only while the Profile page is active. */
+body:has(#accountPage:not(.hidden)) .topbar {
+  display: none !important;
+}
