@@ -2056,3 +2056,64 @@ html[data-theme="dark"] .sheet-panel input {
 #openChatWhatsAppButton:disabled {
   opacity: .4;
 }
+
+
+/* [ADDED] WAGRAM call history swipe-to-save interaction. */
+.call-swipe-row {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 18px;
+  background: transparent;
+}
+.call-row-content {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  transition: transform .24s cubic-bezier(.2,.75,.25,1), background .15s;
+  touch-action: pan-y;
+}
+.call-save-action {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .18s ease, visibility .18s ease;
+}
+.call-save-action .i {
+  width: 23px;
+  height: 23px;
+  stroke-width: 2;
+}
+.call-swipe-row.is-revealed .call-row-content {
+  transform: translateX(-76px);
+}
+.call-swipe-row.is-revealed .call-save-action {
+  z-index: 2;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+.call-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+.call-detail {
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .call-row-content { transition: none; }
+}
