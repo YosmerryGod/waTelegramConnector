@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-disconnect-layout">
+  <link rel="stylesheet" href="style.css?v=20261108-premium-ui">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -335,6 +335,58 @@
       <button class="nav-item" id="profileNav" type="button"><svg class="i"><use href="#i-user"/></svg><span>Profile</span></button>
     </nav>
 
+    <!-- [ADDED] WAGRAM Premium plan selector bottom sheet. -->
+    <div id="premiumSheet" class="sheet premium-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="premiumSheetTitle">
+      <div class="sheet-backdrop" data-close-premium></div>
+      <section class="sheet-panel premium-panel">
+        <div class="sheet-handle"></div>
+        <button class="premium-close icon-button" type="button" data-close-premium aria-label="Tutup">×</button>
+        <div class="premium-heading">
+          <span class="premium-crown"><svg class="i"><use href="#i-crown"/></svg></span>
+          <div>
+            <p class="premium-eyebrow">WAGRAM PREMIUM</p>
+            <h2 id="premiumSheetTitle">Upgrade your experience.</h2>
+            <p class="premium-subtitle">Pilih durasi Premium sesuai kebutuhanmu.</p>
+          </div>
+        </div>
+        <div class="premium-duration-tabs" id="premiumDurationTabs" role="tablist" aria-label="Durasi Premium">
+          <button class="premium-duration-tab active" type="button" role="tab" aria-selected="true" data-period="3d">3 Hari</button>
+          <button class="premium-duration-tab" type="button" role="tab" aria-selected="false" data-period="7d">7 Hari</button>
+          <button class="premium-duration-tab" type="button" role="tab" aria-selected="false" data-period="30d">30 Hari</button>
+        </div>
+        <div class="premium-price-panel" aria-live="polite">
+          <span class="premium-plan-label" id="premiumPlanLabel">PREMIUM 3 HARI</span>
+          <div class="premium-price-line">
+            <del id="premiumOldPrice">Rp24.000</del>
+            <strong id="premiumCurrentPrice">Rp14.000</strong>
+          </div>
+          <p class="premium-price-note" id="premiumPriceNote">Harga spesial untuk langganan pertama</p>
+          <div class="premium-session-benefit">
+            <span class="premium-session-icon"><svg class="i"><use href="#i-smartphone"/></svg></span>
+            <span><strong id="premiumSessionCount">2 WhatsApp session</strong><small id="premiumSessionDescription">Hubungkan hingga 2 akun WhatsApp secara bersamaan.</small></span>
+          </div>
+        </div>
+        <div class="premium-benefits">
+          <h3>Keunggulan Premium</h3>
+          <div class="premium-benefit-list">
+            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Pesan teks dan media: foto, video, audio &amp; dokumen</span></div>
+            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Notifikasi pesan pribadi, grup &amp; saluran</span></div>
+            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Notifikasi panggilan</span></div>
+            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Riwayat pesan lebih panjang</span></div>
+            <div><svg class="i"><use href="#i-check-circle"/></svg><span>Prioritas dukungan</span></div>
+          </div>
+        </div>
+        <div class="premium-free-comparison">
+          <h3>Perbedaan dengan Free</h3>
+          <div class="premium-comparison-row"><span>WhatsApp session</span><strong id="premiumComparisonSessions">2 vs 1</strong></div>
+          <div class="premium-comparison-row"><span>Media &amp; dokumen</span><strong><span class="premium-no">Free: Tidak</span><span class="premium-yes">Premium: Ya</span></strong></div>
+          <div class="premium-comparison-row"><span>Riwayat pesan</span><strong><span class="premium-no">Free: 3 hari</span><span class="premium-yes">Premium: Lebih panjang</span></strong></div>
+        </div>
+        <button class="premium-continue-button" id="premiumContinueButton" type="button">Lanjutkan · Rp14.000</button>
+        <p class="premium-payment-note">Pembayaran dan aktivasi Premium akan tersedia pada tahap berikutnya.</p>
+      </section>
+    </div>
+
     <!-- FORM KONTAK (bottom sheet) -->
     <div id="contactSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="contactFormTitle">
       <div class="sheet-backdrop" data-close-sheet></div>
@@ -391,7 +443,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261108-disconnect-layout"></script>
+  <script src="app.js?v=20261108-premium-ui"></script>
   <script src="connection.js?v=20261107-1448"></script>
 </body>
 </html>
