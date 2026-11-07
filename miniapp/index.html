@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-profile-whatsapp-notifications">
+  <link rel="stylesheet" href="style.css?v=20261108-notifications-inside-whatsapp">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -215,10 +215,8 @@
           </div>
           <button class="disconnect-button" id="disconnectWhatsAppButton" type="button" disabled>Disconnect</button>
         </div>
-      </section>
-
-      <!-- [ADDED] Notification preferences are grouped in one expandable card. -->
-      <section class="card notification-card" id="notificationCard">
+      <!-- [MODIFIED] Notification settings are now inside the WhatsApp connection card. -->
+      <div class="embedded-notification-section">
         <button class="notification-card-heading" id="notificationCardToggle" type="button" aria-expanded="true">
           <span class="settings-heading-icon"><svg class="i"><use href="#i-bell"/></svg></span>
           <span class="settings-heading-copy">
@@ -268,9 +266,10 @@
             <span class="notification-option-copy"><strong>Foto atau video sekali lihat</strong><small>View Once</small></span>
             <span class="coming-soon-pill">SOON</span>
           </div>
-        </div>
-      </section>
 
+        </div>
+      </div>
+      </section>
     </main>
 
     <!-- NAVIGASI BAWAH -->
