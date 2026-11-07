@@ -1627,6 +1627,70 @@
       $("#notificationCardToggle").setAttribute("aria-expanded", String(!collapsed));
     });
 
+
+    // [ADDED] Confirm each cleanup action before deleting account-owned records.
+    $("#historyCleanupOptions").addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-cleanup]");
+      if (!button || button.disabled) return;
+
+      const type = button.dataset.cleanup;
+      const confirmations = {
+        media: "Hapus semua media tersimpan? Pesan teks dan riwayat chat tetap ada.",
+        messages: "Hapus seluruh riwayat pesan? Daftar chat tetap ada, tetapi isi percakapan tidak dapat dipulihkan.",
+        calls: "Hapus seluruh riwayat panggilan? Tindakan ini tidak dapat dibatalkan.",
+        contacts: "Hapus semua kontak manual yang tersimpan di WAGRAM? Tindakan ini tidak dapat dibatalkan.",
+        cache: "Bersihkan cache media sementara di perangkat ini?"
+      };
+
+      if (!confirmations[type]) return;
+      if (!(await confirmAction(confirmations[type]))) return;
+
+      button.disabled = true;
+      try {
+        if (type === "cache") {
+          clearMediaCache();
+          showToast("Cache media sementara berhasil dibersihkan.");
+          return;
+        }
+
+        const result = await api("/data/cleanup", {
+          method: "POST",
+          body: JSON.stringify({ type })
+        });
+
+        clearMediaCache();
+
+        if (type === "messages") {
+          state.chatsLoaded = false;
+          state.chats = [];
+          if (state.page === "chats") loadChats();
+        } else if (type === "calls") {
+          state.callsLoaded = false;
+          state.calls = [];
+          if (state.page === "calls") loadCalls();
+        } else if (type === "contacts") {
+          state.contactsLoaded = false;
+          state.contacts = [];
+          if (state.page === "contacts") loadContacts();
+        }
+
+        const count = Number(result.deleted || 0);
+        const names = {
+          media: "media",
+          messages: "pesan",
+          calls: "riwayat panggilan",
+          contacts: "kontak"
+        };
+        showToast(count > 0
+          ? `${count} data ${names[type]} berhasil dihapus.`
+          : `Tidak ada ${names[type]} yang perlu dihapus.`);
+      } catch (error) {
+        showToast(error.message || "Penghapusan data gagal.");
+      } finally {
+        button.disabled = false;
+      }
+    });
+
     // [ADDED] Expand or collapse the history and data cleanup list.
     $("#historyCleanupToggle").addEventListener("click", () => {
       const section = $("#historyCleanupToggle").closest(".embedded-history-section");
