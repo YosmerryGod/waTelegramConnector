@@ -6,7 +6,9 @@ import express from "express";
 import crypto from "node:crypto";
 import { Readable } from "node:stream";
 
-import { bot } from "./telegram.js";
+import { bot, createWhatsAppCallbacks } from "./telegram.js";
+import QRCode from "qrcode";
+import { connectWhatsApp, getWhatsAppQr, getWhatsAppStatus } from "./whatsapp.js";
 
 import {
   getUser,
@@ -227,6 +229,58 @@ router.get("/health", (_req, res) => {
 
 // All routes below require authenticated Telegram Mini App data.
 router.use(requireMiniAppAuth);
+
+// ---------------------------------------------------------------------------
+// [ADDED] WhatsApp pairing state for the Mini App.
+// ---------------------------------------------------------------------------
+
+// GET /api/miniapp/connection — current WhatsApp status and live pairing QR.
+router.get("/connection", async (req, res) => {
+  try {
+    const connection = getWhatsAppStatus(req.telegramId);
+    const qr = connection.status === "qr"
+      ? getWhatsAppQr(req.telegramId)
+      : null;
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      ok: true,
+      status: connection.status,
+      phoneNumber: connection.phoneNumber,
+      qr: qr
+        ? await QRCode.toDataURL(qr, {
+            width: 320,
+            margin: 2,
+            errorCorrectionLevel: "M",
+            color: { dark: "#101820", light: "#FFFFFF" }
+          })
+        : null
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not get WhatsApp connection");
+  }
+});
+
+// POST /api/miniapp/connection/connect — start pairing for this Telegram user.
+router.post("/connection/connect", async (req, res) => {
+  try {
+    const current = getWhatsAppStatus(req.telegramId);
+
+    if (current.status !== "connected") {
+      await connectWhatsApp(
+        req.telegramId,
+        createWhatsAppCallbacks(req.telegramId)
+      );
+    }
+
+    res.status(202).json({
+      ok: true,
+      ...getWhatsAppStatus(req.telegramId)
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not start WhatsApp pairing");
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Current user
