@@ -545,9 +545,14 @@
 
       return `
         <div class="chat-swipe-row" data-chat-row="${escapeHTML(chat.whatsapp_chat_id)}">
-          <button class="chat-archive-action" type="button" data-archive-chat="${escapeHTML(chat.whatsapp_chat_id)}" aria-label="Arsipkan chat">
-            ${icon("archive")}
-          </button>
+          <div class="chat-actions">
+            <button class="chat-favorite-action" type="button" data-favorite-chat="${escapeHTML(chat.whatsapp_chat_id)}" aria-label="${chat.is_favorite ? "Hapus dari favorit" : "Tambahkan ke favorit"}">
+              ${icon("star")}
+            </button>
+            <button class="chat-archive-action" type="button" data-archive-chat="${escapeHTML(chat.whatsapp_chat_id)}" aria-label="Arsipkan chat">
+              ${icon("archive")}
+            </button>
+          </div>
           <button class="list-item chat-row-content" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}">
             ${avatar(name, name, "", chat.profile_picture_url)}
             <div class="item-body">
@@ -1110,6 +1115,28 @@
     }
   }
 
+  // [ADDED] Toggle favorite directly from the revealed chat actions.
+  async function toggleFavoriteFromList(chatId, button) {
+    const chat = state.chats.find((item) => String(item.whatsapp_chat_id) === String(chatId));
+    if (!chat || button.disabled) return;
+
+    const next = !chat.is_favorite;
+    button.disabled = true;
+    try {
+      await api(`/chats/${enc(chatId)}/favorite`, {
+        method: "PUT",
+        body: JSON.stringify({ favorite: next })
+      });
+
+      chat.is_favorite = next ? 1 : 0;
+      showToast(next ? "Ditambahkan ke favorit" : "Dihapus dari favorit");
+      await loadChats();
+    } catch (error) {
+      button.disabled = false;
+      showToast(error.message);
+    }
+  }
+
   /* ---------------------------------------------------------
      Panggilan
      --------------------------------------------------------- */
@@ -1555,6 +1582,13 @@
     $("#chatList").addEventListener("pointercancel", finishChatPointer);
 
     $("#chatList").addEventListener("click", (event) => {
+      const favorite = event.target.closest("[data-favorite-chat]");
+      if (favorite) {
+        event.stopPropagation();
+        toggleFavoriteFromList(favorite.dataset.favoriteChat, favorite);
+        return;
+      }
+
       const archive = event.target.closest("[data-archive-chat]");
       if (archive) {
         event.stopPropagation();
