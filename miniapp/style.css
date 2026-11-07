@@ -2642,3 +2642,23 @@ body:has(#accountPage:not(.hidden)) .topbar {
   background:rgba(226,75,75,.09);
 }
 .history-trash-action .i { width:16px; height:16px; }
+
+
+/* [MODIFIED] History and data cleanup section supports expand/collapse. */
+.history-section-heading {
+  width:100%;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+  cursor:pointer;
+}
+.history-chevron {
+  flex:0 0 17px;
+  width:17px;
+  height:17px;
+  transform:rotate(-90deg);
+  transition:transform .18s ease;
+}
+.embedded-history-section.is-collapsed .history-chevron { transform:rotate(-180deg); }
+.embedded-history-section.is-collapsed .history-cleanup-list { display:none; }
