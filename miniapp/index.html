@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261108-account-dropdown">
+  <link rel="stylesheet" href="style.css?v=20261108-add-session-ui">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -201,6 +201,9 @@
           <div class="settings-heading-copy">
             <h3>WhatsApp</h3>
           </div>
+          <button class="whatsapp-add-session-button" id="addWhatsAppSessionButton" type="button" aria-label="Tambah session WhatsApp" title="Tambah session WhatsApp">
+            <svg class="i"><use href="#i-plus"/></svg>
+          </button>
         </div>
         <div class="whatsapp-account-row">
           <div class="whatsapp-account-avatar" id="accountWhatsAppAvatar">
