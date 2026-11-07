@@ -10,7 +10,7 @@
   gate.innerHTML = `
     <div class="connection-panel">
       <div class="connection-brand">
-        <div class="connection-brand-mark" aria-hidden="true">W</div>
+        <div class="connection-brand-mark" aria-hidden="true"><img src="./assets/wagram-logo.svg" alt=""></div>
         <div class="connection-brand-name">WAGRAM<span>WhatsApp Messenger</span></div>
       </div>
       <div class="connection-eyebrow">WhatsApp pairing</div>
