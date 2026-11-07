@@ -1272,11 +1272,12 @@
           <article class="list-item call-row-content">
             <div class="call-icon ${kind}">${icon(iconName)}</div>
             <div class="item-body">
-              <div class="item-title ${kind === "missed" ? "danger" : ""}">${escapeHTML(call.display_name)}</div>
+              <div class="call-name-line">
+                <div class="item-title ${kind === "missed" ? "danger" : ""}">${escapeHTML(call.display_name)}</div>
+                ${canSave ? `<button class="call-inline-save" type="button" data-save-call="${escapeHTML(call.id)}" aria-label="${call.is_saved ? "Edit nama kontak" : "Simpan nomor ke kontak"}" title="${call.is_saved ? "Edit nama kontak" : "Simpan kontak"}">${icon("user-plus")}</button>` : ""}
+              </div>
               <div class="item-sub call-meta">
-                <span class="call-phone-line">${escapeHTML(formatPhone(call.phone_number) || callLabel(call))}
-                  ${canSave ? `<button class="call-inline-save" type="button" data-save-call="${escapeHTML(call.id)}" aria-label="${call.is_saved ? "Edit nama kontak" : "Simpan nomor ke kontak"}" title="${call.is_saved ? "Edit nama kontak" : "Simpan kontak"}">${icon("user-plus")}</button>` : ""}
-                </span>
+                <span class="call-phone-line">${escapeHTML(formatPhone(call.phone_number) || callLabel(call))}</span>
                 <span class="call-detail">${escapeHTML(callLabel(call))} ${call.is_video ? `· ${icon("video", "mini-icon")} Video` : "· Suara"}${call.is_group ? " · Grup" : ""}</span>
               </div>
             </div>
