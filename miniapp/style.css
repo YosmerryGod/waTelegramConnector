@@ -2991,3 +2991,44 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   color:#25d366;
 }
 .premium-session-icon .i { width:21px; height:21px; }
+
+
+/* [ADDED] Account-level dropdown controls beside WhatsApp connection status. */
+.whatsapp-controls-toggle {
+  display:grid;
+  place-items:center;
+  flex:0 0 30px;
+  width:30px;
+  height:30px;
+  margin-left:-4px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:var(--surface-2);
+  color:var(--muted);
+  box-shadow:2px 2px 5px rgba(0,0,0,.10),-2px -2px 5px rgba(255,255,255,.025);
+}
+.whatsapp-controls-toggle .i {
+  width:16px;
+  height:16px;
+  transform:rotate(-90deg);
+  transition:transform .2s ease;
+}
+.whatsapp-controls-toggle[aria-expanded="true"] .i { transform:rotate(90deg); }
+.whatsapp-account-controls {
+  overflow:hidden;
+  max-height:1800px;
+  opacity:1;
+  transition:max-height .25s ease,opacity .2s ease;
+}
+.whatsapp-account-controls.is-collapsed {
+  max-height:0;
+  opacity:0;
+  pointer-events:none;
+}
+.whatsapp-account-controls .embedded-notification-section,
+.whatsapp-account-controls .embedded-history-section { border-top:1px solid var(--divider); }
+@media(max-width:380px) {
+  .whatsapp-account-row { gap:7px; }
+  .whatsapp-connection-state { padding:0 7px; font-size:9px; }
+  .whatsapp-controls-toggle { flex-basis:28px; width:28px; height:28px; }
+}
