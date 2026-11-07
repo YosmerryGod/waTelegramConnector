@@ -2177,3 +2177,31 @@ html[data-theme="dark"] .sheet-panel input {
   margin: 0;
   vertical-align: middle;
 }
+
+
+/* [ADDED] Contacts add action placed between global search and theme controls. */
+.topbar-add-contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  height: 42px;
+  min-width: 0;
+  padding: 0 11px;
+  border-radius: 12px;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.topbar-add-contact .i {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+@media (max-width: 380px) {
+  .topbar-add-contact {
+    gap: 3px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
