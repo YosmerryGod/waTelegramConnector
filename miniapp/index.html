@@ -94,7 +94,7 @@
 
     <!-- DETAIL CHAT -->
     <main id="conversationPage" class="conversation hidden">
-      <div class="conversation-header">
+      <div class="conversation-header" id="conversationHeader">
         <button id="backButton" class="icon-button plain" type="button" aria-label="Kembali">
           <svg class="i"><use href="#i-back"/></svg>
         </button>
@@ -249,6 +249,32 @@
           <button type="submit" id="saveContactButton" class="primary-button">Simpan</button>
         </div>
       </form>
+    </div>
+
+    <!-- [ADDED] DETAIL PROFIL WHATSAPP -->
+    <div id="profileSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="profileDisplayName">
+      <div class="sheet-backdrop" data-close-profile></div>
+      <section class="sheet-panel profile-panel">
+        <div class="sheet-handle"></div>
+        <button class="profile-close icon-button" type="button" data-close-profile aria-label="Tutup">×</button>
+        <div class="profile-hero">
+          <div class="profile-photo-wrap">
+            <div id="profileAvatarFallback" class="avatar profile-avatar-large">?</div>
+            <img id="profilePhoto" class="profile-photo hidden" alt="Foto profil WhatsApp">
+          </div>
+          <h3 id="profileDisplayName">Profil WhatsApp</h3>
+          <p id="profilePhone">—</p>
+        </div>
+        <div class="profile-detail">
+          <span>Info</span>
+          <p id="profileAbout">Memuat info…</p>
+        </div>
+        <div class="profile-detail">
+          <span>WhatsApp ID</span>
+          <p id="profileIdentifier" class="profile-jid">—</p>
+        </div>
+        <p id="profileUpdated" class="profile-updated"></p>
+      </section>
     </div>
 
     <!-- PRATINJAU FOTO -->
