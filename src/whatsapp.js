@@ -259,16 +259,23 @@ export async function getWhatsAppProfile(telegramId, whatsappJid) {
   const socket = entry.socket;
   const jid = String(whatsappJid || "");
 
-  const withTimeout = (promise, timeoutMs) => Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error("PROFILE_REQUEST_TIMEOUT")),
-        timeoutMs
-      );
-      timer.unref?.();
-    })
-  ]);
+  const withTimeout = (promise, timeoutMs) => new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error("PROFILE_REQUEST_TIMEOUT")),
+      timeoutMs
+    );
+
+    Promise.resolve(promise).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 
   const [pictureResult, statusResult] = await Promise.allSettled([
     withTimeout(socket.profilePictureUrl(jid, "image", 12000), 13000)
