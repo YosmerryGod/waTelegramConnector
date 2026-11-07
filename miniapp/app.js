@@ -1456,26 +1456,40 @@
   let realtimeRetryTimer = null;
   let realtimeRetryDelay = 1000;
   let realtimeRefreshTimer = null;
+  const pendingRealtimeChatIds = new Set();
+  let pendingCallsRefresh = false;
+  let pendingConnectionStatus = null;
 
   function scheduleRealtimeRefresh(event) {
+    if (event.type === "message.created" || event.type === "media.ready") {
+      if (event.data?.chatId) pendingRealtimeChatIds.add(event.data.chatId);
+    } else if (event.type === "calls.updated") {
+      pendingCallsRefresh = true;
+    } else if (event.type === "connection.status") {
+      pendingConnectionStatus = event.data?.status || null;
+    }
+
     clearTimeout(realtimeRefreshTimer);
     realtimeRefreshTimer = setTimeout(() => {
-      if (event.type === "message.created") {
+      if (pendingRealtimeChatIds.size > 0) {
+        const chatIds = [...pendingRealtimeChatIds];
+        pendingRealtimeChatIds.clear();
         loadChats();
 
-        const chatId = event.data?.chatId;
-        if (chatId && state.currentChat?.whatsapp_chat_id === chatId) {
-          openChat(chatId);
+        const currentChatId = state.currentChat?.whatsapp_chat_id;
+        if (currentChatId && chatIds.includes(currentChatId)) {
+          openChat(currentChatId);
         }
-      } else if (event.type === "calls.updated" && state.page === "calls") {
-        loadCalls();
-      } else if (event.type === "connection.status") {
-        const status = event.data?.status;
-        if (status) {
-          $("#connectionStatus").textContent = status === "connected"
-            ? "WhatsApp terhubung"
-            : `WhatsApp ${status}`;
-        }
+      }
+
+      if (pendingCallsRefresh && state.page === "calls") loadCalls();
+      pendingCallsRefresh = false;
+
+      if (pendingConnectionStatus) {
+        $("#connectionStatus").textContent = pendingConnectionStatus === "connected"
+          ? "WhatsApp terhubung"
+          : `WhatsApp ${pendingConnectionStatus}`;
+        pendingConnectionStatus = null;
       }
     }, 180);
   }
