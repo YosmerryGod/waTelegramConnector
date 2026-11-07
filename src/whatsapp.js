@@ -242,6 +242,12 @@ export function getWhatsAppStatus(telegramId) {
   };
 }
 
+// [ADDED] Expose the current pairing QR only to the authenticated Mini App API.
+export function getWhatsAppQr(telegramId) {
+  const entry = connections.get(String(telegramId));
+  return entry?.status === "qr" ? entry.qr || null : null;
+}
+
 export async function connectWhatsApp(telegramId, callbacks = {}) {
   const id = String(telegramId);
 
@@ -267,6 +273,7 @@ export async function connectWhatsApp(telegramId, callbacks = {}) {
     socket: null,
     status: "connecting",
     phoneNumber: null,
+    qr: null, // [ADDED] Current Baileys pairing QR for the Mini App.
     reconnectTimer: null,
     reconnectDelay: INITIAL_RECONNECT_DELAY,
     stopping: false,
@@ -364,6 +371,7 @@ async function createSocket(id, entry) {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
+        entry.qr = qr; // [ADDED] Keep the latest QR until it is scanned or replaced.
         entry.status = "qr";
 
         try {
@@ -379,6 +387,7 @@ async function createSocket(id, entry) {
       }
 
       if (connection === "open") {
+        entry.qr = null; // [ADDED] Never expose a QR after successful pairing.
         entry.status = "connected";
         entry.connectedAt = Date.now();
 
