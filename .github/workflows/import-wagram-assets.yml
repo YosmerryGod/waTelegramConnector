@@ -1,0 +1,71 @@
+name: Import WAGRAM Brand Assets
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "wagram-logo-pack.zip"
+      - ".github/workflows/import-wagram-assets.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wagram-brand-assets
+  cancel-in-progress: false
+
+jobs:
+  import-assets:
+    name: Extract WAGRAM logo pack
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Inspect and extract logo pack
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f "wagram-logo-pack.zip" ]; then
+            echo "::error::wagram-logo-pack.zip was not found in the repository root."
+            exit 1
+          fi
+
+          echo "Archive contents:"
+          unzip -l wagram-logo-pack.zip
+
+          mkdir -p miniapp/assets/brand-pack
+          unzip -o wagram-logo-pack.zip -d miniapp/assets/brand-pack
+
+          echo "Extracted image and icon files:"
+          find miniapp/assets/brand-pack -type f \( \
+            -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o \
+            -iname '*.webp' -o -iname '*.svg' -o -iname '*.ico' \
+          \) -print | sort
+
+          if ! find miniapp/assets/brand-pack -type f \( \
+            -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o \
+            -iname '*.webp' -o -iname '*.svg' -o -iname '*.ico' \
+          \) -print -quit | grep -q .; then
+            echo "::error::No supported image or icon assets were found in the archive."
+            exit 1
+          fi
+
+      - name: Commit extracted brand assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add miniapp/assets/brand-pack
+          if git diff --cached --quiet; then
+            echo "No new asset changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: import WAGRAM brand assets [skip ci]"
+          git push
