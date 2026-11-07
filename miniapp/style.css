@@ -2593,3 +2593,52 @@ body:has(#accountPage:not(.hidden)) .topbar {
 .whatsapp-account-card .notification-option:first-child {
   border-top:1px solid var(--divider);
 }
+
+
+/* [ADDED] Professional data cleanup section, nested in the WhatsApp account card. */
+.whatsapp-account-card .embedded-history-section {
+  margin-top: 6px;
+  border-top: 1px solid var(--divider);
+}
+.history-section-heading {
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:15px 0 12px;
+}
+.history-heading-icon { color:var(--danger); background:rgba(226,75,75,.10); }
+.history-cleanup-list { padding-bottom:4px; }
+.history-cleanup-item {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:58px;
+  border-top:1px solid var(--divider);
+}
+.history-cleanup-icon {
+  display:grid;
+  place-items:center;
+  flex:0 0 30px;
+  color:var(--muted);
+}
+.history-cleanup-icon .i { width:19px; height:19px; }
+.history-cleanup-copy {
+  display:flex;
+  flex:1;
+  min-width:0;
+  flex-direction:column;
+  gap:3px;
+}
+.history-cleanup-copy strong { font-size:12px; font-weight:600; }
+.history-cleanup-copy small { color:var(--muted); font-size:10px; line-height:1.35; }
+.history-trash-action {
+  display:grid;
+  place-items:center;
+  flex:0 0 30px;
+  width:30px;
+  height:30px;
+  border-radius:8px;
+  color:var(--danger);
+  background:rgba(226,75,75,.09);
+}
+.history-trash-action .i { width:16px; height:16px; }
