@@ -204,6 +204,20 @@ if (!profileCacheColumns.includes("status_set_at")) {
   db.exec("ALTER TABLE whatsapp_profile_cache ADD COLUMN status_set_at INTEGER");
 }
 
+// [ADDED] Independent favorite/archive flags for individual call-history records.
+const callColumns = db
+  .prepare("PRAGMA table_info(calls)")
+  .all()
+  .map((column) => column.name);
+
+if (!callColumns.includes("is_favorite")) {
+  db.exec("ALTER TABLE calls ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0");
+}
+
+if (!callColumns.includes("is_archived")) {
+  db.exec("ALTER TABLE calls ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0");
+}
+
 const statements = {
   upsertUser: db.prepare(`
     INSERT INTO telegram_users (
@@ -949,6 +963,7 @@ const callStatements = {
       ON ct.telegram_id = c.telegram_id
       AND ct.phone_number = c.phone_number
     WHERE c.telegram_id = @telegram_id
+      AND (@include_archived = 1 OR c.is_archived = 0)
     ORDER BY c.call_timestamp DESC, c.id DESC
     LIMIT @limit OFFSET @offset
   `)
@@ -1093,9 +1108,28 @@ export function recordCall(input) {
 export function listCalls(telegramId, options = {}) {
   return callStatements.list.all({
     telegram_id: String(telegramId),
+    include_archived: options.archived ? 1 : 0,
     limit: Math.min(200, Math.max(1, Number(options.limit) || 100)),
     offset: Math.max(0, Number(options.offset) || 0)
   });
+}
+
+// [ADDED] Update favorite state for one call-history record only.
+export function setCallFavorite(telegramId, callId, favorite) {
+  return db.prepare(`
+    UPDATE calls
+    SET is_favorite = ?, updated_at = ?
+    WHERE telegram_id = ? AND id = ?
+  `).run(favorite ? 1 : 0, Date.now(), String(telegramId), Number(callId)).changes > 0;
+}
+
+// [ADDED] Archive one call-history record only.
+export function setCallArchived(telegramId, callId, archived) {
+  return db.prepare(`
+    UPDATE calls
+    SET is_archived = ?, updated_at = ?
+    WHERE telegram_id = ? AND id = ?
+  `).run(archived ? 1 : 0, Date.now(), String(telegramId), Number(callId)).changes > 0;
 }
 
 // ---------------------------------------------------------------------------
