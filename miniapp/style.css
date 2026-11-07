@@ -2335,3 +2335,104 @@ html[data-theme="dark"] .sheet-panel input {
 body:has(#accountPage:not(.hidden)) .topbar {
   display: none !important;
 }
+
+
+/* [ADDED] Horizontal Profile identity header. */
+.profile-identity-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px;
+  min-width: 0;
+}
+.profile-square-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  overflow: hidden;
+  border-radius: 10px !important;
+  font-size: 20px;
+}
+.account-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+.profile-identity-copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.profile-identity-copy h3 {
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-identity-copy p {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-plan-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+.profile-tier {
+  display: inline-flex;
+  align-items: center;
+  min-height: 27px;
+  padding: 0 9px;
+  border: 1px solid #7d8497;
+  border-radius: 7px;
+  background: #343a4b;
+  color: #f1f3fa;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.premium-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffdc78, #e8a92e);
+  color: #352000;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.premium-button span { font-size: 16px; line-height: 1; }
+.profile-theme-button {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.profile-theme-button .i { width: 19px; height: 19px; }
+@media (max-width: 380px) {
+  .profile-identity-card { gap: 9px; padding: 11px; }
+  .profile-square-avatar { flex-basis: 50px; width: 50px; height: 50px; }
+  .profile-theme-button { flex-basis: 36px; width: 36px; height: 36px; }
+  .premium-button { padding: 0 8px; font-size: 10px; }
+}
