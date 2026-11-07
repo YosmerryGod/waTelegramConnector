@@ -1256,8 +1256,8 @@
       return `${heading}
         <div class="call-swipe-row" data-call-row="${escapeHTML(call.id)}" data-call-phone="${escapeHTML(call.phone_number || "")}">
           <div class="call-actions">
-            <button class="call-favorite-action" type="button" data-call-favorite="${escapeHTML(call.phone_number || "")}" aria-label="Favoritkan chat">${icon("star")}</button>
-            <button class="call-archive-action" type="button" data-call-archive="${escapeHTML(call.phone_number || "")}" aria-label="Arsipkan chat">${icon("archive")}</button>
+            <button class="call-favorite-action" type="button" data-call-favorite="${escapeHTML(call.id)}" aria-label="${call.is_favorite ? "Hapus dari favorit panggilan" : "Favoritkan panggilan"}">${icon("star")}</button>
+            <button class="call-archive-action" type="button" data-call-archive="${escapeHTML(call.id)}" aria-label="Arsipkan panggilan">${icon("archive")}</button>
           </div>
           <article class="list-item call-row-content">
             <div class="call-icon ${kind}">${icon(iconName)}</div>
@@ -1724,34 +1724,30 @@
     $("#callsList").addEventListener("pointerup", finishCallPointer);
     $("#callsList").addEventListener("pointercancel", finishCallPointer);
 
-    async function findChatForCall(phone) {
-      const digits = String(phone || "").replace(/\D/g, "");
-      if (!digits) return null;
-      if (!state.chatsLoaded) await loadChats();
-      let chat = state.chats.find((item) => String(item.phone_number || item.whatsapp_chat_id || "").replace(/\D/g, "").endsWith(digits.slice(-10)));
-      if (!chat) {
-        const data = await api("/chats?limit=100&archived=false");
-        state.chats = data.chats || [];
-        state.chatsLoaded = true;
-        chat = state.chats.find((item) => String(item.phone_number || item.whatsapp_chat_id || "").replace(/\D/g, "").endsWith(digits.slice(-10)));
-      }
-      return chat || null;
-    }
+    // [MODIFIED] Call favorite/archive actions update the call record itself, never a WhatsApp chat.
+    async function updateCallAction(callId, action) {
+      const call = state.calls.find((item) => String(item.id) === String(callId));
+      if (!call) return;
 
-    async function updateCallChatAction(phone, action) {
       try {
-        const chat = await findChatForCall(phone);
-        if (!chat) { showToast("Chat WhatsApp untuk nomor ini tidak ditemukan."); return; }
         if (action === "favorite") {
-          const favorite = !chat.is_favorite;
-          await api(`/chats/${enc(chat.whatsapp_chat_id)}/favorite`, { method: "PUT", body: JSON.stringify({ favorite }) });
-          showToast(favorite ? "Chat ditambahkan ke favorit" : "Chat dihapus dari favorit");
+          const favorite = !Boolean(call.is_favorite);
+          await api(`/calls/${enc(callId)}/favorite`, {
+            method: "PUT",
+            body: JSON.stringify({ favorite })
+          });
+          showToast(favorite ? "Panggilan ditambahkan ke favorit" : "Panggilan dihapus dari favorit");
         } else {
-          await api(`/chats/${enc(chat.whatsapp_chat_id)}/archive`, { method: "PUT", body: JSON.stringify({ archived: true }) });
-          showToast("Chat berhasil diarsipkan");
+          await api(`/calls/${enc(callId)}/archive`, {
+            method: "PUT",
+            body: JSON.stringify({ archived: true })
+          });
+          showToast("Riwayat panggilan diarsipkan");
         }
-        await loadChats();
-      } catch (error) { showToast(error.message); }
+        await loadCalls();
+      } catch (error) {
+        showToast(error.message);
+      }
     }
 
     $("#callsList").addEventListener("click", (event) => {
@@ -1764,9 +1760,9 @@
         return;
       }
       const favorite = event.target.closest("[data-call-favorite]");
-      if (favorite) { event.stopPropagation(); updateCallChatAction(favorite.dataset.callFavorite, "favorite"); return; }
+      if (favorite) { event.stopPropagation(); updateCallAction(favorite.dataset.callFavorite, "favorite"); return; }
       const archive = event.target.closest("[data-call-archive]");
-      if (archive) { event.stopPropagation(); updateCallChatAction(archive.dataset.callArchive, "archive"); return; }
+      if (archive) { event.stopPropagation(); updateCallAction(archive.dataset.callArchive, "archive"); return; }
       const row = event.target.closest(".call-swipe-row");
       if (!row) return;
       if (suppressCallClick) { suppressCallClick = false; return; }
