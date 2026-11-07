@@ -272,14 +272,15 @@
 
       <!-- [ADDED] Data management section inside the connected WhatsApp card. -->
       <div class="embedded-history-section">
-        <div class="history-section-heading">
+        <button class="history-section-heading" id="historyCleanupToggle" type="button" aria-expanded="true">
           <span class="settings-heading-icon history-heading-icon"><svg class="i"><use href="#i-trash"/></svg></span>
           <span class="settings-heading-copy">
             <strong>Hapus Riwayat &amp; Data</strong>
             <small>Kelola data tersimpan di WAGRAM</small>
           </span>
-        </div>
-        <div class="history-cleanup-list">
+          <svg class="i history-chevron"><use href="#i-back"/></svg>
+        </button>
+        <div class="history-cleanup-list" id="historyCleanupOptions">
           <div class="history-cleanup-item">
             <span class="history-cleanup-icon"><svg class="i"><use href="#i-image"/></svg></span>
             <span class="history-cleanup-copy">
@@ -389,7 +390,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261108-notification-dropdown-fix"></script>
+  <script src="app.js?v=20261108-history-dropdown"></script>
   <script src="connection.js?v=20261107-1448"></script>
 </body>
 </html>
