@@ -1575,6 +1575,22 @@
      --------------------------------------------------------- */
 
   function bindEvents() {
+    // [MODIFIED] Use document-level delegation so the Premium trigger remains reliable
+    // even if another optional control fails to initialize earlier in this function.
+    document.addEventListener("click", (event) => {
+      const upgradeButton = event.target.closest("#upgradePremiumButton");
+      if (!upgradeButton) return;
+      event.preventDefault();
+      const sheet = document.querySelector("#premiumSheet");
+      if (!sheet) {
+        showToast("Halaman Premium belum dapat dibuka. Muat ulang aplikasi.");
+        return;
+      }
+      renderPremiumPlan("3d");
+      sheet.classList.remove("hidden");
+      tg?.BackButton?.show?.();
+    });
+
     // [ADDED] Animated global search control in the top bar.
     $("#searchToggleButton").addEventListener("click", () => {
       if ($("#topbar").classList.contains("search-open")) {
@@ -1675,7 +1691,6 @@
       if (tg?.BackButton && state.page !== "chats") tg.BackButton.show?.();
     }
 
-    $("#upgradePremiumButton").addEventListener("click", openPremiumSheet);
     $("#premiumDurationTabs").addEventListener("click", (event) => {
       const tab = event.target.closest("[data-period]");
       if (tab && premiumPlans[tab.dataset.period]) renderPremiumPlan(tab.dataset.period);
