@@ -398,8 +398,7 @@
 
     topbar.classList.add("search-open");
     $("#searchToggleButton").setAttribute("aria-expanded", "true");
-    $("#searchToggleButton").setAttribute("aria-label", "Tutup pencarian");
-    $("#searchToggleButton").innerHTML = "×";
+    $("#searchToggleButton").setAttribute("aria-label", "Cari");
     input.value = target?.value || "";
     requestAnimationFrame(() => input.focus());
   }
@@ -411,7 +410,6 @@
     topbar.classList.remove("search-open");
     $("#searchToggleButton").setAttribute("aria-expanded", "false");
     $("#searchToggleButton").setAttribute("aria-label", "Cari");
-    $("#searchToggleButton").innerHTML = '<svg class="i"><use href="#i-search"/></svg>';
     $("#topbarSearchInput").blur();
 
     if (restoreFocus) {
@@ -1499,6 +1497,20 @@
     $("#topbarSearchInput").addEventListener("input", handleTopbarSearch);
     $("#topbarSearchInput").addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeTopbarSearch();
+    });
+
+    // [ADDED] Clear search text from the X inside the expanded input.
+    $("#topbarSearchClear").addEventListener("click", () => {
+      $("#topbarSearchInput").value = "";
+      handleTopbarSearch();
+      $("#topbarSearchInput").focus();
+    });
+
+    // [ADDED] Close expanded search when tapping anywhere outside its control.
+    document.addEventListener("click", (event) => {
+      if (!$("#topbar").classList.contains("search-open")) return;
+      if (event.target.closest("#topbarSearchWrap")) return;
+      closeTopbarSearch(false);
     });
 
     $("#backButton").addEventListener("click", () => setPage("chats"));
