@@ -1569,3 +1569,103 @@ html[data-theme="dark"] .primary-button {
   .nav-item { font-size: 9.5px; }
   .bottom-nav { padding-right: 6px; padding-left: 6px; }
 }
+
+
+/* [ADDED] Dark neumorphism correction: remove inherited white highlights. */
+html[data-theme="dark"] {
+  --border: rgba(89, 132, 101, .18);
+  --divider: rgba(119, 166, 130, .09);
+  --shadow: 7px 7px 18px rgba(0, 0, 0, .48), -4px -4px 12px rgba(37, 75, 48, .07);
+}
+html[data-theme="dark"] .topbar,
+html[data-theme="dark"] .bottom-nav {
+  background: color-mix(in srgb, #0b110d 96%, transparent);
+}
+html[data-theme="dark"] .bottom-nav {
+  border-color: rgba(71, 111, 81, .16);
+  box-shadow: 0 -7px 22px rgba(0, 0, 0, .28);
+}
+html[data-theme="dark"] .search-box {
+  border-color: rgba(80, 124, 91, .17);
+  background: #101a13;
+  box-shadow: inset 4px 4px 9px rgba(0, 0, 0, .42), inset -3px -3px 8px rgba(35, 75, 46, .08);
+}
+html[data-theme="dark"] .chip {
+  border-color: rgba(79, 119, 88, .16);
+  background: linear-gradient(145deg, #121b15, #0c130e);
+  box-shadow: 3px 3px 8px rgba(0, 0, 0, .38), -2px -2px 7px rgba(40, 76, 49, .07);
+}
+html[data-theme="dark"] .chip.active {
+  border-color: transparent;
+  background: linear-gradient(145deg, #20c96b, #087b3d);
+  color: #06130a;
+  box-shadow: 3px 4px 10px rgba(0, 0, 0, .3);
+}
+html[data-theme="dark"] .list-item,
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .connection-status-card,
+html[data-theme="dark"] .automation-empty {
+  border-color: rgba(79, 119, 88, .16);
+  background: linear-gradient(145deg, #142018, #0e1711);
+  box-shadow: 6px 6px 16px rgba(0, 0, 0, .4), -3px -3px 10px rgba(37, 72, 46, .06);
+}
+html[data-theme="dark"] .avatar {
+  border-color: rgba(90, 137, 101, .14);
+  box-shadow: 3px 3px 8px rgba(0, 0, 0, .36), -2px -2px 6px rgba(36, 72, 45, .06);
+}
+html[data-theme="dark"] .brand-icon {
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, .42), 0 0 13px rgba(22, 193, 91, .12);
+}
+html[data-theme="dark"] .icon-button {
+  border-color: rgba(79, 119, 88, .16);
+  background: linear-gradient(145deg, #142018, #0d1510);
+  box-shadow: 4px 4px 9px rgba(0, 0, 0, .38), -2px -2px 7px rgba(36, 72, 45, .06);
+}
+html[data-theme="dark"] .nav-item.selected {
+  background: linear-gradient(145deg, #20c96b, #087b3d);
+  color: #06130a;
+  box-shadow: 4px 5px 12px rgba(0, 0, 0, .32), inset 1px 1px 2px rgba(255, 255, 255, .06);
+}
+html[data-theme="dark"] .primary-button {
+  background: linear-gradient(145deg, #20c96b, #087b3d);
+  color: #06130a;
+  box-shadow: 4px 5px 12px rgba(0, 0, 0, .3);
+}
+html[data-theme="dark"] .secondary-button {
+  border-color: rgba(79, 119, 88, .17);
+  background: #111b14;
+  box-shadow: 3px 3px 8px rgba(0, 0, 0, .32), -2px -2px 6px rgba(36, 72, 45, .05);
+}
+html[data-theme="dark"] .segmented {
+  background: #0c140f;
+}
+html[data-theme="dark"] .segmented button.active {
+  background: #18251c;
+  box-shadow: 2px 2px 6px rgba(0, 0, 0, .35), -1px -1px 4px rgba(39, 77, 49, .06);
+}
+html[data-theme="dark"] .count {
+  background: #142018;
+}
+html[data-theme="dark"] .empty-icon {
+  background: #142018;
+  box-shadow: inset 3px 3px 7px rgba(0, 0, 0, .3), inset -2px -2px 6px rgba(38, 75, 47, .06);
+}
+html[data-theme="dark"] .message,
+html[data-theme="dark"] .conversation-header,
+html[data-theme="dark"] .read-note {
+  border-color: rgba(79, 119, 88, .15);
+  background: #111a14;
+}
+html[data-theme="dark"] .message.outgoing {
+  background: rgba(39, 212, 119, .13);
+}
+html[data-theme="dark"] .sheet-panel {
+  border: 1px solid rgba(79, 119, 88, .16);
+  background: #111a14;
+  box-shadow: 0 -8px 26px rgba(0, 0, 0, .5);
+}
+html[data-theme="dark"] .sheet-panel input {
+  border-color: rgba(79, 119, 88, .18);
+  background: #0b120d;
+  box-shadow: inset 3px 3px 7px rgba(0, 0, 0, .35);
+}
