@@ -2662,3 +2662,19 @@ body:has(#accountPage:not(.hidden)) .topbar {
 }
 .embedded-history-section.is-collapsed .history-chevron { transform:rotate(-180deg); }
 .embedded-history-section.is-collapsed .history-cleanup-list { display:none; }
+
+
+/* [ADDED] Cleanup actions are interactive buttons styled as compact list rows. */
+button.history-cleanup-item {
+  width:100%;
+  padding:0;
+  border-right:0;
+  border-bottom:0;
+  border-left:0;
+  background:transparent;
+  color:var(--text);
+  text-align:left;
+  cursor:pointer;
+}
+button.history-cleanup-item:active { background:var(--surface-2); }
+button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
