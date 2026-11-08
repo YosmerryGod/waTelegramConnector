@@ -2,7 +2,7 @@ import "dotenv/config";
 import pino from "pino";
 import TelegramBot from "node-telegram-bot-api";
 import QRCode from "qrcode";
-import { downloadMediaMessage } from "@whiskeysockets/baileys";
+import { downloadMediaMessage, proto } from "baileys";
 import { publishToMiniApp } from "./realtime.js";
 
 import {
@@ -13,6 +13,7 @@ import {
   markSessionDisconnected,
   reserveForwardedMessage,
   saveWhatsAppMessage, // [ADDED] Persist messages for the Mini App.
+  updateWhatsAppMessage, // [ADDED] Apply WhatsApp message edits to the existing row.
   markWhatsAppMessageDeleted, // [ADDED] Persist WhatsApp message revoke events.
   attachLocalMedia, // [ADDED] Link private VPS media files to saved messages.
   // [ADDED] Contacts and call history.
@@ -1158,6 +1159,12 @@ export function createWhatsAppCallbacks(telegramId) {
           return;
         }
 
+        // [ADDED] Encrypted edit envelopes are transport metadata, not user messages.
+        // The Baileys edit-decryption patch emits the actual update separately.
+        if (content.secretEncryptedMessage) {
+          return;
+        }
+
         // [MODIFIED] Never attempt to download View Once media into WAGRAM.
         const info = viewOnceInfo ? null : getMediaInfo(content);
         // [ADDED] Assign a non-null placeholder immediately so View Once messages
@@ -1249,7 +1256,8 @@ export function createWhatsAppCallbacks(telegramId) {
             body: body || null,
             mediaMimetype: info?.mimetype || null,
             mediaFileName: info?.fileName || null,
-            messageTimestamp
+            messageTimestamp,
+            messageContent: proto.Message.encode(message.message).finish().toString("base64")
           });
 
           // [ADDED] Notify Mini App only after the SQLite transaction commits.
@@ -1339,6 +1347,37 @@ export function createWhatsAppCallbacks(telegramId) {
           "Failed to forward WhatsApp message:",
           error.message
         );
+      }
+    },
+
+    // [ADDED] Apply an edited WhatsApp message to its original Mini App row.
+    onMessageEdited: async ({ key, editedMessage }) => {
+      try {
+        const remoteJid = String(key?.remoteJid || "");
+        const messageId = String(key?.id || "");
+        const content = unwrapMessage(editedMessage);
+
+        if (!remoteJid || !messageId || !content) {
+          return;
+        }
+
+        const mediaInfo = getMediaInfo(content);
+        const body = mediaInfo ? mediaInfo.caption : getTextBody(content);
+
+        if (body === null || body === "Unsupported message type") {
+          return;
+        }
+
+        const changed = updateWhatsAppMessage(id, remoteJid, messageId, body);
+
+        if (changed) {
+          publishToMiniApp(id, {
+            type: "message.edited",
+            data: { chatId: remoteJid, messageId }
+          });
+        }
+      } catch (error) {
+        console.error("Failed to apply WhatsApp message edit:", error.message);
       }
     },
 
