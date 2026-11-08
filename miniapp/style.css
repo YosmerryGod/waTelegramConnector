@@ -3684,12 +3684,18 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 .chat-swipe-row.is-premium-locked .item-title {
   color: #f5a623;
 }
+/* [MODIFIED] Position the crown at the top-right corner of locked chat cards. */
 .premium-chat-crown {
+  position: absolute;
+  top: 8px;
+  right: 10px;
   display: inline-flex;
   align-items: center;
-  margin-left: 7px;
-  font-size: 13px;
-  vertical-align: 1px;
+  justify-content: center;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
 }
 .chat-row-content.is-premium-locked .item-sub {
   color: #d99a32;
