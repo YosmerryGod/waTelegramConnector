@@ -3304,6 +3304,20 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   min-height:48px;
   padding:0 24px;
 }
+/* [ADDED] Brand marks for the WhatsApp–Telegram onboarding visual. */
+.onboarding-app-tile svg {
+  display:block;
+  width:39px;
+  height:39px;
+  color:#fff;
+  fill:currentColor;
+}
+.onboarding-whatsapp-tile svg { width:38px; height:38px; }
+.onboarding-telegram-tile svg { width:40px; height:40px; }
+.onboarding-app-tile {
+  border-color:rgba(255,255,255,.58);
+  box-shadow:0 12px 28px rgba(0,0,0,.075),inset 0 1px 0 rgba(255,255,255,.8);
+}
 @media(prefers-reduced-motion:reduce) {
   .loading-process-ring,.loading-brand-logo,.loading-brand-wrap::before { animation:none; }
 }
