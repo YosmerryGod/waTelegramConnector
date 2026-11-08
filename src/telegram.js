@@ -15,6 +15,8 @@ import {
   listMembershipUsers,
   MEMBERSHIP_PLANS,
   getSession,
+  getAllSessions, // [ADDED] Find every active WhatsApp session for the admin pause command.
+  setFreePauseDate, // [ADDED] Prevent the daily scheduler from pausing the same user twice.
   updateSession,
   markSessionDisconnected,
   reserveForwardedMessage,
@@ -1571,16 +1573,55 @@ bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
   const plan = String(match?.[1] || "").toLowerCase();
   const targetId = String(match?.[2] || callerId);
 
-  // [ADDED] Toggle the scheduled daily pause for Free-tier accounts.
+  // [MODIFIED] time-pause now simulates 08:00 WITA and immediately pauses all connected Free sessions.
   if (plan === "time-pause" || plan === "time-normal") {
     const pauseEnabled = plan === "time-pause";
     setAppSetting("free_daily_pause_enabled", pauseEnabled ? "1" : "0");
-    await sendText(
-      callerId,
-      pauseEnabled
-        ? "⏸️ <b>Time Pause aktif</b>\n\nAkun Free akan otomatis dipause mulai pukul <b>08.00 WITA</b>. Pesan WhatsApp baru tidak akan diteruskan selama koneksi terputus.\n\nGunakan /set time-normal untuk menonaktifkan."
-        : "▶️ <b>Time Normal aktif</b>\n\nJadwal pause otomatis akun Free dinonaktifkan. Koneksi yang sudah ter-pause tidak otomatis tersambung kembali; user perlu menekan Connect di WAGRAM."
-    , { parse_mode: "HTML" });
+
+    if (pauseEnabled) {
+      const witaParts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Makassar",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(new Date());
+      const witaValues = Object.fromEntries(witaParts.map((part) => [part.type, part.value]));
+      const witaDate = `${witaValues.year}-${witaValues.month}-${witaValues.day}`;
+      let pausedCount = 0;
+      let failedCount = 0;
+
+      for (const session of getAllSessions()) {
+        if (session.connection_status !== "connected") continue;
+        const membership = getMembership(session.telegram_id);
+        if (!membership || membership.plan !== "free") continue;
+
+        try {
+          await disconnectWhatsApp(session.telegram_id);
+          updateSession(session.telegram_id, "paused");
+          setFreePauseDate(session.telegram_id, witaDate);
+          publishToMiniApp(session.telegram_id, {
+            type: "connection.status",
+            data: { status: "paused", phoneNumber: session.phone_number || null }
+          });
+          pausedCount += 1;
+        } catch (error) {
+          failedCount += 1;
+          logger.error({ err: error, telegramId: session.telegram_id }, "Manual Free pause failed.");
+        }
+      }
+
+      await sendText(
+        callerId,
+        `⏸️ <b>Time Pause aktif</b>\n\nSimulasi pukul <b>08.00 WITA</b> berhasil dijalankan.\n\nAkun Free dipause: <b>${pausedCount}</b>\nGagal dipause: <b>${failedCount}</b>\n\nSemua sesi Free yang aktif diputus sekarang. Pesan baru tidak akan diteruskan ke Telegram. Akun Premium tidak terpengaruh.\n\nGunakan /set time-normal untuk menonaktifkan jadwal pause otomatis.`,
+        { parse_mode: "HTML" }
+      );
+    } else {
+      await sendText(
+        callerId,
+        "▶️ <b>Time Normal aktif</b>\n\nJadwal pause otomatis dinonaktifkan. Koneksi yang sudah ter-pause tidak otomatis tersambung kembali; user perlu menekan Connect di WAGRAM.",
+        { parse_mode: "HTML" }
+      );
+    }
     return;
   }
 
