@@ -375,12 +375,35 @@ function unwrapMessage(message) {
   return content || null;
 }
 
-// [MODIFIED] Detect View Once from wrappers or Baileys' message key flag.
+// [MODIFIED] Detect View Once from message wrappers, media flags, or Baileys key metadata.
 function getViewOnceInfo(message, isViewOnce = false) {
   let content = message;
-  let detectedViewOnce = false;
+  let detectedViewOnce = Boolean(isViewOnce);
+  let mediaContent = null;
 
+  // [ADDED] Baileys can expose View Once as a flag on the media payload itself,
+  // without wrapping it in viewOnceMessageV2 or setting key.isViewOnce.
   for (let i = 0; i < 8 && content; i++) {
+    const image = content.imageMessage;
+    const video = content.videoMessage || content.ptvMessage;
+    const audio = content.audioMessage;
+    const document = content.documentMessage;
+    const sticker = content.stickerMessage;
+
+    if (image || video || audio || document || sticker) {
+      mediaContent = content;
+      if (
+        image?.viewOnce === true ||
+        video?.viewOnce === true ||
+        audio?.viewOnce === true ||
+        document?.viewOnce === true ||
+        sticker?.viewOnce === true
+      ) {
+        detectedViewOnce = true;
+      }
+      break;
+    }
+
     const viewOnce =
       content.viewOnceMessage?.message ||
       content.viewOnceMessageV2?.message ||
@@ -389,7 +412,7 @@ function getViewOnceInfo(message, isViewOnce = false) {
     if (viewOnce) {
       content = viewOnce;
       detectedViewOnce = true;
-      break;
+      continue;
     }
 
     const nested =
@@ -397,28 +420,21 @@ function getViewOnceInfo(message, isViewOnce = false) {
       content.documentWithCaptionMessage?.message ||
       content.editedMessage?.message;
 
-    if (!nested) {
-      break;
-    }
-
+    if (!nested) break;
     content = nested;
   }
 
-  // [ADDED] Baileys v7 may expose View Once as message.key.isViewOnce
-  // while the payload itself contains a plain imageMessage/videoMessage.
-  if (!detectedViewOnce && !isViewOnce) {
-    return null;
-  }
+  if (!detectedViewOnce) return null;
 
-  const media = content?.imageMessage
+  const media = mediaContent?.imageMessage
     ? "foto"
-    : content?.videoMessage || content?.ptvMessage
+    : mediaContent?.videoMessage || mediaContent?.ptvMessage
       ? "video"
-      : content?.audioMessage
+      : mediaContent?.audioMessage
         ? "audio"
-        : content?.documentMessage
+        : mediaContent?.documentMessage
           ? "dokumen"
-          : content?.stickerMessage
+          : mediaContent?.stickerMessage
             ? "stiker"
             : "media";
 
