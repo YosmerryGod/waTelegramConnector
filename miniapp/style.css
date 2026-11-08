@@ -3398,3 +3398,12 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   font-weight: 800;
   letter-spacing: .01em;
 }
+
+
+/* [ADDED] Subtle edited marker in the Mini App message timestamp. */
+.message-edited {
+  margin-left: 4px;
+  font-size: 10px;
+  font-style: italic;
+  opacity: .65;
+}
