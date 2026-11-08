@@ -1003,6 +1003,37 @@
     return url;
   }
 
+  // [ADDED] Compact Premium placeholder for incoming media on Free accounts.
+  function lockedMediaHTML(message) {
+    const kind = message.media_kind || message.message_type;
+    const labels = {
+      photo: "foto",
+      image: "foto",
+      video: "video",
+      animation: "GIF",
+      sticker: "stiker",
+      audio: "audio",
+      ptt: "pesan suara",
+      document: "dokumen",
+      location: "lokasi",
+      contact: "kontak",
+      view_once: "media sekali lihat"
+    };
+    const label = labels[kind] || "media";
+    const sender = message.contact_name || message.sender_name ||
+      chatName(state.currentChat || {});
+    const iconName = ["photo", "image"].includes(kind) ? "image"
+      : ["video", "animation"].includes(kind) ? "video"
+        : ["audio", "ptt"].includes(kind) ? "volume-2"
+          : kind === "sticker" ? "sticker" : "file";
+
+    return `<div class="locked-media">
+      <div class="locked-media-heading">${icon(iconName)}<strong>${escapeHTML(label.charAt(0).toUpperCase() + label.slice(1))}</strong><span class="locked-media-lock">${icon("lock")}</span></div>
+      <div class="locked-media-copy">${escapeHTML(sender)} mengirim ${escapeHTML(label)}</div>
+      <button class="locked-media-upgrade" type="button" data-premium-media="true"><span aria-hidden="true">👑</span> Upgrade untuk melihat</button>
+    </div>`;
+  }
+
   function mediaHTML(message) {
     const kind = message.media_kind || message.message_type;
     const mime = String(message.media_mimetype || "").toLowerCase();
@@ -1236,16 +1267,21 @@
           : `<div class="message-sender">${escapeHTML(senderName)}</div>`)
         : "";
 
-      const media = message.has_media ? mediaHTML(message) : "";
+      const lockedMedia = Boolean(message.media_locked && !outgoing && !deleted && !viewOnce);
+      const media = lockedMedia
+        ? lockedMediaHTML(message)
+        : message.has_media ? mediaHTML(message) : "";
 
-      // [ADDED] View Once content stays hidden; only a dedicated privacy notice is rendered.
+      // [MODIFIED] Hide captions together with locked incoming media for Free accounts.
       const body = viewOnce
         ? `<div class="view-once-content"><span class="view-once-symbol" aria-hidden="true">◉</span><div class="view-once-copy"><strong>Media Sekali Lihat</strong><span>Kontak mengirim media yang hanya dapat dilihat satu kali. Silakan buka WhatsApp untuk melihatnya.</span></div><button class="view-once-action" type="button" data-view-once-open="true">Buka WhatsApp</button></div>`
-        : message.body
-          ? `<div class="message-text">${escapeHTML(message.body)}</div>`
-          : media
-            ? ""
-            : `<div class="message-text"><span class="message-media">${escapeHTML(mediaLabel(message))}</span></div>`;
+        : lockedMedia
+          ? ""
+          : message.body
+            ? `<div class="message-text">${escapeHTML(message.body)}</div>`
+            : media
+              ? ""
+              : `<div class="message-text"><span class="message-media">${escapeHTML(mediaLabel(message))}</span></div>`;
 
       const deletedLabel = deleted
         ? '<div class="message-status">Pesan dihapus</div>'
@@ -1866,6 +1902,13 @@
     // [MODIFIED] Use document-level delegation so the Premium trigger remains reliable
     // even if another optional control fails to initialize earlier in this function.
     document.addEventListener("click", (event) => {
+      const premiumMediaButton = event.target.closest("[data-premium-media]");
+      if (premiumMediaButton) {
+        event.preventDefault();
+        openPremiumSheet();
+        return;
+      }
+
       const addSessionButton = event.target.closest("#addWhatsAppSessionButton");
       if (addSessionButton) {
         event.preventDefault();
