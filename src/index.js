@@ -15,7 +15,8 @@ import {
   closeDatabase,
   updateSession,
   getMembership,
-  setFreePauseDate
+  setFreePauseDate,
+  getAppSetting // [ADDED] Read persisted Free pause mode.
 } from "./database.js";
 
 import {
@@ -305,6 +306,9 @@ function getWitaClock() {
 
 // [ADDED] Pause Free sessions at 08:00 WITA. Auth files are preserved.
 async function enforceFreeDailyPause() {
+  // [ADDED] The admin can disable the daily Free pause with /set time-normal.
+  if (getAppSetting("free_daily_pause_enabled", "1") !== "1") return;
+
   const { date, hour } = getWitaClock();
   if (hour < 8) return;
 
