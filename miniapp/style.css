@@ -3810,3 +3810,25 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 #accountPage .whatsapp-account-controls:not(.is-collapsed) .notification-lock-crown {
   z-index: 999;
 }
+
+
+/* [ADDED] Free WhatsApp session pause status: yellow and tappable only while paused. */
+.whatsapp-connection-state {
+  font: inherit;
+  cursor: default;
+}
+.whatsapp-connection-state:disabled {
+  opacity: 1;
+}
+.whatsapp-connection-state.is-paused {
+  border-color: rgba(234,179,8,.48);
+  background: rgba(234,179,8,.10);
+  color: #d6a51c;
+  cursor: pointer;
+}
+.whatsapp-connection-state.is-paused i {
+  background: #eab308;
+}
+.whatsapp-connection-state.is-paused:active {
+  background: rgba(234,179,8,.18);
+}
