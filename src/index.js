@@ -203,8 +203,10 @@ function hasSavedAuth(telegramId) {
 // [ADDED] Restore valid sessions for active Telegram users.
 async function restoreSessions() {
   const sessions = getAllSessions().filter((session) => {
+    const membership = getMembership(session.telegram_id);
     return session.is_active === 1 &&
-      hasSavedAuth(session.telegram_id);
+      hasSavedAuth(session.telegram_id) &&
+      !(membership?.plan === "free" && session.connection_status === "paused");
   });
 
   if (sessions.length === 0) {
