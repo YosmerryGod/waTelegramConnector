@@ -771,6 +771,61 @@ button.list-item:active {
   text-align: right;
 }
 
+/* [ADDED] Dedicated, privacy-safe presentation for WhatsApp View Once messages. */
+.message.view-once {
+  width: min(82%, 310px);
+  padding: 12px;
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+}
+.view-once-content {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.view-once-symbol {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 23px;
+  font-weight: 700;
+}
+.view-once-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.view-once-copy strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+.view-once-copy span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.view-once-action {
+  grid-column: 1 / -1;
+  min-height: 36px;
+  margin-top: 2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+.view-once-action:active {
+  transform: scale(.98);
+}
+
 /* ---------- Foto & video di percakapan ---------- */
 
 .message.has-media {
