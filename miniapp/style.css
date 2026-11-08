@@ -831,8 +831,9 @@ button.list-item:active {
 
 /* ---------- Foto & video di percakapan ---------- */
 
+/* [MODIFIED] Keep photo and video bubbles compact on mobile screens. */
 .message.has-media {
-  width: min(82%, 300px);
+  width: min(82%, 270px);
   padding: 4px 4px 6px;
 }
 
@@ -857,7 +858,7 @@ button.list-item:active {
 .media-img {
   display: block;
   width: 100%;
-  max-height: 340px;
+  max-height: 230px;
   object-fit: cover;
   cursor: zoom-in;
 }
@@ -906,7 +907,7 @@ button.list-item:active {
 .media-video {
   display: block;
   width: 100%;
-  max-height: 360px;
+  max-height: 240px;
   margin-bottom: 4px;
   border-radius: 12px;
   background: #000;
