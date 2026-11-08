@@ -3474,6 +3474,71 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   margin: 6px 0;
 }
 
+/* [ADDED] Minimal locked-media preview for Free membership. */
+.locked-media {
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  width:min(100%,280px);
+  margin:5px 0;
+  padding:10px 11px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface-2);
+}
+.locked-media-heading {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:var(--text);
+}
+.locked-media-heading > .i {
+  width:17px;
+  height:17px;
+  color:var(--muted);
+}
+.locked-media-heading strong {
+  font-size:12px;
+  font-weight:700;
+  text-transform:capitalize;
+}
+.locked-media-lock {
+  display:grid;
+  place-items:center;
+  width:22px;
+  height:22px;
+  margin-left:auto;
+  border-radius:7px;
+  background:color-mix(in srgb,#d9a441 13%,transparent);
+  color:#d9a441;
+}
+.locked-media-lock .i { width:13px; height:13px; }
+.locked-media-copy {
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.4;
+}
+.locked-media-upgrade {
+  display:inline-flex;
+  align-items:center;
+  align-self:flex-start;
+  gap:5px;
+  min-height:24px;
+  padding:2px 0;
+  border:0;
+  background:transparent;
+  color:#c99a3c;
+  font-size:11px;
+  font-weight:750;
+  text-align:left;
+}
+.locked-media-upgrade:active { opacity:.7; }
+.locked-media-upgrade:focus-visible {
+  outline:2px solid #d9a441;
+  outline-offset:3px;
+  border-radius:4px;
+}
+
 
 
 /* [ADDED] Red visual state for WhatsApp messages revoked for everyone. */
