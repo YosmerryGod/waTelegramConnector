@@ -44,7 +44,7 @@ import {
 const router = express.Router();
 
 // [ADDED] Public shape of a message: hide Telegram file ids.
-function toPublicMessage(message) {
+function toPublicMessage(message, membership) {
   const {
     telegram_file_id: fileId,
     telegram_file_kind: telegramKind,
@@ -55,11 +55,15 @@ function toPublicMessage(message) {
   const kind = telegramKind || (
     rest.message_type === "image" ? "photo" : rest.message_type
   );
+  const hasMedia = Boolean(fileId || storagePath);
+  const isPremium = Boolean(membership?.plan && membership.plan !== "free");
+  const mediaLocked = hasMedia && !isPremium && rest.direction !== "outgoing";
 
   return {
     ...rest,
-    has_media: Boolean(fileId || storagePath),
-    media_kind: storagePath || fileId ? kind || null : null
+    has_media: hasMedia && !mediaLocked,
+    media_locked: mediaLocked,
+    media_kind: hasMedia ? kind || null : null
   };
 }
 
@@ -539,11 +543,12 @@ router.get("/chats/:chatId/messages", (req, res) => {
     const limit = parseLimit(req.query.limit, 100, MAX_MESSAGES);
 
     // The database returns newest-first; reverse for chronological display.
+    const membership = getMembership(req.telegramId);
     const messages = listMessages(
       req.telegramId,
       chatId,
       limit
-    ).reverse().map(toPublicMessage);
+    ).reverse().map((message) => toPublicMessage(message, membership));
 
     res.json({
       ok: true,
@@ -976,6 +981,16 @@ router.get("/messages/:id/media", async (req, res) => {
       return res.status(404).json({
         ok: false,
         error: "MEDIA_NOT_FOUND"
+      });
+    }
+
+    // [ADDED] Enforce the Free media restriction on the server, not only in the Mini App UI.
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan === "free" && media.direction !== "outgoing") {
+      return res.status(403).json({
+        ok: false,
+        error: "PREMIUM_REQUIRED",
+        message: "Upgrade Premium untuk melihat media yang diterima."
       });
     }
 
