@@ -2451,6 +2451,14 @@ body:has(#accountPage:not(.hidden)) .topbar {
   margin-top: 6px;
   min-width: 0;
 }
+.profile-tier.is-premium {
+  border-color: #b58a35;
+  background: linear-gradient(135deg, #5b4318, #34270f);
+  color: #ffe2a0;
+}
+.profile-tier.is-admin {
+  box-shadow: 0 0 0 1px rgba(255, 214, 128, .16);
+}
 .profile-tier {
   display: inline-flex;
   align-items: center;
