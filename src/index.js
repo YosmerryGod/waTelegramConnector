@@ -27,7 +27,7 @@ import {
 // [ADDED] Mini App REST API router.
 import miniAppApi, { verifyTelegramInitData } from "./miniapp-api.js";
 import { getUser } from "./database.js";
-import { addMiniAppClient, closeMiniAppClients } from "./realtime.js";
+import { addMiniAppClient, closeMiniAppClients, publishToMiniApp } from "./realtime.js";
 
 // [ADDED] Suppress verbose libsignal session dumps emitted directly to stdout.
 // Keep all other application logs and errors unchanged.
@@ -128,6 +128,8 @@ let shuttingDown = false;
 
 // [ADDED] Periodic cleanup timer.
 let cleanupTimer = null;
+// [ADDED] Dedicated scheduler for the 08:00 WITA Free-tier pause.
+let freePauseTimer = null;
 
 // [ADDED] Basic security headers for API responses.
 app.disable("x-powered-by");
@@ -316,6 +318,10 @@ async function enforceFreeDailyPause() {
       await disconnectWhatsApp(session.telegram_id);
       updateSession(session.telegram_id, "paused");
       setFreePauseDate(session.telegram_id, date);
+      publishToMiniApp(session.telegram_id, {
+        type: "connection.status",
+        data: { status: "paused", phoneNumber: session.phone_number || null }
+      });
     } catch (error) {
       logger.error({ err: error }, "Could not pause expired Free WhatsApp session.");
     }
@@ -324,8 +330,12 @@ async function enforceFreeDailyPause() {
 
 // [ADDED] Periodically remove expired message deduplication records.
 function startMaintenance() {
-  cleanupTimer = setInterval(() => {
+  freePauseTimer = setInterval(() => {
     void enforceFreeDailyPause();
+  }, 10000);
+  freePauseTimer.unref?.();
+
+  cleanupTimer = setInterval(() => {
     try {
       const deleted = cleanupForwardedMessages();
 
@@ -390,6 +400,10 @@ async function shutdown(signal) {
   if (cleanupTimer) {
     clearInterval(cleanupTimer);
     cleanupTimer = null;
+  }
+  if (freePauseTimer) {
+    clearInterval(freePauseTimer);
+    freePauseTimer = null;
   }
 
   try {
