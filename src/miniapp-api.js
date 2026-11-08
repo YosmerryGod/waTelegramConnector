@@ -49,6 +49,8 @@ function toPublicMessage(message, membership) {
     telegram_file_id: fileId,
     telegram_file_kind: telegramKind,
     media_storage_path: storagePath,
+    body,
+    original_body: originalBody,
     ...rest
   } = message;
 
@@ -61,6 +63,8 @@ function toPublicMessage(message, membership) {
 
   return {
     ...rest,
+    body: mediaLocked ? "" : body,
+    original_body: mediaLocked ? null : originalBody,
     has_media: hasMedia && !mediaLocked,
     media_locked: mediaLocked,
     media_kind: hasMedia ? kind || null : null
