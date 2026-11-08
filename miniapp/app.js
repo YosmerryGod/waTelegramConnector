@@ -1022,13 +1022,13 @@
     const label = labels[kind] || "media";
     const sender = message.contact_name || message.sender_name ||
       chatName(state.currentChat || {});
-    const iconName = ["photo", "image"].includes(kind) ? "image"
+    const iconName = ["photo", "image"].includes(kind) ? "file"
       : ["video", "animation"].includes(kind) ? "video"
-        : ["audio", "ptt"].includes(kind) ? "volume-2"
-          : kind === "sticker" ? "sticker" : "file";
+        : ["audio", "ptt"].includes(kind) ? "play"
+          : kind === "sticker" ? "star" : "file";
 
     return `<div class="locked-media">
-      <div class="locked-media-heading">${icon(iconName)}<strong>${escapeHTML(label.charAt(0).toUpperCase() + label.slice(1))}</strong><span class="locked-media-lock">${icon("lock")}</span></div>
+      <div class="locked-media-heading">${icon(iconName)}<strong>${escapeHTML(label.charAt(0).toUpperCase() + label.slice(1))}</strong><span class="locked-media-lock">${icon("eye-off")}</span></div>
       <div class="locked-media-copy">${escapeHTML(sender)} mengirim ${escapeHTML(label)}</div>
       <button class="locked-media-upgrade" type="button" data-premium-media="true"><span aria-hidden="true">👑</span> Upgrade untuk melihat</button>
     </div>`;
