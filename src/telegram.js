@@ -1483,7 +1483,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
     onError: async (error) => {
       console.error(
-        `WhatsApp connection error for Telegram user ${id}:`,
+        "WhatsApp connection error:",
         error.message
       );
     }
