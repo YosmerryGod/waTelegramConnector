@@ -3775,3 +3775,24 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   transform: rotate(22deg);
   pointer-events: none;
 }
+
+
+/* [MODIFIED] Prevent the WhatsApp profile card from clipping Premium crowns. */
+#accountPage .whatsapp-account-card {
+  overflow: visible;
+}
+#accountPage .embedded-notification-section,
+#accountPage .notification-options,
+#accountPage .notification-option {
+  overflow: visible;
+}
+#accountPage .notification-option {
+  position: relative;
+}
+#accountPage .notification-switch.is-premium-locked {
+  position: relative;
+  z-index: 5;
+}
+#accountPage .notification-lock-crown {
+  z-index: 20;
+}
