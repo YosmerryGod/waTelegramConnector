@@ -584,12 +584,13 @@
       }
       stateLabel.classList.toggle("is-connected", connected);
       stateLabel.classList.toggle("is-paused", paused);
-      stateLabel.disabled = !paused;
+      // [MODIFIED] Connect is available from Profile when WhatsApp is disconnected or paused.
+      stateLabel.disabled = connected;
       stateLabel.innerHTML = connected
         ? "<i></i> Connected"
         : paused
-          ? "<i></i> Paused"
-          : "<i></i> Disconnected";
+          ? "<i></i> Connect"
+          : "<i></i> Connect";
       disconnectButton.disabled = !connected && !paused;
     } catch (error) {
       phone.textContent = "Status koneksi tidak tersedia";
@@ -2172,20 +2173,14 @@
       toggleNotificationPreference(button);
     });
 
-    // [ADDED] Resume a Free session from Paused using its saved WhatsApp authentication.
-    $("#accountWhatsAppState").addEventListener("click", async () => {
+    // [MODIFIED] Start WhatsApp pairing only when the user presses Connect in Profile.
+    $("#accountWhatsAppState").addEventListener("click", () => {
       const button = $("#accountWhatsAppState");
-      if (!button.classList.contains("is-paused")) return;
+      if (button.disabled) return;
       button.disabled = true;
-      button.textContent = "Connecting…";
-      try {
-        await api("/connection/connect", { method: "POST", body: JSON.stringify({}) });
-        showToast("Mengaktifkan kembali WhatsApp…");
-      } catch (error) {
-        showToast(error.message);
-      } finally {
-        await loadWhatsAppAccount();
-      }
+      button.textContent = "Preparing…";
+      window.dispatchEvent(new Event("wagram:connect"));
+      window.setTimeout(() => loadWhatsAppAccount(), 1200);
     });
 
     // [ADDED] Disconnect the currently linked WhatsApp session.
