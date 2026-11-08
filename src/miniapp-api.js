@@ -58,9 +58,12 @@ function toPublicMessage(message, membership) {
     rest.message_type === "image" ? "photo" : rest.message_type
   );
   const hasMedia = Boolean(fileId || storagePath);
+  // [ADDED] Location messages contain sensitive coordinates even without a file attachment.
+  const isLocation = kind === "location" || rest.message_type === "location";
+  const hasProtectedContent = hasMedia || isLocation;
   const isPremium = Boolean(membership?.plan && membership.plan !== "free");
-  // [MODIFIED] Free membership locks all media, including media sent by the linked WhatsApp account.
-  const mediaLocked = hasMedia && !isPremium;
+  // [MODIFIED] Free membership locks all media and location messages, including outgoing content.
+  const mediaLocked = hasProtectedContent && !isPremium;
 
   return {
     ...rest,
@@ -68,7 +71,7 @@ function toPublicMessage(message, membership) {
     original_body: mediaLocked ? null : originalBody,
     has_media: hasMedia && !mediaLocked,
     media_locked: mediaLocked,
-    media_kind: hasMedia ? kind || null : null
+    media_kind: hasProtectedContent ? kind || "location" : null
   };
 }
 
