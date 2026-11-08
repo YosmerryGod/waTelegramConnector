@@ -26,6 +26,21 @@ import miniAppApi, { verifyTelegramInitData } from "./miniapp-api.js";
 import { getUser } from "./database.js";
 import { addMiniAppClient, closeMiniAppClients } from "./realtime.js";
 
+// [ADDED] Suppress verbose libsignal session dumps emitted directly to stdout.
+// Keep all other application logs and errors unchanged.
+const originalConsoleLog = console.log.bind(console);
+const originalConsoleInfo = console.info.bind(console);
+function isVerboseSessionDump(args) {
+  return typeof args[0] === "string" &&
+    /^Closing session:\s*SessionEntry\b/.test(args[0]);
+}
+console.log = (...args) => {
+  if (!isVerboseSessionDump(args)) originalConsoleLog(...args);
+};
+console.info = (...args) => {
+  if (!isVerboseSessionDump(args)) originalConsoleInfo(...args);
+};
+
 // [ADDED] Application configuration.
 const LOG_LEVEL = process.env.LOG_LEVEL || "warn";
 const AUTH_DIR = path.resolve(
