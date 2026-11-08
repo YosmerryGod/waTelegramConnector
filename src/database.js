@@ -186,6 +186,10 @@ if (!messageColumns.includes("telegram_file_kind")) {
   db.exec("ALTER TABLE messages ADD COLUMN telegram_file_kind TEXT");
 }
 
+if (!messageColumns.includes("media_storage_path")) {
+  db.exec("ALTER TABLE messages ADD COLUMN media_storage_path TEXT");
+}
+
 // [ADDED] Migrate existing profile-cache databases before preparing queries.
 const profileCacheColumns = db
   .prepare("PRAGMA table_info(whatsapp_profile_cache)")
@@ -1174,9 +1178,19 @@ const mediaStatements = {
       AND whatsapp_message_id = @message_id
   `),
 
+  attachLocal: db.prepare(`
+    UPDATE messages
+    SET media_storage_path = @storage_path,
+        media_mimetype = COALESCE(@mimetype, media_mimetype),
+        media_file_name = COALESCE(@file_name, media_file_name)
+    WHERE telegram_id = @telegram_id
+      AND whatsapp_chat_id = @chat_id
+      AND whatsapp_message_id = @message_id
+  `),
+
   get: db.prepare(`
     SELECT id, telegram_file_id, telegram_file_kind,
-           media_mimetype, media_file_name
+           media_storage_path, media_mimetype, media_file_name
     FROM messages
     WHERE telegram_id = ? AND id = ?
   `)
@@ -1200,6 +1214,27 @@ export function attachTelegramFile({
     message_id: String(messageId),
     file_id: String(fileId),
     kind: kind || null
+  }).changes > 0;
+}
+
+// [ADDED] Attach a locally stored WhatsApp media file to its message row.
+export function attachLocalMedia({
+  telegramId,
+  whatsappChatId,
+  messageId,
+  storagePath,
+  mimetype,
+  fileName
+}) {
+  if (!storagePath || !messageId) return false;
+
+  return mediaStatements.attachLocal.run({
+    telegram_id: String(telegramId),
+    chat_id: String(whatsappChatId),
+    message_id: String(messageId),
+    storage_path: String(storagePath),
+    mimetype: mimetype || null,
+    file_name: fileName || null
   }).changes > 0;
 }
 
