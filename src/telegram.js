@@ -10,6 +10,8 @@ import {
   getUser,
   getMembership,
   setMembership,
+  getAppSetting, // [ADDED] Read persisted Free pause mode.
+  setAppSetting, // [ADDED] Update persisted Free pause mode.
   listMembershipUsers,
   MEMBERSHIP_PLANS,
   getSession,
@@ -1568,6 +1570,20 @@ bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
 
   const plan = String(match?.[1] || "").toLowerCase();
   const targetId = String(match?.[2] || callerId);
+
+  // [ADDED] Toggle the scheduled daily pause for Free-tier accounts.
+  if (plan === "time-pause" || plan === "time-normal") {
+    const pauseEnabled = plan === "time-pause";
+    setAppSetting("free_daily_pause_enabled", pauseEnabled ? "1" : "0");
+    await sendText(
+      callerId,
+      pauseEnabled
+        ? "⏸️ <b>Time Pause aktif</b>\n\nAkun Free akan otomatis dipause mulai pukul <b>08.00 WITA</b>. Pesan WhatsApp baru tidak akan diteruskan selama koneksi terputus.\n\nGunakan /set time-normal untuk menonaktifkan."
+        : "▶️ <b>Time Normal aktif</b>\n\nJadwal pause otomatis akun Free dinonaktifkan. Koneksi yang sudah ter-pause tidak otomatis tersambung kembali; user perlu menekan Connect di WAGRAM."
+    , { parse_mode: "HTML" });
+    return;
+  }
+
   if (!Object.prototype.hasOwnProperty.call(MEMBERSHIP_PLANS, plan)) {
     await sendText(callerId,
       "Format: /set <code> [telegram_id]\n\n" +
