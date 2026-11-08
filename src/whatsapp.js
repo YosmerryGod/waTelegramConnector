@@ -43,7 +43,23 @@ const CONNECT_TIMEOUT_MS = Math.max(
 const STABLE_CONNECTION_MS = 30000;
 
 const logger = pino({
-  level: process.env.LOG_LEVEL || "warn"
+  level: process.env.LOG_LEVEL || "warn",
+  // [ADDED] Never expose WhatsApp/Telegram session identifiers or message payload metadata in PM2 logs.
+  redact: {
+    paths: [
+      "telegramId",
+      "*.telegramId",
+      "linkedWhatsApp",
+      "*.linkedWhatsApp",
+      "jid",
+      "*.jid",
+      "call",
+      "*.call",
+      "messageId",
+      "*.messageId"
+    ],
+    censor: "[REDACTED]"
+  }
 });
 
 // [ADDED] Each Telegram user owns an isolated WhatsApp connection.
