@@ -1439,7 +1439,7 @@ const mediaStatements = {
   `),
 
   get: db.prepare(`
-    SELECT id, telegram_file_id, telegram_file_kind,
+    SELECT id, direction, telegram_file_id, telegram_file_kind,
            media_storage_path, media_mimetype, media_file_name
     FROM messages
     WHERE telegram_id = ? AND id = ?
