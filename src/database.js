@@ -171,6 +171,40 @@ db.exec(`
     ON messages(telegram_id, miniapp_read_at, message_timestamp DESC);
 `);
 
+// [ADDED] Role and membership fields; existing accounts remain Free by default.
+const telegramUserColumns = db
+  .prepare("PRAGMA table_info(telegram_users)")
+  .all()
+  .map((column) => column.name);
+
+if (!telegramUserColumns.includes("role")) {
+  db.exec("ALTER TABLE telegram_users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+}
+if (!telegramUserColumns.includes("plan")) {
+  db.exec("ALTER TABLE telegram_users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'");
+}
+if (!telegramUserColumns.includes("plan_expires_at")) {
+  db.exec("ALTER TABLE telegram_users ADD COLUMN plan_expires_at INTEGER");
+}
+if (!telegramUserColumns.includes("plan_updated_at")) {
+  db.exec("ALTER TABLE telegram_users ADD COLUMN plan_updated_at INTEGER");
+}
+
+const configuredAdminIds = String(
+  process.env.ADMIN_TELEGRAM_IDS || "6838814141"
+).split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
+
+if (configuredAdminIds.length > 0) {
+  const promoteAdmin = db.prepare(`
+    UPDATE telegram_users
+    SET role = 'admin', updated_at = ?
+    WHERE telegram_id = ?
+  `);
+  for (const adminId of configuredAdminIds) {
+    promoteAdmin.run(Date.now(), adminId);
+  }
+}
+
 // [ADDED] Media columns for the Mini App. This must run before any
 // statement is prepared, because "SELECT m.*" is expanded at prepare time.
 const messageColumns = db
@@ -620,6 +654,75 @@ export function registerUser(user) {
 
 export function getUser(telegramId) {
   return statements.getUser.get(String(telegramId)) || null;
+}
+
+// [ADDED] Membership plans used by manual admin testing and future billing.
+export const MEMBERSHIP_PLANS = Object.freeze({
+  free: { label: "Free", days: 0, sessions: 1, price: 0 },
+  "premium-a": { label: "Premium A", days: 3, sessions: 2, price: 14000 },
+  "premium-b": { label: "Premium B", days: 7, sessions: 3, price: 44000 },
+  "premium-c": { label: "Premium C", days: 30, sessions: 5, price: 149000 }
+});
+
+export function getMembership(telegramId) {
+  const user = getUser(telegramId);
+  if (!user) return null;
+
+  const now = Date.now();
+  let plan = MEMBERSHIP_PLANS[user.plan] ? user.plan : "free";
+  let expiresAt = user.plan_expires_at || null;
+
+  if (plan !== "free" && expiresAt && expiresAt <= now) {
+    db.prepare(`
+      UPDATE telegram_users
+      SET plan = 'free', plan_expires_at = NULL, plan_updated_at = ?, updated_at = ?
+      WHERE telegram_id = ?
+    `).run(now, now, String(telegramId));
+    plan = "free";
+    expiresAt = null;
+  }
+
+  const definition = MEMBERSHIP_PLANS[plan];
+  return {
+    telegram_id: String(user.telegram_id),
+    role: user.role || "user",
+    plan,
+    plan_label: definition.label,
+    plan_expires_at: expiresAt,
+    sessions_limit: definition.sessions,
+    price: definition.price,
+    is_admin: user.role === "admin"
+  };
+}
+
+export function setMembership(telegramId, plan) {
+  if (!Object.prototype.hasOwnProperty.call(MEMBERSHIP_PLANS, plan)) {
+    throw new Error("INVALID_MEMBERSHIP_PLAN");
+  }
+
+  const id = String(telegramId);
+  const user = getUser(id);
+  if (!user) return null;
+
+  const now = Date.now();
+  const expiresAt = plan === "free"
+    ? null
+    : now + MEMBERSHIP_PLANS[plan].days * 24 * 60 * 60 * 1000;
+
+  db.prepare(`
+    UPDATE telegram_users
+    SET plan = ?, plan_expires_at = ?, plan_updated_at = ?, updated_at = ?
+    WHERE telegram_id = ?
+  `).run(plan, expiresAt, now, now, id);
+
+  return getMembership(id);
+}
+
+export function listMembershipUsers() {
+  return getAllActiveUsers().map((user) => ({
+    ...user,
+    membership: getMembership(user.telegram_id)
+  }));
 }
 
 export function getAllActiveUsers() {
