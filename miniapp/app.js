@@ -597,6 +597,14 @@
     private: true, groups: true, channels: true, calls: true, mentions: true, media: true
   };
 
+  function isPremiumMembership() {
+    return Boolean(state.membership?.plan && state.membership.plan !== "free");
+  }
+
+  function isPremiumNotification(key) {
+    return ["groups", "channels", "mentions", "media"].includes(key);
+  }
+
   function renderNotificationPreferences() {
     let saved = {};
     try {
@@ -604,16 +612,39 @@
     } catch {
       saved = {};
     }
+    const premium = isPremiumMembership();
     document.querySelectorAll("[data-notification]").forEach((button) => {
       const key = button.dataset.notification;
-      const enabled = typeof saved[key] === "boolean" ? saved[key] : DEFAULT_NOTIFICATION_PREFS[key];
+      const locked = !premium && isPremiumNotification(key);
+      const enabled = !locked && (
+        typeof saved[key] === "boolean" ? saved[key] : DEFAULT_NOTIFICATION_PREFS[key]
+      );
+      const option = button.closest(".notification-option");
       button.setAttribute("aria-checked", String(enabled));
+      button.setAttribute("aria-disabled", String(locked));
+      button.classList.toggle("is-premium-locked", locked);
+      option?.classList.toggle("is-premium-locked", locked);
+      button.setAttribute(
+        "aria-label",
+        locked ? `${option?.querySelector(".notification-option-copy strong")?.textContent || key}, khusus Premium` : key
+      );
+      let crown = button.querySelector(".notification-lock-crown");
+      if (locked && !crown) {
+        crown = document.createElement("span");
+        crown.className = "notification-lock-crown";
+        crown.setAttribute("aria-hidden", "true");
+        crown.textContent = "👑";
+        button.appendChild(crown);
+      } else if (!locked && crown) {
+        crown.remove();
+      }
     });
   }
 
   function toggleNotificationPreference(button) {
     const key = button.dataset.notification;
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_NOTIFICATION_PREFS, key)) return;
+    if (!isPremiumMembership() && isPremiumNotification(key)) return;
     const enabled = button.getAttribute("aria-checked") !== "true";
     let saved = {};
     try {
@@ -2057,7 +2088,13 @@
     // [ADDED] Notification switches are saved locally on this device.
     $("#notificationOptions").addEventListener("click", (event) => {
       const button = event.target.closest("[data-notification]");
-      if (button) toggleNotificationPreference(button);
+      if (!button) return;
+      const key = button.dataset.notification;
+      if (!isPremiumMembership() && isPremiumNotification(key)) {
+        openPremiumSheet();
+        return;
+      }
+      toggleNotificationPreference(button);
     });
 
     // [ADDED] Disconnect the currently linked WhatsApp session.
