@@ -4,11 +4,14 @@ import fs from "node:fs";
 import path from "node:path";
 import pino from "pino";
 
+import { getWhatsAppMessageContent } from "./database.js";
+
 import makeWASocket, {
   DisconnectReason,
   WAMessageStubType,
+  proto,
   useMultiFileAuthState
-} from "@whiskeysockets/baileys";
+} from "baileys";
 
 // [MODIFIED] Persistent authentication directory.
 const AUTH_DIR = path.resolve(
@@ -441,8 +444,30 @@ async function createSocket(id, entry) {
       connectTimeoutMs: CONNECT_TIMEOUT_MS,
       defaultQueryTimeoutMs: 60000,
       retryRequestDelayMs: 500,
-      // Needed so WhatsApp message retries do not fail the session.
-      getMessage: async () => undefined
+      // [MODIFIED] Return stored content only for the exact owner/chat/message/direction.
+      // This supplies messageSecret for encrypted edits and preserves scoped retry behavior.
+      getMessage: async (key) => {
+        const encoded = getWhatsAppMessageContent(
+          id,
+          key?.remoteJid,
+          key?.id,
+          key?.fromMe
+        );
+
+        if (!encoded) {
+          return undefined;
+        }
+
+        try {
+          return proto.Message.decode(Buffer.from(encoded, "base64"));
+        } catch (error) {
+          logger.warn(
+            { err: error, telegramId: id, messageId: key?.id },
+            "Could not decode stored WhatsApp message content"
+          );
+          return undefined;
+        }
+      }
     });
 
     entry.socket = socket;
@@ -660,25 +685,46 @@ async function createSocket(id, entry) {
       }
 
       for (const item of updates || []) {
-        if (
-          item?.update?.messageStubType !== WAMessageStubType.REVOKE ||
-          !item.key?.remoteJid ||
-          !item.key?.id
-        ) {
+        if (!item?.key?.remoteJid || !item.key?.id) {
           continue;
         }
 
-        try {
-          await entry.callbacks.onMessageDeleted?.({
-            telegramId: id,
-            key: item.key,
-            socket
-          });
-        } catch (error) {
-          logger.error(
-            { err: error, telegramId: id, messageId: item.key.id },
-            "WhatsApp revoke event callback failed"
-          );
+        if (item.update?.messageStubType === WAMessageStubType.REVOKE) {
+          try {
+            await entry.callbacks.onMessageDeleted?.({
+              telegramId: id,
+              key: item.key,
+              socket
+            });
+          } catch (error) {
+            logger.error(
+              { err: error, telegramId: id, messageId: item.key.id },
+              "WhatsApp revoke event callback failed"
+            );
+          }
+
+          continue;
+        }
+
+        // [ADDED] Baileys emits decrypted standard and secret-encrypted edits here.
+        const editedMessage =
+          item.update?.message?.editedMessage?.message ||
+          item.update?.message?.editedMessage;
+
+        if (editedMessage) {
+          try {
+            await entry.callbacks.onMessageEdited?.({
+              telegramId: id,
+              key: item.key,
+              editedMessage,
+              socket
+            });
+          } catch (error) {
+            logger.error(
+              { err: error, telegramId: id, messageId: item.key.id },
+              "WhatsApp edit event callback failed"
+            );
+          }
         }
       }
     });

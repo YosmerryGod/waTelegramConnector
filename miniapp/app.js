@@ -1119,6 +1119,7 @@
       const day = ms ? startOfDay(ms) : 0;
       const outgoing = message.direction === "outgoing";
       const deleted = Boolean(Number(message.is_deleted));
+      const edited = Boolean(Number(message.is_edited));
 
       let separator = "";
 
@@ -1147,8 +1148,11 @@
       const deletedLabel = deleted
         ? '<div class="message-status">Pesan dihapus</div>'
         : "";
+      const editedLabel = edited && !deleted
+        ? '<span class="message-edited">diedit</span>'
+        : "";
 
-      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""}">${sender}${deletedLabel}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""}</div></div>`;
+      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""}">${sender}${deletedLabel}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
     }).join("");
 
     if (shouldStickToBottom) {
@@ -2553,6 +2557,7 @@
     if (
       event.type === "message.created" ||
       event.type === "message.deleted" ||
+      event.type === "message.edited" ||
       event.type === "media.ready"
     ) {
       if (event.data?.chatId) pendingRealtimeChatIds.add(event.data.chatId);
