@@ -13,6 +13,7 @@ import {
   markSessionDisconnected,
   reserveForwardedMessage,
   saveWhatsAppMessage, // [ADDED] Persist messages for the Mini App.
+  attachLocalMedia, // [ADDED] Link private VPS media files to saved messages.
   // [ADDED] Contacts and call history.
   ValidationError,
   saveContact,
@@ -22,6 +23,8 @@ import {
   findContactName,
   attachTelegramFile
 } from "./database.js";
+
+import { saveWhatsAppMedia } from "./media-storage.js";
 
 import {
   connectWhatsApp,
@@ -1145,7 +1148,7 @@ export function createWhatsAppCallbacks(telegramId) {
           : Date.now();
 
         const messageType = info
-          ? info.kind
+          ? (info.gif ? "animation" : info.kind)
           : (
               content.locationMessage || content.liveLocationMessage
                 ? "location"
@@ -1193,6 +1196,62 @@ export function createWhatsAppCallbacks(telegramId) {
                 messageTimestamp
               }
             });
+          }
+
+          // [ADDED] Download WhatsApp media once and keep it privately on this VPS.
+          if (saved && info) {
+            try {
+              if (info.size && info.size > MAX_MEDIA_BYTES) {
+                console.warn(
+                  `WhatsApp media skipped for Mini App: ${info.fileName} exceeds ${MAX_MEDIA_BYTES} bytes.`
+                );
+              } else {
+                const buffer = await downloadMediaMessage(
+                  message,
+                  "buffer",
+                  {},
+                  {
+                    logger: mediaLogger,
+                    reuploadRequest: socket.updateMediaMessage
+                  }
+                );
+
+                if (
+                  Buffer.isBuffer(buffer) &&
+                  buffer.length > 0 &&
+                  buffer.length <= MAX_MEDIA_BYTES
+                ) {
+                  const storagePath = await saveWhatsAppMedia({
+                    telegramId: id,
+                    messageId,
+                    buffer,
+                    mimetype: info.mimetype,
+                    fileName: info.fileName
+                  });
+
+                  const attached = attachLocalMedia({
+                    telegramId: id,
+                    whatsappChatId: remoteJid,
+                    messageId,
+                    storagePath,
+                    mimetype: info.mimetype,
+                    fileName: info.fileName
+                  });
+
+                  if (attached) {
+                    publishToMiniApp(id, {
+                      type: "media.ready",
+                      data: { chatId: remoteJid, messageId }
+                    });
+                  }
+                }
+              }
+            } catch (mediaError) {
+              console.error(
+                "Failed to store WhatsApp media for Mini App:",
+                mediaError.message
+              );
+            }
           }
         } catch (error) {
           console.error(
