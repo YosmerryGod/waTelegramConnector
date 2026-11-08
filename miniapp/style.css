@@ -3346,6 +3346,144 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   .onboarding-welcome-description { margin:9px auto 17px; }
   .onboarding-welcome-button { min-height:46px; }
 }
+/* [MODIFIED] Welcome screen follows the supplied premium WAGRAM composition. */
+.onboarding-welcome {
+  position:relative;
+  justify-content:flex-start;
+  min-height:100%;
+  padding:clamp(14px,3vh,30px) 18px calc(24px + env(safe-area-inset-bottom));
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 18%,rgba(0,255,112,.26),transparent 38%),
+    radial-gradient(ellipse at 8% 62%,rgba(0,190,95,.17),transparent 34%),
+    linear-gradient(155deg,#003d27 0%,#005b35 42%,#003b29 100%);
+}
+.onboarding-welcome::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  width:auto;
+  height:auto;
+  border:0;
+  border-radius:0;
+  background:radial-gradient(ellipse at 50% 38%,rgba(22,255,120,.12),transparent 55%);
+  pointer-events:none;
+}
+.onboarding-welcome::after {
+  content:"";
+  position:absolute;
+  inset:auto -25% -26% -25%;
+  width:auto;
+  height:48%;
+  border:1px solid rgba(115,255,169,.18);
+  border-radius:50%;
+  transform:rotate(-12deg);
+  pointer-events:none;
+}
+.onboarding-hero-art {
+  flex:0 0 auto;
+  width:min(100%,440px);
+  height:auto;
+  max-height:43vh;
+  margin:0 auto 4px;
+  overflow:visible;
+  object-fit:contain;
+  mix-blend-mode:normal;
+  filter:drop-shadow(0 20px 30px rgba(0,0,0,.2));
+}
+.onboarding-welcome-kicker {
+  position:relative;
+  z-index:1;
+  margin:0 auto 13px;
+  color:rgba(232,255,240,.78);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.28em;
+  text-align:center;
+}
+.onboarding-welcome h1 {
+  position:relative;
+  z-index:1;
+  margin:0 auto;
+  color:#fff;
+  font-size:clamp(30px,8vw,43px);
+  font-weight:850;
+  line-height:1.04;
+  letter-spacing:-.045em;
+  text-align:center;
+}
+.onboarding-welcome-description {
+  position:relative;
+  z-index:1;
+  max-width:330px;
+  margin:15px auto 22px;
+  color:rgba(235,255,242,.82);
+  font-size:clamp(13px,3.5vw,16px);
+  line-height:1.55;
+  text-align:center;
+}
+.onboarding-hero-benefits {
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-wrap:nowrap;
+  gap:8px;
+  width:100%;
+  max-width:450px;
+  margin:0 auto 25px;
+}
+.onboarding-hero-benefits span {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:40px;
+  padding:0 12px;
+  border:1px solid rgba(196,255,216,.22);
+  border-radius:999px;
+  background:rgba(0,75,43,.35);
+  color:rgba(245,255,248,.94);
+  font-size:10px;
+  font-weight:650;
+  white-space:nowrap;
+  backdrop-filter:blur(10px);
+}
+.onboarding-hero-benefits b {
+  color:#8DFFB6;
+  font-size:16px;
+  font-weight:800;
+}
+.onboarding-welcome-button {
+  position:relative;
+  z-index:1;
+  align-self:center;
+  width:min(72%,360px);
+  max-width:360px;
+  min-height:54px;
+  margin:0 auto;
+  border:1px solid rgba(180,255,201,.78);
+  border-radius:999px;
+  background:linear-gradient(110deg,#12D95F,#08B94F 55%,#00A844);
+  color:#fff;
+  box-shadow:0 10px 30px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.28);
+  font-size:15px;
+}
+.onboarding-welcome-button:active { transform:translateY(1px); }
+.onboarding-pagination { position:relative; z-index:1; padding-top:10px; }
+@media(max-height:760px) {
+  .onboarding-welcome { padding-top:10px; padding-bottom:calc(14px + env(safe-area-inset-bottom)); }
+  .onboarding-hero-art { max-height:36vh; width:min(100%,360px); }
+  .onboarding-welcome-description { margin:10px auto 14px; }
+  .onboarding-hero-benefits { margin-bottom:16px; gap:5px; }
+  .onboarding-hero-benefits span { min-height:35px; padding:0 8px; font-size:9px; }
+  .onboarding-welcome-button { min-height:48px; }
+}
+@media(max-width:360px) {
+  .onboarding-hero-benefits { gap:4px; }
+  .onboarding-hero-benefits span { gap:4px; padding:0 7px; font-size:8px; }
+}
 @media(prefers-reduced-motion:reduce) {
   .loading-process-ring,.loading-brand-logo,.loading-brand-wrap::before { animation:none; }
 }
