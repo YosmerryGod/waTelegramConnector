@@ -1143,7 +1143,7 @@
 
       // [ADDED] View Once content stays hidden; only a dedicated privacy notice is rendered.
       const body = viewOnce
-        ? `<div class="view-once-content"><span class="view-once-symbol" aria-hidden="true">◉</span><div class="view-once-copy"><strong>Pesan sekali lihat</strong><span>Media ini hanya dapat dilihat langsung di WhatsApp.</span></div><button class="view-once-action" type="button" data-view-once-open="true">Buka WhatsApp</button></div>`
+        ? `<div class="view-once-content"><span class="view-once-symbol" aria-hidden="true">◉</span><div class="view-once-copy"><strong>Media Sekali Lihat</strong><span>Kontak mengirim media yang hanya dapat dilihat satu kali. Silakan buka WhatsApp untuk melihatnya.</span></div><button class="view-once-action" type="button" data-view-once-open="true">Buka WhatsApp</button></div>`
         : message.body
           ? `<div class="message-text">${escapeHTML(message.body)}</div>`
           : media
