@@ -196,7 +196,8 @@ async function restoreSessions() {
 
   await restoreWhatsAppSessions(
     sessions,
-    (telegramId) => createWhatsAppCallbacks(telegramId)
+    // [MODIFIED] Restore sessions quietly so PM2/server restarts do not spam Telegram.
+    (telegramId) => createWhatsAppCallbacks(telegramId, { silentStartup: true })
   );
 }
 
