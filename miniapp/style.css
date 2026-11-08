@@ -3711,3 +3711,54 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 .chat-row-content.is-premium-locked .item-sub {
   color: #d99a32;
 }
+
+
+/* [ADDED] Premium crown badge above the add-session button in Profile. */
+.whatsapp-add-session-button {
+  position: relative;
+}
+.whatsapp-add-session-button::after {
+  content: "👑";
+  position: absolute;
+  top: -9px;
+  right: -7px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: #f59e0b;
+  font-size: 11px;
+  line-height: 1;
+  transform: rotate(22deg);
+  pointer-events: none;
+}
+
+/* [MODIFIED] Premium-only notification switches look darker and carry a tilted crown. */
+.notification-option.is-premium-locked {
+  opacity: 1;
+}
+.notification-option.is-premium-locked .notification-option-icon,
+.notification-option.is-premium-locked .notification-option-copy {
+  color: var(--muted);
+  opacity: .58;
+}
+.notification-switch.is-premium-locked {
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  background: #18221d;
+  box-shadow: inset 0 0 0 1px #35483d;
+}
+.notification-lock-crown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  line-height: 1;
+  filter: none;
+  transform: rotate(22deg);
+}
