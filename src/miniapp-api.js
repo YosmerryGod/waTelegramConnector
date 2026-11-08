@@ -15,6 +15,7 @@ import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, 
 
 import {
   getUser,
+  getMembership,
   listChats,
   getChat,
   listMessages,
@@ -250,6 +251,17 @@ router.get("/health", (_req, res) => {
 
 // All routes below require authenticated Telegram Mini App data.
 router.use(requireMiniAppAuth);
+
+// [ADDED] Current role and membership for the authenticated Mini App account.
+router.get("/account", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ok: true, account: membership });
+  } catch (error) {
+    sendServerError(res, error, "Could not load account membership");
+  }
+});
 
 // ---------------------------------------------------------------------------
 // [ADDED] WhatsApp pairing state for the Mini App.
