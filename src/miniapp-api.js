@@ -59,7 +59,8 @@ function toPublicMessage(message, membership) {
   );
   const hasMedia = Boolean(fileId || storagePath);
   const isPremium = Boolean(membership?.plan && membership.plan !== "free");
-  const mediaLocked = hasMedia && !isPremium && rest.direction !== "outgoing";
+  // [MODIFIED] Free membership locks all media, including media sent by the linked WhatsApp account.
+  const mediaLocked = hasMedia && !isPremium;
 
   return {
     ...rest,
@@ -990,7 +991,7 @@ router.get("/messages/:id/media", async (req, res) => {
 
     // [ADDED] Enforce the Free media restriction on the server, not only in the Mini App UI.
     const membership = getMembership(req.telegramId);
-    if (membership?.plan === "free" && media.direction !== "outgoing") {
+    if (membership?.plan === "free") {
       return res.status(403).json({
         ok: false,
         error: "PREMIUM_REQUIRED",
