@@ -1151,8 +1151,11 @@
       const editedLabel = edited && !deleted
         ? '<span class="message-edited">diedit</span>'
         : "";
+      const originalBody = edited && !deleted && message.original_body != null
+        ? `<div class="message-original"><div class="message-original-inner"><div class="message-original-label">Pesan sebelum diedit</div><div class="message-original-text">${escapeHTML(message.original_body)}</div></div></div>`
+        : "";
 
-      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""}">${sender}${deletedLabel}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
+      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""}" ${originalBody ? 'data-edit-expandable="true"' : ""}>${sender}${deletedLabel}${media}${body}${originalBody}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
     }).join("");
 
     if (shouldStickToBottom) {
@@ -2012,6 +2015,12 @@
       const profile = event.target.closest("[data-profile-jid]");
       if (profile) {
         openProfile(profile.dataset.profileJid, profile.dataset.profileName);
+        return;
+      }
+
+      const editedMessage = event.target.closest(".message[data-edit-expandable='true']");
+      if (editedMessage) {
+        editedMessage.classList.toggle("show-original");
         return;
       }
 
