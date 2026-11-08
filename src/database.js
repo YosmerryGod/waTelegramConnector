@@ -647,6 +647,15 @@ export function registerUser(user) {
     });
 
     statements.ensureSession.run(telegramId, now, now);
+
+    // [ADDED] Keep configured administrators promoted when they register via /start.
+    if (configuredAdminIds.includes(telegramId)) {
+      db.prepare(`
+        UPDATE telegram_users
+        SET role = 'admin', updated_at = ?
+        WHERE telegram_id = ?
+      `).run(now, telegramId);
+    }
   })();
 
   return statements.getUser.get(telegramId);
