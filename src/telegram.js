@@ -373,9 +373,10 @@ function unwrapMessage(message) {
   return content || null;
 }
 
-// [ADDED] Detect View Once content before unwrapping WhatsApp message wrappers.
-function getViewOnceInfo(message) {
+// [MODIFIED] Detect View Once from wrappers or Baileys' message key flag.
+function getViewOnceInfo(message, isViewOnce = false) {
   let content = message;
+  let detectedViewOnce = false;
 
   for (let i = 0; i < 8 && content; i++) {
     const viewOnce =
@@ -384,29 +385,42 @@ function getViewOnceInfo(message) {
       content.viewOnceMessageV2Extension?.message;
 
     if (viewOnce) {
-      const media = viewOnce.imageMessage
-        ? "foto"
-        : viewOnce.videoMessage || viewOnce.ptvMessage
-          ? "video"
-          : viewOnce.audioMessage
-            ? "audio"
-            : viewOnce.documentMessage
-              ? "dokumen"
-              : viewOnce.stickerMessage
-                ? "stiker"
-                : "media";
-
-      return { media };
+      content = viewOnce;
+      detectedViewOnce = true;
+      break;
     }
 
-    content =
+    const nested =
       content.ephemeralMessage?.message ||
       content.documentWithCaptionMessage?.message ||
-      content.editedMessage?.message ||
-      null;
+      content.editedMessage?.message;
+
+    if (!nested) {
+      break;
+    }
+
+    content = nested;
   }
 
-  return null;
+  // [ADDED] Baileys v7 may expose View Once as message.key.isViewOnce
+  // while the payload itself contains a plain imageMessage/videoMessage.
+  if (!detectedViewOnce && !isViewOnce) {
+    return null;
+  }
+
+  const media = content?.imageMessage
+    ? "foto"
+    : content?.videoMessage || content?.ptvMessage
+      ? "video"
+      : content?.audioMessage
+        ? "audio"
+        : content?.documentMessage
+          ? "dokumen"
+          : content?.stickerMessage
+            ? "stiker"
+            : "media";
+
+  return { media };
 }
 
 // Convert a Long/number/string size to a number.
@@ -1136,7 +1150,7 @@ export function createWhatsAppCallbacks(telegramId) {
         }
 
         // [ADDED] Detect View Once before unwrapMessage removes its wrapper.
-        const viewOnceInfo = getViewOnceInfo(message.message);
+        const viewOnceInfo = getViewOnceInfo(message.message, key.isViewOnce === true);
         const content = unwrapMessage(message.message);
 
         if (!content) {
