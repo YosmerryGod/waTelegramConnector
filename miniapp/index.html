@@ -68,55 +68,51 @@
 
     <!-- [ADDED] First-open WAGRAM onboarding. -->
   <section id="wagramOnboarding" class="onboarding-screen hidden" aria-label="Pengenalan WAGRAM">
-    <div class="onboarding-content" id="onboardingWelcome">
-      <div class="onboarding-hero-mark">
-        <img src="./assets/wagram-logo.svg" alt="WAGRAM">
-      </div>
-      <p class="onboarding-eyebrow">A MORE REFINED EXPERIENCE</p>
-      <h1>WhatsApp,<br><span>lebih tertata.</span></h1>
-      <p class="onboarding-description">Kelola pesan, panggilan, dan kontak WhatsApp dari satu ruang di Telegram.</p>
-      <button class="onboarding-primary" id="onboardingNextButton" type="button">Jelajahi WAGRAM <span aria-hidden="true">→</span></button>
+    <div class="onboarding-content onboarding-welcome" id="onboardingWelcome">
+      <div class="onboarding-welcome-logo"><img src="./assets/wagram-logo.svg" alt="WAGRAM"></div>
+      <p class="onboarding-welcome-kicker">YOUR WHATSAPP, CONNECTED</p>
+      <h1>WA Telegram<br>Connector</h1>
+      <p class="onboarding-welcome-description">Hubungkan WhatsApp ke Telegram. Sederhana, cepat, dan andal.</p>
+      <button class="onboarding-primary onboarding-welcome-button" id="onboardingNextButton" type="button">Mulai <span aria-hidden="true">→</span></button>
     </div>
 
-    <div class="onboarding-content onboarding-features hidden" id="onboardingFeatures">
-      <p class="onboarding-eyebrow">THE WAGRAM EXPERIENCE</p>
-      <h2>Satu ruang. Lebih terkendali.</h2>
-      <p class="onboarding-description">Semua aktivitas penting, tersusun dalam satu tempat.</p>
-
-      <div class="onboarding-feature-list">
-        <article class="onboarding-feature-row">
-          <span class="onboarding-feature-icon">▤</span>
-          <span><strong>Pesan</strong><small>Baca percakapan dan riwayat chat.</small></span>
-        </article>
-        <article class="onboarding-feature-row">
-          <span class="onboarding-feature-icon">⌕</span>
-          <span><strong>Panggilan</strong><small>Pantau panggilan masuk dan keluar.</small></span>
-        </article>
-        <article class="onboarding-feature-row">
-          <span class="onboarding-feature-icon">♙</span>
-          <span><strong>Kontak</strong><small>Akses dan kelola kontak WhatsApp.</small></span>
-        </article>
-        <article class="onboarding-feature-row">
-          <span class="onboarding-feature-icon">♧</span>
-          <span><strong>Notifikasi</strong><small>Terima pembaruan aktivitas WhatsApp.</small></span>
-        </article>
+    <div class="onboarding-content onboarding-sync hidden" id="onboardingSync">
+      <p class="onboarding-eyebrow">SEAMLESS CONNECTION</p>
+      <div class="onboarding-sync-visual" aria-hidden="true">
+        <div class="onboarding-app-tile onboarding-whatsapp-tile"><span>◔</span></div>
+        <div class="onboarding-sync-arrows">↔</div>
+        <div class="onboarding-app-tile onboarding-telegram-tile"><span>➤</span></div>
       </div>
+      <h2>WhatsApp <span>↔</span> Telegram</h2>
+      <p class="onboarding-description">Aktivitas WhatsApp tersinkron langsung ke Telegram.</p>
+      <div class="onboarding-benefit-list">
+        <div class="onboarding-benefit"><span>↯</span><div><strong>Real-time</strong><small>Pesan diteruskan dengan cepat.</small></div></div>
+        <div class="onboarding-benefit"><span>◇</span><div><strongPr>Privat &amp; terkontrol</strongPr><small>Kelola koneksi dari Mini App WAGRAM.</small></div></div>
+        <div class="onboarding-benefit"><span>⌘</span><div><strong>Praktis</strong><small>Pesan dan panggilan dalam satu tempat.</small></div></div>
+      </div>
+      <button class="onboarding-primary" id="onboardingSyncNextButton" type="button">Lanjut <span aria-hidden="true">→</span></button>
+      <button class="onboarding-back" id="onboardingSyncBackButton" type="button">Kembali</button>
+    </div>
 
+    <div class="onboarding-content onboarding-plans hidden" id="onboardingFeatures">
+      <p class="onboarding-eyebrow">PILIH PENGALAMANMU</p>
+      <h2>Free atau Premium?</h2>
+      <p class="onboarding-description">Mulai gratis, upgrade saat membutuhkan lebih banyak.</p>
       <div class="onboarding-plan-grid">
         <article class="onboarding-plan-card">
           <span class="onboarding-plan-label">FREE</span>
-          <strong class="onboarding-plan-price">Rp0</strong>
+          <strong class="onboarding-plan-price">Gratis</strong>
           <ul>
             <li>Pesan pribadi &amp; panggilan</li>
             <li>1 sesi WhatsApp</li>
-            <li>Riwayat 3 hari</li>
+            <li>Riwayat pesan 3 hari</li>
             <li>Pause otomatis 07.00 WIB</li>
-            <li>Sambungkan kembali manual</li>
+            <li>Reconnect secara manual</li>
           </ul>
         </article>
         <article class="onboarding-plan-card is-premium">
           <span class="onboarding-plan-label">PREMIUM</span>
-          <strong class="onboarding-plan-price">Lebih lengkap</strong>
+          <strong class="onboarding-plan-price">Lebih leluasa</strong>
           <ul>
             <li>Semua fitur Free</li>
             <li>Grup &amp; saluran</li>
@@ -127,13 +123,13 @@
           </ul>
         </article>
       </div>
-      <p class="onboarding-footnote">Premium: 3, 7, atau 30 hari.</p>
+      <p class="onboarding-footnote">Premium tersedia 3, 7, atau 30 hari.</p>
       <button class="onboarding-primary" id="onboardingFinishButton" type="button">Mulai gunakan WAGRAM <span aria-hidden="true">→</span></button>
       <button class="onboarding-back" id="onboardingBackButton" type="button">Kembali</button>
     </div>
 
     <footer class="onboarding-pagination" aria-hidden="true">
-      <span class="active" id="onboardingDotOne"></span><span id="onboardingDotTwo"></span>
+      <span class="active" id="onboardingDotOne"></span><span id="onboardingDotTwo"></span><span id="onboardingDotThree"></span>
     </footer>
   </section>
 
