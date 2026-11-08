@@ -3311,7 +3311,7 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 }
 
 .nav-item.selected .nav-badge {
-  left: calc(50% + 13px);
+  left: calc(50% - 17px);
   border-color: #079c4b;
 }
 
