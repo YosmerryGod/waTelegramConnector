@@ -1151,11 +1151,16 @@
       const editedLabel = edited && !deleted
         ? '<span class="message-edited">diedit</span>'
         : "";
-      const originalBody = edited && !deleted && message.original_body != null
-        ? `<div class="message-original"><div class="message-original-inner"><div class="message-original-label">Pesan sebelum diedit</div><div class="message-original-text">${escapeHTML(message.original_body)}</div></div></div>`
+      const originalBubble = edited && !deleted && message.original_body != null
+        ? `<div class="message original-version ${outgoing ? "outgoing" : ""}"><div class="message-text">${escapeHTML(message.original_body)}</div><div class="message-meta">Pesan sebelumnya</div></div><div class="edit-connector" aria-hidden="true"><span></span></div>`
         : "";
+      const currentBubble = `<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""}">${sender}${deletedLabel}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
 
-      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""}" ${originalBody ? 'data-edit-expandable="true"' : ""}>${sender}${deletedLabel}${media}${body}${originalBody}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
+      if (originalBubble) {
+        return `${separator}<div class="message-history-group ${outgoing ? "outgoing" : ""}" data-edit-expandable="true">${originalBubble}${currentBubble}</div>`;
+      }
+
+      return `${separator}${currentBubble}`;
     }).join("");
 
     if (shouldStickToBottom) {
@@ -2018,7 +2023,7 @@
         return;
       }
 
-      const editedMessage = event.target.closest(".message[data-edit-expandable='true']");
+      const editedMessage = event.target.closest(".message-history-group[data-edit-expandable='true']");
       if (editedMessage) {
         editedMessage.classList.toggle("show-original");
         return;
