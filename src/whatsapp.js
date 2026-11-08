@@ -595,14 +595,22 @@ async function createSocket(id, entry) {
           continue;
         }
 
-        // [ADDED] Log message types when CALL_DEBUG=1 (to find call logs).
+        // [MODIFIED] Log View Once metadata when CALL_DEBUG=1 without logging media content.
         if (process.env.CALL_DEBUG === "1") {
+          const imageMessage = message.message.imageMessage;
+          const videoMessage = message.message.videoMessage;
+          const audioMessage = message.message.audioMessage;
+
           logger.warn(
             {
               telegramId: id,
               type,
               fromMe: Boolean(message.key.fromMe),
-              keys: Object.keys(message.message)
+              keys: Object.keys(message.message),
+              isViewOnce: Boolean(message.key.isViewOnce),
+              imageViewOnce: Boolean(imageMessage?.viewOnce),
+              videoViewOnce: Boolean(videoMessage?.viewOnce),
+              audioViewOnce: Boolean(audioMessage?.viewOnce)
             },
             "WhatsApp message upsert"
           );
