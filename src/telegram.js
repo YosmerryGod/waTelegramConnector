@@ -1641,6 +1641,16 @@ bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
     return;
   }
 
+  // [ADDED] Push membership changes to an open Mini App so Premium locks update immediately.
+  publishToMiniApp(targetId, {
+    type: "membership.updated",
+    data: {
+      plan: membership.plan,
+      role: membership.role,
+      plan_expires_at: membership.plan_expires_at
+    }
+  });
+
   await sendText(callerId,
     `✅ Membership diperbarui untuk ${targetId}\n\n${formatMembership(membership)}`);
   if (targetId !== callerId) {
