@@ -3294,6 +3294,16 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   .onboarding-welcome-description { margin-bottom:22px; }
   .onboarding-welcome-button { min-height:48px; }
 }
+/* [MODIFIED] Override the shared full-width button rule on the welcome screen. */
+.onboarding-welcome .onboarding-welcome-button {
+  display:inline-flex;
+  flex:0 0 auto;
+  align-self:center;
+  width:220px;
+  max-width:82%;
+  min-height:48px;
+  padding:0 24px;
+}
 @media(prefers-reduced-motion:reduce) {
   .loading-process-ring,.loading-brand-logo,.loading-brand-wrap::before { animation:none; }
 }
