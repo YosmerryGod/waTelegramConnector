@@ -617,19 +617,16 @@ async function createSocket(id, entry) {
       }
 
       for (const message of messages || []) {
-        if (!message?.key || !message.message) {
-          continue;
-        }
-
-        // [MODIFIED] Log View Once metadata when CALL_DEBUG=1 without logging media content.
         if (process.env.CALL_DEBUG === "1") {
-          const imageMessage = message.message.imageMessage;
-          const videoMessage = message.message.videoMessage;
-          const audioMessage = message.message.audioMessage;
+          const content = message?.message || null;
+          const imageMessage = content?.imageMessage;
+          const videoMessage = content?.videoMessage;
+          const audioMessage = content?.audioMessage;
+          const stubType = message?.messageStubType ?? null;
 
           logger.warn(
             {
-              // [ADDED] Identify the exact Telegram owner and linked WhatsApp account for each debug event.
+              // [ADDED] Include messages without a decoded payload so View Once stubs are visible.
               telegramId: id,
               linkedWhatsApp: {
                 id: socket.user?.id || null,
@@ -637,17 +634,30 @@ async function createSocket(id, entry) {
                 name: socket.user?.name || socket.user?.notify || null
               },
               type,
-              messageId: message.key.id || null,
-              remoteJid: message.key.remoteJid || null,
-              fromMe: Boolean(message.key.fromMe),
-              keys: Object.keys(message.message),
-              isViewOnce: Boolean(message.key.isViewOnce),
+              messageId: message?.key?.id || null,
+              remoteJid: message?.key?.remoteJid || null,
+              fromMe: Boolean(message?.key?.fromMe),
+              participant: message?.key?.participant || null,
+              hasMessage: Boolean(content),
+              keys: content ? Object.keys(content) : [],
+              messageStubType: stubType,
+              messageStubName: stubType === null
+                ? null
+                : WAMessageStubType[stubType] || String(stubType),
+              messageStubParameters: message?.messageStubParameters || [],
+              isViewOnce: Boolean(message?.key?.isViewOnce),
               imageViewOnce: Boolean(imageMessage?.viewOnce),
               videoViewOnce: Boolean(videoMessage?.viewOnce),
-              audioViewOnce: Boolean(audioMessage?.viewOnce)
+              audioViewOnce: Boolean(audioMessage?.viewOnce),
+              hasSecretEncryptedMessage: Boolean(content?.secretEncryptedMessage)
             },
             "WhatsApp message upsert"
           );
+        }
+
+        // [MODIFIED] Keep logging payload-less stub events, but only forward decoded messages.
+        if (!message?.key || !message.message) {
+          continue;
         }
 
         // [MODIFIED] Only "notify" is real-time, except call logs: outgoing
@@ -693,6 +703,35 @@ async function createSocket(id, entry) {
       }
 
       for (const item of updates || []) {
+        // [ADDED] Trace update/retry-related payloads, including decrypted messages and stubs.
+        if (process.env.CALL_DEBUG === "1") {
+          const updateMessage = item?.update?.message || null;
+          logger.warn(
+            {
+              telegramId: id,
+              linkedWhatsApp: {
+                id: socket.user?.id || null,
+                phoneNumber: normalizePhoneJid(socket.user?.id)?.split("@")[0] || null,
+                name: socket.user?.name || socket.user?.notify || null
+              },
+              messageId: item?.key?.id || null,
+              remoteJid: item?.key?.remoteJid || null,
+              fromMe: Boolean(item?.key?.fromMe),
+              updateKeys: item?.update ? Object.keys(item.update) : [],
+              messageStubType: item?.update?.messageStubType ?? null,
+              messageStubName: item?.update?.messageStubType == null
+                ? null
+                : WAMessageStubType[item.update.messageStubType] || String(item.update.messageStubType),
+              messageStubParameters: item?.update?.messageStubParameters || [],
+              hasUpdatedMessage: Boolean(updateMessage),
+              updatedMessageKeys: updateMessage ? Object.keys(updateMessage) : [],
+              hasSecretEncryptedMessage: Boolean(updateMessage?.secretEncryptedMessage),
+              isViewOnce: Boolean(item?.key?.isViewOnce)
+            },
+            "WhatsApp message update"
+          );
+        }
+
         if (!item?.key?.remoteJid || !item.key?.id) {
           continue;
         }
