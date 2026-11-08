@@ -1201,63 +1201,9 @@ export function createWhatsAppCallbacks(telegramId) {
           );
         }
 
-        const header = buildHeader({
-          isOutgoing,
-          isGroup,
-          name,
-          savedName,
-          groupName,
-          who,
-          time: formatShortTime(message.messageTimestamp)
-        });
+        // [MODIFIED] WhatsApp messages are stored and synced to the Mini App only.
+        // No WhatsApp message content is sent to Telegram.
 
-        // Media: forward the actual file.
-        if (info) {
-          const sentMedia = await forwardMedia({
-            chatId: id,
-            socket,
-            message,
-            info,
-            header,
-            text: body
-          });
-
-          // [ADDED] Let the Mini App show this media.
-          try {
-            const file = extractTelegramFile(sentMedia);
-
-            if (file) {
-              attachTelegramFile({
-                telegramId: id,
-                whatsappChatId: remoteJid,
-                messageId,
-                fileId: file.fileId,
-                kind: file.kind
-              });
-
-              // [ADDED] Media metadata is now committed; refresh the open chat.
-              publishToMiniApp(id, {
-                type: "media.ready",
-                data: { chatId: remoteJid, messageId }
-              });
-            }
-          } catch (error) {
-            console.error("Failed to store media for Mini App:", error.message);
-          }
-
-          return;
-        }
-
-        // Text: header and body in one message, long text split cleanly.
-        const headerReserve = header.length + 2;
-        const chunks = splitEscaped(
-          body,
-          Math.max(500, MESSAGE_LIMIT - headerReserve)
-        ).slice(0, MAX_TEXT_CHUNKS);
-
-        const first = await sendHtml(id, `${header}\n\n${chunks[0]}`);
-
-        await sendFollowUps(id, chunks.slice(1), first.message_id);
       } catch (error) {
         console.error(
           "Failed to forward WhatsApp message:",
@@ -1286,29 +1232,9 @@ export function createWhatsAppCallbacks(telegramId) {
           console.error("Failed to store call history:", error.message);
         }
 
-        const text = await buildCallMessage({
-          call,
-          socket,
-          telegramId: id
-        });
+        // [MODIFIED] Call events are stored for the Mini App only.
+        // No WhatsApp call notification is sent to Telegram.
 
-        if (!text) {
-          return;
-        }
-
-        // Baileys can emit the same call event more than once.
-        const phase = call.status === "timeout" ? "missed" : "incoming";
-
-        const reserved = reserveForwardedMessage(
-          `call:${call.id}:${phase}`,
-          id
-        );
-
-        if (!reserved) {
-          return;
-        }
-
-        await sendHtml(id, text);
       } catch (error) {
         console.error(
           "Failed to forward WhatsApp call:",
@@ -1358,41 +1284,8 @@ bot.onText(/^\/start(?:@\w+)?$/, async (msg) => {
   }
 });
 
-// /connect — start WhatsApp pairing.
-bot.onText(/^\/connect(?:@\w+)?$/, async (msg) => {
-  const telegramId = String(msg.from.id);
+// [REMOVED] Legacy Telegram command disabled; use the WAGRAM Mini App.
 
-  if (!isAuthorizedUser(telegramId)) {
-    await sendText(telegramId, "Send /start first.");
-    return;
-  }
-
-  const status = getWhatsAppStatus(telegramId);
-
-  if (status.status === "connected") {
-    await sendText(telegramId, "✅ Already connected. See /status.");
-    return;
-  }
-
-  if (["connecting", "qr"].includes(status.status)) {
-    await sendText(telegramId, "⏳ Connection in progress. Wait for the QR.");
-    return;
-  }
-
-  try {
-    await connectWhatsApp(
-      telegramId,
-      createWhatsAppCallbacks(telegramId)
-    );
-  } catch (error) {
-    console.error("Failed to start WhatsApp connection:", error.message);
-
-    await sendText(
-      telegramId,
-      "❌ Could not start the connection. Check the server log and try /connect again."
-    );
-  }
-});
 
 // /status — show the live WhatsApp connection status.
 bot.onText(/^\/status(?:@\w+)?$/, async (msg) => {
@@ -1430,36 +1323,8 @@ bot.onText(/^\/status(?:@\w+)?$/, async (msg) => {
   await sendHtml(telegramId, message, connected ? {} : openMiniAppOptions());
 });
 
-// /disconnect — logout and remove this user's saved credentials.
-bot.onText(/^\/disconnect(?:@\w+)?$/, async (msg) => {
-  const telegramId = String(msg.from.id);
+// [REMOVED] Legacy Telegram command disabled; use the WAGRAM Mini App.
 
-  if (!isAuthorizedUser(telegramId)) {
-    await sendText(telegramId, "Send /start first.");
-    return;
-  }
-
-  try {
-    await disconnectWhatsApp(telegramId, {
-      logout: true,
-      clearAuth: true
-    });
-
-    markSessionDisconnected(telegramId);
-
-    await sendText(
-      telegramId,
-      "🔌 Disconnected and local session deleted.\nUse /connect to link again."
-    );
-  } catch (error) {
-    console.error("Failed to disconnect WhatsApp:", error.message);
-
-    await sendText(
-      telegramId,
-      "Could not disconnect. Check the server log."
-    );
-  }
-});
 
 // ---------------------------------------------------------------------------
 // [ADDED] Contacts
@@ -1521,39 +1386,8 @@ function contactLine(contact) {
   return `${contact.name} — +${contact.phone_number}`;
 }
 
-// /save <name> <number> — save a phone number to the Mini App contacts.
-bot.onText(/^\/save(?:@\w+)?(?:\s+([\s\S]+))?$/, async (msg, match) => {
-  const telegramId = String(msg.from.id);
+// [REMOVED] Legacy Telegram command disabled; use the WAGRAM Mini App.
 
-  if (!isAuthorizedUser(telegramId)) {
-    await sendText(telegramId, "Send /start first.");
-    return;
-  }
-
-  const parsed = parseSaveArguments(match[1]);
-
-  if (!parsed) {
-    await sendText(
-      telegramId,
-      "Usage: /save Name Number\n" +
-        "Example: /save Budi 081234567890\n\n" +
-        "You can also share a contact card with this bot."
-    );
-    return;
-  }
-
-  try {
-    const { created, contact } = saveContact(telegramId, parsed);
-
-    await sendText(
-      telegramId,
-      `${created ? "✅ Contact saved" : "✅ Contact updated"}\n` +
-        contactLine(contact)
-    );
-  } catch (error) {
-    await sendText(telegramId, contactErrorText(error));
-  }
-});
 
 // Sharing a Telegram contact card with the bot also saves it.
 bot.on("contact", async (msg) => {
@@ -1589,78 +1423,11 @@ bot.on("contact", async (msg) => {
   }
 });
 
-// /contacts — list saved contacts.
-bot.onText(/^\/contacts(?:@\w+)?$/, async (msg) => {
-  const telegramId = String(msg.from.id);
+// [REMOVED] Legacy Telegram command disabled; use the WAGRAM Mini App.
 
-  if (!isAuthorizedUser(telegramId)) {
-    await sendText(telegramId, "Send /start first.");
-    return;
-  }
 
-  try {
-    const contacts = listContacts(telegramId);
+// [REMOVED] Legacy Telegram command disabled; use the WAGRAM Mini App.
 
-    if (contacts.length === 0) {
-      await sendText(
-        telegramId,
-        "No saved contacts yet.\nUse /save Name Number to add one."
-      );
-      return;
-    }
-
-    const lines = contacts
-      .slice(0, CONTACT_LIST_LIMIT)
-      .map((contact, index) => `${index + 1}. ${contactLine(contact)}`);
-
-    if (contacts.length > CONTACT_LIST_LIMIT) {
-      lines.push(
-        `…and ${contacts.length - CONTACT_LIST_LIMIT} more. ` +
-          "Open the Mini App to see all."
-      );
-    }
-
-    await sendText(
-      telegramId,
-      `📒 Contacts (${contacts.length})\n\n${lines.join("\n")}`
-    );
-  } catch (error) {
-    console.error("Failed to list contacts:", error.message);
-
-    await sendText(telegramId, "Could not load contacts.");
-  }
-});
-
-// /delcontact <number> — delete a saved contact by phone number.
-bot.onText(/^\/delcontact(?:@\w+)?(?:\s+(\S+))?$/, async (msg, match) => {
-  const telegramId = String(msg.from.id);
-
-  if (!isAuthorizedUser(telegramId)) {
-    await sendText(telegramId, "Send /start first.");
-    return;
-  }
-
-  if (!match[1]) {
-    await sendText(
-      telegramId,
-      "Usage: /delcontact Number\nExample: /delcontact 081234567890"
-    );
-    return;
-  }
-
-  try {
-    const removed = deleteContactByPhone(telegramId, match[1]);
-
-    await sendText(
-      telegramId,
-      removed ? "🗑 Contact deleted." : "No contact found with that number."
-    );
-  } catch (error) {
-    console.error("Failed to delete contact:", error.message);
-
-    await sendText(telegramId, "Could not delete the contact.");
-  }
-});
 
 // /help — concise WAGRAM usage guide.
 bot.onText(/^\/help(?:@\w+)?$/, async (msg) => {
