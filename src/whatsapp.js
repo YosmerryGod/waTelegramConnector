@@ -655,8 +655,8 @@ async function createSocket(id, entry) {
           );
         }
 
-        // [MODIFIED] Keep logging payload-less stub events, but only forward decoded messages.
-        if (!message?.key || !message.message) {
+        // [MODIFIED] Forward View Once events even when Baileys provides only key metadata.
+        if (!message?.key || (!message.message && message.key.isViewOnce !== true)) {
           continue;
         }
 
