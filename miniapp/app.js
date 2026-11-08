@@ -1031,11 +1031,18 @@
     const original = label.textContent;
     label.textContent = "Menyiapkan dokumen…";
 
+    const popup = button.dataset.openInline === "1"
+      ? window.open("about:blank", "_blank")
+      : null;
+
     try {
       const url = await fetchMediaURL(button.dataset.mediaDocument);
       if (button.dataset.openInline === "1") {
-        const opened = window.open(url, "_blank", "noopener");
-        if (!opened) showToast("Izinkan pop-up untuk membuka PDF.");
+        if (popup) {
+          popup.location.href = url;
+        } else {
+          showToast("Izinkan pop-up untuk membuka PDF.");
+        }
       } else {
         const link = document.createElement("a");
         link.href = url;
@@ -1047,6 +1054,7 @@
       label.textContent = original;
       delete button.dataset.busy;
     } catch (error) {
+      popup?.close();
       label.textContent = original;
       delete button.dataset.busy;
       showToast(error.message);
