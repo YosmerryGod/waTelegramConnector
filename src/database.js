@@ -195,6 +195,16 @@ if (!messageColumns.includes("is_deleted")) {
   db.exec("ALTER TABLE messages ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
 }
 
+// [ADDED] Retain original protobuf content for encrypted edit decryption and scoped retry lookup.
+if (!messageColumns.includes("message_content")) {
+  db.exec("ALTER TABLE messages ADD COLUMN message_content TEXT");
+}
+
+// [ADDED] Track edits independently from message deletion.
+if (!messageColumns.includes("is_edited")) {
+  db.exec("ALTER TABLE messages ADD COLUMN is_edited INTEGER NOT NULL DEFAULT 0");
+}
+
 // [ADDED] Migrate existing profile-cache databases before preparing queries.
 const profileCacheColumns = db
   .prepare("PRAGMA table_info(whatsapp_profile_cache)")
@@ -374,6 +384,7 @@ const statements = {
       media_mimetype,
       media_file_name,
       message_timestamp,
+      message_content,
       created_at
     )
     VALUES (
@@ -388,8 +399,31 @@ const statements = {
       @media_mimetype,
       @media_file_name,
       @message_timestamp,
+      @message_content,
       @now
     )
+  `),
+
+  // [ADDED] Update the original message body after a WhatsApp edit event.
+  updateEditedMessage: db.prepare(`
+    UPDATE messages
+    SET body = ?,
+        is_edited = 1
+    WHERE telegram_id = ?
+      AND whatsapp_chat_id = ?
+      AND whatsapp_message_id = ?
+      AND is_deleted = 0
+  `),
+
+  // [ADDED] Retrieve original content only when owner, chat, message ID, and direction match.
+  getMessageContent: db.prepare(`
+    SELECT message_content
+    FROM messages
+    WHERE telegram_id = ?
+      AND whatsapp_chat_id = ?
+      AND whatsapp_message_id = ?
+      AND direction = ?
+    LIMIT 1
   `),
 
   // [ADDED] Mark a stored WhatsApp message as revoked while preserving its body.
@@ -720,6 +754,7 @@ export function saveWhatsAppMessage(input) {
       media_mimetype: input.mediaMimetype || null,
       media_file_name: input.mediaFileName || null,
       message_timestamp: timestamp,
+      message_content: input.messageContent || null,
       now
     });
 
@@ -735,6 +770,71 @@ export function saveWhatsAppMessage(input) {
 
     return result.changes > 0;
   })();
+}
+
+// [ADDED] Update an existing WhatsApp message after an authenticated edit event.
+export function updateWhatsAppMessage(telegramId, whatsappChatId, messageId, body) {
+  const ownerId = String(telegramId ?? "");
+  const chatId = String(whatsappChatId ?? "");
+  const waMessageId = String(messageId ?? "");
+  const editedBody = body == null ? null : String(body);
+
+  if (!/^\\d+$/.test(ownerId) || !chatId || !waMessageId || editedBody === null) {
+    return false;
+  }
+
+  const changed = statements.updateEditedMessage.run(
+    editedBody,
+    ownerId,
+    chatId,
+    waMessageId
+  ).changes > 0;
+
+  if (changed) {
+    const preview = editedBody.replace(/\\s+/g, " ").slice(0, 240);
+    db.prepare(`
+      UPDATE chats
+      SET last_message_preview = @preview,
+          updated_at = @now
+      WHERE telegram_id = @telegram_id
+        AND whatsapp_chat_id = @whatsapp_chat_id
+        AND whatsapp_message_id = (
+          SELECT whatsapp_message_id
+          FROM messages
+          WHERE telegram_id = @telegram_id
+            AND whatsapp_chat_id = @whatsapp_chat_id
+          ORDER BY message_timestamp DESC, id DESC
+          LIMIT 1
+        )
+    `).run({
+      preview,
+      now: Date.now(),
+      telegram_id: ownerId,
+      whatsapp_chat_id: chatId
+    });
+  }
+
+  return changed;
+}
+
+// [ADDED] Retrieve stored protobuf content for Baileys, scoped to the exact chat and sender direction.
+export function getWhatsAppMessageContent(telegramId, whatsappChatId, messageId, fromMe) {
+  const ownerId = String(telegramId ?? "");
+  const chatId = String(whatsappChatId ?? "");
+  const waMessageId = String(messageId ?? "");
+
+  if (!/^\\d+$/.test(ownerId) || !chatId || !waMessageId) {
+    return null;
+  }
+
+  const row = statements.getMessageContent.get(
+    ownerId,
+    chatId,
+    waMessageId,
+    fromMe ? "outgoing" : "incoming"
+  );
+
+  return row?.message_content || null;
 }
 
 // [ADDED] Persist a WhatsApp revoke event for the owning Telegram account.
