@@ -1211,7 +1211,7 @@ body.in-chat .toast,
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: grid;
+  display: none;
   place-items: center;
   overflow-y: auto;
   padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
@@ -1221,6 +1221,8 @@ body.in-chat .toast,
     #edf6f1;
   color: #15251d;
 }
+/* [MODIFIED] Keep QR pairing hidden until Connect is pressed in Profile. */
+.connection-gate.is-active { display: grid; }
 .connection-panel {
   width: min(100%, 430px);
   padding: 26px 22px 22px;
