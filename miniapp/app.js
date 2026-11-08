@@ -29,6 +29,7 @@
     search: "",
     messageHits: [],
     currentChat: null,
+    currentChatMessageSignature: "",
 
     calls: [],
     callsLoaded: false,
@@ -785,6 +786,7 @@
       state.currentChat = { ...state.currentChat, ...data.chat };
       updateConversationHeader();
       renderMessages(data.messages || []);
+      state.currentChatMessageSignature = getMessageSignature(data.messages || []);
 
       // [MODIFIED] Wait until the local read status is saved before refreshing unread badges.
       try {
@@ -1096,8 +1098,13 @@
     document.body.style.overflow = "";
   }
 
-  function renderMessages(messages) {
+  function renderMessages(messages, options = {}) {
     const list = $("#messageList");
+    const previousDistanceFromBottom =
+      list.scrollHeight - list.scrollTop - list.clientHeight;
+    const shouldStickToBottom = options.preservePosition
+      ? previousDistanceFromBottom < 200
+      : true;
 
     if (!messages.length) {
       list.innerHTML = emptyState("chat", "Belum ada pesan", "Riwayat pesan akan muncul di sini.");
@@ -1139,8 +1146,15 @@
       return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""}">${sender}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""}</div></div>`;
     }).join("");
 
-    list.scrollTop = list.scrollHeight;
-    nearBottom = true;
+    if (shouldStickToBottom) {
+      list.scrollTop = list.scrollHeight;
+    } else {
+      list.scrollTop = Math.max(
+        0,
+        list.scrollHeight - list.clientHeight - previousDistanceFromBottom
+      );
+    }
+    nearBottom = shouldStickToBottom;
     observeMedia(list);
   }
 
@@ -2460,7 +2474,8 @@
     });
   }
 
-  // [ADDED] WebSocket realtime: server broadcasts only after database commits.
+  // [ADDED] WebSocket realtime with a polling fallback for mobile WebViews/proxies.
+  let chatRefreshInFlight = false;
   let realtimeSocket = null;
   let realtimeRetryTimer = null;
   let realtimeRetryDelay = 1000;
@@ -2468,6 +2483,66 @@
   const pendingRealtimeChatIds = new Set();
   let pendingCallsRefresh = false;
   let pendingConnectionStatus = null;
+
+  function getMessageSignature(messages) {
+    return messages.map((message) => [
+      message.whatsapp_message_id,
+      message.message_timestamp,
+      message.body || "",
+      message.has_media ? 1 : 0,
+      message.media_file_name || ""
+    ].join(":")).join("|");
+  }
+
+  async function refreshOpenChat() {
+    const chatId = state.currentChat?.whatsapp_chat_id;
+    if (
+      !chatId ||
+      chatRefreshInFlight ||
+      document.visibilityState !== "visible"
+    ) {
+      return;
+    }
+
+    chatRefreshInFlight = true;
+
+    try {
+      const data = await api(`/chats/${enc(chatId)}/messages?limit=200`);
+
+      if (state.currentChat?.whatsapp_chat_id !== chatId) return;
+
+      const messages = data.messages || [];
+      const signature = getMessageSignature(messages);
+
+      if (signature !== state.currentChatMessageSignature) {
+        state.currentChatMessageSignature = signature;
+        state.currentChat = { ...state.currentChat, ...data.chat };
+        updateConversationHeader();
+        renderMessages(messages, { preservePosition: true });
+
+        // Messages received while this conversation is open are locally read.
+        await api(`/chats/${enc(chatId)}/read`, { method: "POST" });
+
+        if (state.currentChat?.whatsapp_chat_id === chatId) {
+          await loadChats();
+          const openedChat = state.chats.find(
+            (chat) => chat.whatsapp_chat_id === chatId
+          );
+          if (openedChat) openedChat.unread_count = 0;
+          state.chatCounts.unread = state.chats.filter(
+            (chat) => Number(chat.unread_count) > 0
+          ).length;
+          updateChatFilterCounts();
+          renderChats();
+          updateBottomNavBadges();
+        }
+      }
+    } catch (error) {
+      console.warn("Could not refresh open Mini App chat:", error.message);
+    } finally {
+      chatRefreshInFlight = false;
+    }
+  }
 
   function scheduleRealtimeRefresh(event) {
     if (event.type === "message.created" || event.type === "media.ready") {
@@ -2487,7 +2562,7 @@
 
         const currentChatId = state.currentChat?.whatsapp_chat_id;
         if (currentChatId && chatIds.includes(currentChatId)) {
-          openChat(currentChatId);
+          refreshOpenChat();
         }
       }
 
@@ -2581,6 +2656,10 @@
     // [ADDED] Load call history in the background so new incoming calls can badge the tab.
     loadCalls();
     connectRealtime();
+    // [ADDED] Poll only while a conversation is open; WebSocket remains the fast path.
+    window.setInterval(() => {
+      if (state.currentChat) refreshOpenChat();
+    }, 2000);
     window.addEventListener("online", connectRealtime);
     document.addEventListener("visibilitychange", handleVisibilityChange);
   }
