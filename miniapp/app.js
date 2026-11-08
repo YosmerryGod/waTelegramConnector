@@ -2888,8 +2888,6 @@
 
   // [ADDED] Show the two-step introduction once per Telegram account on this device.
   const ONBOARDING_STORAGE_KEY = "wagram-onboarding-completed";
-  // [ADDED] Admin onboarding preview can only be opened once per Telegram account on this device.
-  const ONBOARDING_PREVIEW_STORAGE_KEY = "wagram-onboarding-preview-used";
   function initOnboarding() {
     const overlay = $("#wagramOnboarding");
     if (!overlay) return;
@@ -2897,20 +2895,15 @@
     let completed = false;
     try {
       const telegramUserId = String(tg?.initDataUnsafe?.user?.id || "guest");
-      const completedKey = `${ONBOARDING_STORAGE_KEY}:${telegramUserId}`;
-      const previewUsedKey = `${ONBOARDING_PREVIEW_STORAGE_KEY}:${telegramUserId}`;
-      completed = localStorage.getItem(completedKey) === "1";
-      // [MODIFIED] Admin preview is allowed once; later uses of /set onboarding open the main app.
+      completed = localStorage.getItem(`${ONBOARDING_STORAGE_KEY}:${telegramUserId}`) === "1";
+      // [ADDED] Admin preview query bypasses the completed flag without resetting it.
       const forcePreview = new URLSearchParams(window.location.search).get("previewOnboarding") === "1";
-      const previewAlreadyUsed = localStorage.getItem(previewUsedKey) === "1";
-      if (forcePreview && previewAlreadyUsed) return;
-      if (forcePreview) localStorage.setItem(previewUsedKey, "1");
       if (completed && !forcePreview) return;
     } catch {
       completed = false;
     }
 
-    if (completed && !forcePreview) return;
+    if (completed) return;
 
     const welcome = $("#onboardingWelcome");
     const features = $("#onboardingFeatures");
