@@ -3154,3 +3154,110 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 @media(prefers-reduced-motion:reduce) {
   .loading-process-ring,.loading-brand-logo,.loading-brand-wrap::before { animation:none; }
 }
+
+
+/* [ADDED] WAGRAM compact bottom navigation: icons only, active item expands inline. */
+.bottom-nav {
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-item {
+  min-width: 0;
+  min-height: 48px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 0;
+  padding: 0 10px;
+  border-radius: 16px;
+  transition:
+    flex-grow .24s ease,
+    background .24s ease,
+    color .24s ease,
+    box-shadow .24s ease,
+    transform .18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-item span {
+  display: none;
+}
+
+.nav-item .i {
+  flex: 0 0 23px;
+  width: 23px;
+  height: 23px;
+  transition: transform .24s ease;
+}
+
+.nav-item.selected {
+  flex-grow: 1.35;
+  gap: 9px;
+  padding: 0 17px;
+}
+
+.nav-item.selected span {
+  display: inline;
+  overflow: hidden;
+  max-width: 100px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  animation: nav-label-in .22s ease both;
+}
+
+.nav-item.selected .i {
+  transform: scale(1.04);
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@keyframes nav-label-in {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 360px) {
+  .bottom-nav {
+    gap: 5px;
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .nav-item {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .nav-item.selected {
+    gap: 7px;
+    padding-right: 11px;
+    padding-left: 11px;
+  }
+
+  .nav-item.selected span {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-item,
+  .nav-item .i {
+    transition: none;
+  }
+
+  .nav-item.selected span {
+    animation: none;
+  }
+}
