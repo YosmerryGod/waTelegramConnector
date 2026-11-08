@@ -3672,3 +3672,25 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
     transition:none;
   }
 }
+
+
+/* [ADDED] Orange Premium treatment for locked group and channel rows. */
+.chat-row-content.is-premium-locked,
+.chat-swipe-row.is-premium-locked .chat-row-content {
+  background: color-mix(in srgb, #f59e0b 9%, var(--surface));
+  border-color: color-mix(in srgb, #f59e0b 28%, var(--border));
+}
+.chat-row-content.is-premium-locked .item-title,
+.chat-swipe-row.is-premium-locked .item-title {
+  color: #f5a623;
+}
+.premium-chat-crown {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 7px;
+  font-size: 13px;
+  vertical-align: 1px;
+}
+.chat-row-content.is-premium-locked .item-sub {
+  color: #d99a32;
+}
