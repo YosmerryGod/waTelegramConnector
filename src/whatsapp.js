@@ -6,6 +6,7 @@ import pino from "pino";
 
 import makeWASocket, {
   DisconnectReason,
+  WAMessageStubType,
   useMultiFileAuthState
 } from "@whiskeysockets/baileys";
 
@@ -647,6 +648,68 @@ async function createSocket(id, entry) {
               messageId: message.key.id
             },
             "Message forwarding callback failed"
+          );
+        }
+      }
+    });
+
+    // [ADDED] Detect WhatsApp messages revoked for everyone.
+    socket.ev.on("messages.update", async (updates) => {
+      if (connections.get(id) !== entry || entry.stopping) {
+        return;
+      }
+
+      for (const item of updates || []) {
+        if (
+          item?.update?.messageStubType !== WAMessageStubType.REVOKE ||
+          !item.key?.remoteJid ||
+          !item.key?.id
+        ) {
+          continue;
+        }
+
+        try {
+          await entry.callbacks.onMessageDeleted?.({
+            telegramId: id,
+            key: item.key,
+            socket
+          });
+        } catch (error) {
+          logger.error(
+            { err: error, telegramId: id, messageId: item.key.id },
+            "WhatsApp revoke event callback failed"
+          );
+        }
+      }
+    });
+
+    // [ADDED] Handle Baileys delete events that provide message keys directly.
+    socket.ev.on("messages.delete", async (event) => {
+      if (connections.get(id) !== entry || entry.stopping) {
+        return;
+      }
+
+      const keys = Array.isArray(event)
+        ? event
+        : Array.isArray(event?.keys)
+          ? event.keys
+          : [];
+
+      for (const key of keys) {
+        if (!key?.remoteJid || !key?.id) {
+          continue;
+        }
+
+        try {
+          await entry.callbacks.onMessageDeleted?.({
+            telegramId: id,
+            key,
+            socket
+          });
+        } catch (error) {
+          logger.error(
+            { err: error, telegramId: id, messageId: key.id },
+            "WhatsApp delete event callback failed"
           );
         }
       }

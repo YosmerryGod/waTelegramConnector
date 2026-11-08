@@ -190,6 +190,11 @@ if (!messageColumns.includes("media_storage_path")) {
   db.exec("ALTER TABLE messages ADD COLUMN media_storage_path TEXT");
 }
 
+// [ADDED] Persist WhatsApp revoke state without resetting existing message history.
+if (!messageColumns.includes("is_deleted")) {
+  db.exec("ALTER TABLE messages ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0");
+}
+
 // [ADDED] Migrate existing profile-cache databases before preparing queries.
 const profileCacheColumns = db
   .prepare("PRAGMA table_info(whatsapp_profile_cache)")
@@ -385,6 +390,16 @@ const statements = {
       @message_timestamp,
       @now
     )
+  `),
+
+  // [ADDED] Mark a stored WhatsApp message as revoked while preserving its body.
+  markMessageDeleted: db.prepare(`
+    UPDATE messages
+    SET is_deleted = 1
+    WHERE telegram_id = ?
+      AND whatsapp_chat_id = ?
+      AND whatsapp_message_id = ?
+      AND is_deleted = 0
   `),
 
   updateChatPreview: db.prepare(`
@@ -720,6 +735,23 @@ export function saveWhatsAppMessage(input) {
 
     return result.changes > 0;
   })();
+}
+
+// [ADDED] Persist a WhatsApp revoke event for the owning Telegram account.
+export function markWhatsAppMessageDeleted(telegramId, whatsappChatId, messageId) {
+  const ownerId = String(telegramId ?? "");
+  const chatId = String(whatsappChatId ?? "");
+  const waMessageId = String(messageId ?? "");
+
+  if (!/^\d+$/.test(ownerId) || !chatId || !waMessageId) {
+    return false;
+  }
+
+  return statements.markMessageDeleted.run(
+    ownerId,
+    chatId,
+    waMessageId
+  ).changes > 0;
 }
 
 // Ambil daftar chat milik satu pengguna Telegram.

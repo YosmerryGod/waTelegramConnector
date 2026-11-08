@@ -13,6 +13,7 @@ import {
   markSessionDisconnected,
   reserveForwardedMessage,
   saveWhatsAppMessage, // [ADDED] Persist messages for the Mini App.
+  markWhatsAppMessageDeleted, // [ADDED] Persist WhatsApp message revoke events.
   attachLocalMedia, // [ADDED] Link private VPS media files to saved messages.
   // [ADDED] Contacts and call history.
   ValidationError,
@@ -1336,6 +1337,32 @@ export function createWhatsAppCallbacks(telegramId) {
       } catch (error) {
         console.error(
           "Failed to forward WhatsApp message:",
+          error.message
+        );
+      }
+    },
+
+    // [ADDED] Persist revoke status and refresh the Mini App without a Telegram notification.
+    onMessageDeleted: async ({ key }) => {
+      try {
+        const remoteJid = String(key?.remoteJid || "");
+        const messageId = String(key?.id || "");
+
+        if (!remoteJid || !messageId) {
+          return;
+        }
+
+        const changed = markWhatsAppMessageDeleted(id, remoteJid, messageId);
+
+        if (changed) {
+          publishToMiniApp(id, {
+            type: "message.deleted",
+            data: { chatId: remoteJid, messageId }
+          });
+        }
+      } catch (error) {
+        console.error(
+          "Failed to mark WhatsApp message as deleted:",
           error.message
         );
       }
