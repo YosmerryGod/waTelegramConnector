@@ -2791,6 +2791,10 @@
       pendingCallsRefresh = true;
     } else if (event.type === "connection.status") {
       pendingConnectionStatus = event.data?.status || null;
+    } else if (event.type === "membership.updated") {
+      // [ADDED] Refresh Premium access immediately after the server changes a user's plan.
+      loadMembership();
+      if (state.chatsLoaded) loadChats();
     }
 
     clearTimeout(realtimeRefreshTimer);
@@ -2878,7 +2882,7 @@
     // [ADDED] One database snapshot after returning from background.
     if (state.chatsLoaded) loadChats();
     if (state.callsLoaded) loadCalls();
-    if (state.page === "account") loadMembership(); // [ADDED] Refresh plan after returning to the Mini App.
+    loadMembership(); // [MODIFIED] Always refresh Premium access when returning to the Mini App.
   }
 
   function init() {
