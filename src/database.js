@@ -190,6 +190,17 @@ if (!telegramUserColumns.includes("plan_updated_at")) {
   db.exec("ALTER TABLE telegram_users ADD COLUMN plan_updated_at INTEGER");
 }
 
+// [ADDED] Free-tier daily pause tracking (Asia/Makassar / WITA).
+const whatsappSessionColumns = db
+  .prepare("PRAGMA table_info(whatsapp_sessions)")
+  .all()
+  .map((column) => column.name);
+
+if (!whatsappSessionColumns.includes("free_pause_date")) {
+  db.exec("ALTER TABLE whatsapp_sessions ADD COLUMN free_pause_date TEXT");
+}
+
+
 const configuredAdminIds = String(
   process.env.ADMIN_TELEGRAM_IDS || "6838814141"
 ).split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
@@ -760,7 +771,8 @@ export function updateSession(telegramId, status, phoneNumber = null) {
     "connecting",
     "connected",
     "qr",
-    "logged_out"
+    "logged_out",
+    "paused"
   ]);
 
   if (!allowedStatuses.has(status)) {
@@ -791,6 +803,15 @@ export function markSessionDisconnected(telegramId) {
     now
   });
 
+  return getSession(telegramId);
+}
+
+// [ADDED] Record the WITA calendar day already covered by the automatic Free pause.
+export function setFreePauseDate(telegramId, date) {
+  const now = Date.now();
+  statements.ensureSession.run(String(telegramId), now, now);
+  db.prepare("UPDATE whatsapp_sessions SET free_pause_date = ?, updated_at = ? WHERE telegram_id = ?")
+    .run(String(date), now, String(telegramId));
   return getSession(telegramId);
 }
 
