@@ -2885,6 +2885,61 @@
     loadMembership(); // [MODIFIED] Always refresh Premium access when returning to the Mini App.
   }
 
+
+  // [ADDED] Show the two-step introduction once per Telegram account on this device.
+  const ONBOARDING_STORAGE_KEY = "wagram-onboarding-completed";
+  function initOnboarding() {
+    const overlay = $("#wagramOnboarding");
+    if (!overlay) return;
+
+    let completed = false;
+    try {
+      const telegramUserId = String(tg?.initDataUnsafe?.user?.id || "guest");
+      completed = localStorage.getItem(`${ONBOARDING_STORAGE_KEY}:${telegramUserId}`) === "1";
+    } catch {
+      completed = false;
+    }
+
+    if (completed) return;
+
+    const welcome = $("#onboardingWelcome");
+    const features = $("#onboardingFeatures");
+    const step = $("#onboardingStep");
+    const dotOne = $("#onboardingDotOne");
+    const dotTwo = $("#onboardingDotTwo");
+
+    const showFeatures = () => {
+      welcome.classList.add("hidden");
+      features.classList.remove("hidden");
+      step.textContent = "02 / 02";
+      dotOne.classList.remove("active");
+      dotTwo.classList.add("active");
+    };
+
+    const showWelcome = () => {
+      features.classList.add("hidden");
+      welcome.classList.remove("hidden");
+      step.textContent = "01 / 02";
+      dotTwo.classList.remove("active");
+      dotOne.classList.add("active");
+    };
+
+    $("#onboardingNextButton")?.addEventListener("click", showFeatures);
+    $("#onboardingBackButton")?.addEventListener("click", showWelcome);
+    $("#onboardingFinishButton")?.addEventListener("click", () => {
+      try {
+        const telegramUserId = String(tg?.initDataUnsafe?.user?.id || "guest");
+        localStorage.setItem(`${ONBOARDING_STORAGE_KEY}:${telegramUserId}`, "1");
+      } catch {
+        // Continue into WAGRAM even when local storage is unavailable.
+      }
+      overlay.classList.add("is-dismissed");
+      window.setTimeout(() => overlay.remove(), 320);
+    });
+
+    overlay.classList.remove("hidden");
+  }
+
   function init() {
     initTelegram();
     bindEvents();
@@ -2896,6 +2951,7 @@
       requestAnimationFrame(() => {
         loadingScreen?.classList.add("is-hidden");
         window.setTimeout(() => loadingScreen?.remove(), 380);
+        initOnboarding(); // [ADDED] Show onboarding after the initial app load settles.
       });
     });
 
