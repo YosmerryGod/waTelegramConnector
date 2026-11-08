@@ -5,6 +5,9 @@
 import express from "express";
 import crypto from "node:crypto";
 import { Readable } from "node:stream";
+import fs from "node:fs";
+import path from "node:path";
+import { MEDIA_ROOT } from "./media-storage.js";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import QRCode from "qrcode";
@@ -41,12 +44,21 @@ const router = express.Router();
 
 // [ADDED] Public shape of a message: hide Telegram file ids.
 function toPublicMessage(message) {
-  const { telegram_file_id: fileId, telegram_file_kind: kind, ...rest } = message;
+  const {
+    telegram_file_id: fileId,
+    telegram_file_kind: telegramKind,
+    media_storage_path: storagePath,
+    ...rest
+  } = message;
+
+  const kind = telegramKind || (
+    rest.message_type === "image" ? "photo" : rest.message_type
+  );
 
   return {
     ...rest,
-    has_media: Boolean(fileId),
-    media_kind: fileId ? kind || null : null
+    has_media: Boolean(fileId || storagePath),
+    media_kind: storagePath || fileId ? kind || null : null
   };
 }
 
@@ -948,13 +960,69 @@ router.get("/messages/:id/media", async (req, res) => {
       ? getMessageMedia(req.telegramId, rowId)
       : null;
 
-    if (!media?.telegram_file_id) {
+    if (!media?.telegram_file_id && !media?.media_storage_path) {
       return res.status(404).json({
         ok: false,
         error: "MEDIA_NOT_FOUND"
       });
     }
 
+    // [ADDED] Serve private VPS files only from the configured media directory.
+    if (media.media_storage_path) {
+      const mediaRoot = path.resolve(MEDIA_ROOT) + path.sep;
+      const storagePath = path.resolve(media.media_storage_path);
+
+      if (!storagePath.startsWith(mediaRoot)) {
+        return res.status(404).json({
+          ok: false,
+          error: "MEDIA_NOT_FOUND"
+        });
+      }
+
+      let stat;
+
+      try {
+        stat = fs.statSync(storagePath);
+      } catch {
+        return res.status(404).json({
+          ok: false,
+          error: "MEDIA_NOT_FOUND"
+        });
+      }
+
+      if (!stat.isFile()) {
+        return res.status(404).json({
+          ok: false,
+          error: "MEDIA_NOT_FOUND"
+        });
+      }
+
+      const mimetype = String(media.media_mimetype || "application/octet-stream")
+        .split(";")[0]
+        .trim()
+        .toLowerCase();
+      const inlineTypes = new Set([
+        "image/jpeg", "image/png", "image/webp", "image/gif",
+        "video/mp4", "video/quicktime", "video/webm",
+        "audio/ogg", "audio/mpeg", "audio/mp4", "application/pdf"
+      ]);
+      const safeName = path.basename(String(media.media_file_name || "file"))
+        .replace(/[\\r\\n\\"]/g, "_");
+      const disposition = inlineTypes.has(mimetype) ? "inline" : "attachment";
+
+      res.setHeader("Content-Type", mimetype);
+      res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(safeName)}`);
+      res.setHeader("Content-Length", stat.size);
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Cache-Control", "private, max-age=86400");
+
+      fs.createReadStream(storagePath)
+        .on("error", () => res.destroy())
+        .pipe(res);
+      return;
+    }
+
+    // [ADDED] Compatibility with older rows that still reference Telegram files.
     let file;
 
     try {
