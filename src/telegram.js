@@ -1145,10 +1145,16 @@ export function createWhatsAppCallbacks(telegramId) {
 
         // [MODIFIED] Never attempt to download View Once media into WAGRAM.
         const info = viewOnceInfo ? null : getMediaInfo(content);
-        let body = info ? info.caption : getTextBody(content);
+        // [ADDED] Assign a non-null placeholder immediately so View Once messages
+        // are not discarded by the normal unsupported-message/noise filter.
+        let body = viewOnceInfo
+          ? "View Once media"
+          : info
+            ? info.caption
+            : getTextBody(content);
 
         // Skip noise such as protocol events and removed reactions.
-        if (body === null) {
+        if (!viewOnceInfo && body === null) {
           return;
         }
 
