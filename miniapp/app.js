@@ -21,6 +21,7 @@
   const state = {
     page: "chats",
     me: null,
+    membership: null, // [ADDED] Server-authoritative role and membership state.
 
     chats: [],
     chatsLoaded: false,
@@ -364,6 +365,7 @@
 
     if (page === "account") {
       renderAccount();
+      loadMembership(); // [ADDED] Refresh membership whenever Profile is opened.
       loadWhatsAppAccount();
       renderNotificationPreferences();
     }
@@ -458,11 +460,74 @@
 
       $("#connectionStatus").textContent = `Terhubung sebagai ${name}`;
       renderAccount();
-      await loadWhatsAppAccount();
+      await Promise.all([
+        loadMembership(),
+        loadWhatsAppAccount()
+      ]);
       renderNotificationPreferences();
     } catch (error) {
       $("#connectionStatus").textContent = error.message;
     }
+  }
+
+  // [ADDED] Fetch the active membership from the authenticated server API.
+  async function loadMembership() {
+    const tier = $(".profile-tier");
+    if (!tier) return;
+
+    try {
+      const data = await api("/account");
+      state.membership = data.account || null;
+      renderMembership();
+    } catch (error) {
+      console.error("Could not load WAGRAM membership:", error);
+      if (!state.membership) {
+        tier.textContent = "PLAN TIDAK TERSEDIA";
+        tier.removeAttribute("title");
+        tier.classList.remove("is-premium", "is-admin");
+      }
+    }
+  }
+
+  // [ADDED] Reflect the current plan and expiry in the Profile identity card.
+  function renderMembership() {
+    const tier = $(".profile-tier");
+    if (!tier) return;
+
+    const membership = state.membership;
+    if (!membership) {
+      tier.textContent = "FREE TIER";
+      tier.removeAttribute("title");
+      tier.classList.remove("is-premium", "is-admin");
+      return;
+    }
+
+    const isPremium = membership.plan && membership.plan !== "free";
+    const planLabels = {
+      free: "FREE TIER",
+      "premium-a": "PREMIUM A",
+      "premium-b": "PREMIUM B",
+      "premium-c": "PREMIUM C"
+    };
+
+    tier.textContent = planLabels[membership.plan] || "FREE TIER";
+    tier.classList.toggle("is-premium", Boolean(isPremium));
+    tier.classList.toggle("is-admin", membership.role === "admin");
+
+    const expiry = membership.plan_expires_at
+      ? new Date(membership.plan_expires_at).toLocaleString("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "Asia/Jakarta"
+        }) + " WIB"
+      : "Tidak ada batas waktu";
+
+    tier.title = [
+      `Role: ${membership.role || "user"}`,
+      `Plan: ${membership.plan_label || planLabels[membership.plan] || "Free"}`,
+      `Batas akun WhatsApp: ${membership.sessions_limit || 1}`,
+      `Berlaku sampai: ${expiry}`
+    ].join("\\n");
   }
 
   function renderAccount() {
@@ -2683,6 +2748,7 @@
     // [ADDED] One database snapshot after returning from background.
     if (state.chatsLoaded) loadChats();
     if (state.callsLoaded) loadCalls();
+    if (state.page === "account") loadMembership(); // [ADDED] Refresh plan after returning to the Mini App.
   }
 
   function init() {
