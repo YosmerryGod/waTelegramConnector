@@ -2903,7 +2903,8 @@
       completed = false;
     }
 
-    if (completed) return;
+    // [MODIFIED] Allow an explicit admin preview even when onboarding was already completed.
+    if (completed && !forcePreview) return;
 
     const welcome = $("#onboardingWelcome");
     const features = $("#onboardingFeatures");
