@@ -200,6 +200,15 @@ if (!whatsappSessionColumns.includes("free_pause_date")) {
   db.exec("ALTER TABLE whatsapp_sessions ADD COLUMN free_pause_date TEXT");
 }
 
+// [ADDED] Persist the administrator's Free-tier pause mode across restarts.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS app_settings (
+    setting_key TEXT PRIMARY KEY,
+    setting_value TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+  )
+`);
+
 
 const configuredAdminIds = String(
   process.env.ADMIN_TELEGRAM_IDS || "6838814141"
@@ -813,6 +822,26 @@ export function setFreePauseDate(telegramId, date) {
   db.prepare("UPDATE whatsapp_sessions SET free_pause_date = ?, updated_at = ? WHERE telegram_id = ?")
     .run(String(date), now, String(telegramId));
   return getSession(telegramId);
+}
+
+// [ADDED] Read a persisted application setting with a safe fallback.
+export function getAppSetting(key, fallback = null) {
+  const row = db.prepare(
+    "SELECT setting_value FROM app_settings WHERE setting_key = ?"
+  ).get(String(key));
+  return row?.setting_value ?? fallback;
+}
+
+// [ADDED] Persist an application setting.
+export function setAppSetting(key, value) {
+  db.prepare(`
+    INSERT INTO app_settings (setting_key, setting_value, updated_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(setting_key) DO UPDATE SET
+      setting_value = excluded.setting_value,
+      updated_at = excluded.updated_at
+  `).run(String(key), String(value), Date.now());
+  return getAppSetting(key);
 }
 
 export function deleteSession(telegramId) {
