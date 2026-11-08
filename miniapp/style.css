@@ -3684,17 +3684,28 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 .chat-swipe-row.is-premium-locked .item-title {
   color: #f5a623;
 }
-/* [MODIFIED] Position the crown at the top-right corner of locked chat cards. */
+/* [ADDED] Anchor the tilted Premium crown above the group/channel avatar. */
+.chat-avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
 .premium-chat-crown {
   position: absolute;
-  top: 8px;
-  right: 10px;
+  top: -9px;
+  right: -7px;
+  z-index: 3;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
-  font-size: 15px;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--surface);
+  border-radius: 50%;
+  background: #f59e0b;
+  font-size: 12px;
   line-height: 1;
+  transform: rotate(22deg);
   pointer-events: none;
 }
 .chat-row-content.is-premium-locked .item-sub {
