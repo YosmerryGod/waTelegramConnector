@@ -2896,6 +2896,9 @@
     try {
       const telegramUserId = String(tg?.initDataUnsafe?.user?.id || "guest");
       completed = localStorage.getItem(`${ONBOARDING_STORAGE_KEY}:${telegramUserId}`) === "1";
+      // [ADDED] Admin preview query bypasses the completed flag without resetting it.
+      const forcePreview = new URLSearchParams(window.location.search).get("previewOnboarding") === "1";
+      if (completed && !forcePreview) return;
     } catch {
       completed = false;
     }
