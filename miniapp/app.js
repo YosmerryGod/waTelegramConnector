@@ -479,6 +479,7 @@
       const data = await api("/account");
       state.membership = data.account || null;
       renderMembership();
+      renderNotificationPreferences(); // [ADDED] Reapply notification access after the membership refresh.
     } catch (error) {
       console.error("Could not load WAGRAM membership:", error);
       if (!state.membership) {
