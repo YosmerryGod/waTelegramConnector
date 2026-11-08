@@ -3400,10 +3400,21 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 }
 
 
-/* [ADDED] Subtle edited marker in the Mini App message timestamp. */
+/* [MODIFIED] Blue visual state for WhatsApp messages edited after sending. */
+.message.edited {
+  border: 1px solid color-mix(in srgb, var(--info) 42%, transparent);
+  background: color-mix(in srgb, var(--info-soft) 82%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--info);
+}
+.message.edited .message-text,
+.message.edited .message-meta,
+.message.edited .message-sender,
+.message-edited {
+  color: color-mix(in srgb, var(--info) 90%, var(--text));
+}
 .message-edited {
   margin-left: 4px;
   font-size: 10px;
   font-style: italic;
-  opacity: .65;
+  opacity: .85;
 }
