@@ -722,6 +722,12 @@
     return chat.display_name || chat.name || formatPhone(chat.phone_number) || chat.whatsapp_chat_id;
   }
 
+  // [ADDED] Free accounts cannot open WhatsApp groups or channels.
+  function isPremiumLockedChat(chat) {
+    const jid = String(chat?.whatsapp_chat_id || "");
+    return chat?.chat_type === "group" || jid.endsWith("@newsletter");
+  }
+
   function renderChats() {
     const list = $("#chatList");
     const query = state.search.trim().toLowerCase();
@@ -759,9 +765,10 @@
       const name = chatName(chat);
       const unread = Number(chat.unread_count) || 0;
       const isGroup = chat.chat_type === "group";
+      const isLocked = !isPremiumMembership() && isPremiumLockedChat(chat);
 
       return `
-        <div class="chat-swipe-row" data-chat-row="${escapeHTML(chat.whatsapp_chat_id)}">
+        <div class="chat-swipe-row ${isLocked ? "is-premium-locked" : ""}" data-chat-row="${escapeHTML(chat.whatsapp_chat_id)}">
           <div class="chat-actions">
             <button class="chat-favorite-action" type="button" data-favorite-chat="${escapeHTML(chat.whatsapp_chat_id)}" aria-label="${chat.is_favorite ? "Hapus dari favorit" : "Tambahkan ke favorit"}">
               ${icon("star")}
@@ -770,15 +777,15 @@
               ${icon("archive")}
             </button>
           </div>
-          <button class="list-item chat-row-content" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}">
+          <button class="list-item chat-row-content" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}" ${isLocked ? 'data-premium-chat="true"' : ""}>
             ${avatar(name, name, "", chat.profile_picture_url)}
             <div class="item-body">
               <div class="item-row">
-                <span class="item-title">${escapeHTML(name)}</span>
+                <span class="item-title">${escapeHTML(name)}${isLocked ? '<span class="premium-chat-crown" aria-label="Premium">👑</span>' : ""}</span>
                 <span class="item-time ${unread ? "is-unread" : ""}">${escapeHTML(formatListTime(chat.last_message_at))}</span>
               </div>
               <div class="item-row">
-                <span class="item-sub">${escapeHTML(chat.last_message_preview || (isGroup ? "Grup" : "Belum ada pesan"))}</span>
+                <span class="item-sub">${isLocked ? (chat.chat_type === "group" ? "Grup · Premium" : "Saluran · Premium") : escapeHTML(chat.last_message_preview || (isGroup ? "Grup" : "Belum ada pesan"))}</span>
                 ${chat.is_favorite || unread
                   ? `<span class="item-flags">${chat.is_favorite ? icon("star", "mini-icon fav") : ""}${unread ? `<span class="badge">${unread > 99 ? "99+" : unread}</span>` : ""}</span>`
                   : ""}
@@ -791,9 +798,11 @@
     const hitRows = hits.length
       ? `<div class="sub-heading">Pesan</div>` + hits.map((hit) => {
           const name = hit.chat_name || hit.sender_name || "Chat";
+          const hitChat = state.chats.find((chat) => chat.whatsapp_chat_id === hit.whatsapp_chat_id);
+          const isLocked = !isPremiumMembership() && isPremiumLockedChat(hitChat || { whatsapp_chat_id: hit.whatsapp_chat_id });
 
           return `
-            <button class="list-item" type="button" data-chat="${escapeHTML(hit.whatsapp_chat_id)}">
+            <button class="list-item ${isLocked ? "is-premium-locked" : ""}" type="button" data-chat="${escapeHTML(hit.whatsapp_chat_id)}" ${isLocked ? 'data-premium-chat="true"' : ""}>
               ${avatar(name, name, "small")}
               <div class="item-body">
                 <div class="item-row">
@@ -852,6 +861,12 @@
   }
 
   async function openChat(chatId) {
+    const requestedChat = state.chats.find((chat) => chat.whatsapp_chat_id === chatId);
+    if (!isPremiumMembership() && isPremiumLockedChat(requestedChat || { whatsapp_chat_id: chatId })) {
+      openPremiumSheet();
+      return;
+    }
+
     clearMediaCache();
 
     const known = state.chats.find((chat) => chat.whatsapp_chat_id === chatId);
@@ -2344,6 +2359,12 @@
 
       const row = event.target.closest("[data-chat]");
       if (!row) return;
+
+      if (row.dataset.premiumChat === "true") {
+        event.preventDefault();
+        openPremiumSheet();
+        return;
+      }
 
       const wrapper = row.closest(".chat-swipe-row");
       if (suppressChatClick) {
