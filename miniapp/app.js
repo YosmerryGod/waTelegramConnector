@@ -1120,6 +1120,8 @@
       const outgoing = message.direction === "outgoing";
       const deleted = Boolean(Number(message.is_deleted));
       const edited = Boolean(Number(message.is_edited));
+      // [ADDED] View Once messages are represented without exposing or downloading their media.
+      const viewOnce = message.message_type === "view_once";
 
       let separator = "";
 
@@ -1139,11 +1141,14 @@
 
       const media = message.has_media ? mediaHTML(message) : "";
 
-      const body = message.body
-        ? `<div class="message-text">${escapeHTML(message.body)}</div>`
-        : media
-          ? ""
-          : `<div class="message-text"><span class="message-media">${escapeHTML(mediaLabel(message))}</span></div>`;
+      // [ADDED] View Once content stays hidden; only a dedicated privacy notice is rendered.
+      const body = viewOnce
+        ? `<div class="view-once-content"><span class="view-once-symbol" aria-hidden="true">◉</span><div class="view-once-copy"><strong>Pesan sekali lihat</strong><span>Media ini hanya dapat dilihat langsung di WhatsApp.</span></div><button class="view-once-action" type="button" data-view-once-open="true">Buka WhatsApp</button></div>`
+        : message.body
+          ? `<div class="message-text">${escapeHTML(message.body)}</div>`
+          : media
+            ? ""
+            : `<div class="message-text"><span class="message-media">${escapeHTML(mediaLabel(message))}</span></div>`;
 
       const deletedLabel = deleted
         ? '<div class="message-status">Pesan dihapus</div>'
@@ -1154,7 +1159,7 @@
       const originalBubble = edited && !deleted && message.original_body != null
         ? `<div class="message original-version ${outgoing ? "outgoing" : ""}"><div class="message-text">${escapeHTML(message.original_body)}</div><div class="message-meta">Pesan sebelumnya</div></div><div class="edit-connector" aria-hidden="true"><span></span></div>`
         : "";
-      const currentBubble = `<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""}">${sender}${deletedLabel}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
+      const currentBubble = `<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""} ${viewOnce ? "view-once" : ""}">${sender}${deletedLabel}${viewOnce ? "" : media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
 
       if (originalBubble) {
         return `${separator}<div class="message-history-group ${outgoing ? "outgoing" : ""}" data-edit-expandable="true">${originalBubble}${currentBubble}</div>`;
@@ -2017,6 +2022,19 @@
     });
 
     messageList.addEventListener("click", (event) => {
+      // [ADDED] Open the current conversation in WhatsApp; the View Once media remains protected.
+      const viewOnceButton = event.target.closest("[data-view-once-open]");
+      if (viewOnceButton) {
+        event.stopPropagation();
+        const phone = state.currentChat?.phone_number;
+        if (!phone) {
+          showToast("Buka percakapan ini langsung dari WhatsApp untuk melihat media sekali lihat.");
+          return;
+        }
+        openWhatsApp(phone);
+        return;
+      }
+
       const profile = event.target.closest("[data-profile-jid]");
       if (profile) {
         openProfile(profile.dataset.profileJid, profile.dataset.profileName);
