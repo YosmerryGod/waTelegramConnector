@@ -993,8 +993,10 @@ async function forwardMedia({ chatId, socket, message, info, header, text }) {
 // ---------------------------------------------------------------------------
 
 // Create callbacks for one Telegram user's WhatsApp connection.
-export function createWhatsAppCallbacks(telegramId) {
+// [MODIFIED] Startup restoration can update Mini App status without Telegram spam.
+export function createWhatsAppCallbacks(telegramId, options = {}) {
   const id = String(telegramId);
+  const silentStartup = options.silentStartup === true;
 
   return {
     onQr: async (qr) => {
@@ -1061,6 +1063,11 @@ export function createWhatsAppCallbacks(telegramId) {
           console.error("Failed to send status:", error.message);
         }
       };
+
+      // [ADDED] Restored sessions stay silent on server startup; Mini App status is still broadcast above.
+      if (silentStartup && ["connecting", "connected"].includes(status)) {
+        return;
+      }
 
       // Manual /disconnect or shutdown: no timers, no reconnect notices.
       if (status === "disconnected" && info.intentional) {
