@@ -3261,3 +3261,22 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
     animation: none;
   }
 }
+
+
+/* [MODIFIED] Give the selected tab enough width for its full label. */
+.bottom-nav {
+  display: flex;
+}
+
+.nav-item {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.nav-item.selected {
+  flex: 1.9 1 0;
+}
+
+.nav-item.selected span {
+  max-width: 120px;
+}
