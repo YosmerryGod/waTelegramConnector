@@ -1646,7 +1646,8 @@ bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
 
   if (!Object.prototype.hasOwnProperty.call(MEMBERSHIP_PLANS, plan)) {
     await sendText(callerId,
-      "Format: /set <code> [telegram_id]\n\n" +\n      "onboarding — preview halaman awal WAGRAM (admin)\n" +
+      "Format: /set <code> [telegram_id]\n\n" +
+      "onboarding — preview halaman awal WAGRAM (admin)\n" +
       "free — Free\n" +
       "premium-a — 3 hari (Rp14.000)\n" +
       "premium-b — 7 hari (Rp44.000)\n" +
