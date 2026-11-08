@@ -1118,6 +1118,7 @@
       const ms = toMs(message.message_timestamp);
       const day = ms ? startOfDay(ms) : 0;
       const outgoing = message.direction === "outgoing";
+      const deleted = Boolean(Number(message.is_deleted));
 
       let separator = "";
 
@@ -1143,7 +1144,11 @@
           ? ""
           : `<div class="message-text"><span class="message-media">${escapeHTML(mediaLabel(message))}</span></div>`;
 
-      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""}">${sender}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""}</div></div>`;
+      const deletedLabel = deleted
+        ? '<div class="message-status">Pesan dihapus</div>'
+        : "";
+
+      return `${separator}<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""}">${sender}${deletedLabel}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""}</div></div>`;
     }).join("");
 
     if (shouldStickToBottom) {
@@ -2545,7 +2550,11 @@
   }
 
   function scheduleRealtimeRefresh(event) {
-    if (event.type === "message.created" || event.type === "media.ready") {
+    if (
+      event.type === "message.created" ||
+      event.type === "message.deleted" ||
+      event.type === "media.ready"
+    ) {
       if (event.data?.chatId) pendingRealtimeChatIds.add(event.data.chatId);
     } else if (event.type === "calls.updated") {
       pendingCallsRefresh = true;
