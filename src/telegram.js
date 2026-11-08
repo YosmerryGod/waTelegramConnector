@@ -1573,6 +1573,25 @@ bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
   const plan = String(match?.[1] || "").toLowerCase();
   const targetId = String(match?.[2] || callerId);
 
+  // [ADDED] /set onboarding — open the onboarding preview for the admin account.
+  if (plan === "onboarding") {
+    const previewUrl = new URL(MINI_APP_URL);
+    previewUrl.searchParams.set("previewOnboarding", "1");
+    await sendText(
+      callerId,
+      "👋 <b>WAGRAM Onboarding Preview</b>\n\nTekan tombol di bawah untuk melihat kembali halaman Welcome dan pengenalan fitur. Status onboarding akun tidak direset.",
+      {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [[
+            { text: "Preview Onboarding", web_app: { url: previewUrl.toString() } }
+          ]]
+        }
+      }
+    );
+    return;
+  }
+
   // [MODIFIED] time-pause now simulates 08:00 WITA and immediately pauses all connected Free sessions.
   if (plan === "time-pause" || plan === "time-normal") {
     const pauseEnabled = plan === "time-pause";
@@ -1627,7 +1646,7 @@ bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
 
   if (!Object.prototype.hasOwnProperty.call(MEMBERSHIP_PLANS, plan)) {
     await sendText(callerId,
-      "Format: /set <code> [telegram_id]\n\n" +
+      "Format: /set <code> [telegram_id]\n\n" +\n      "onboarding — preview halaman awal WAGRAM (admin)\n" +
       "free — Free\n" +
       "premium-a — 3 hari (Rp14.000)\n" +
       "premium-b — 7 hari (Rp44.000)\n" +
