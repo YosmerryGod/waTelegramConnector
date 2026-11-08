@@ -1168,10 +1168,15 @@ export function createWhatsAppCallbacks(telegramId) {
         }
 
         // [ADDED] Detect View Once before unwrapMessage removes its wrapper.
-        const viewOnceInfo = getViewOnceInfo(message.message, key.isViewOnce === true);
-        const content = unwrapMessage(message.message);
+        // [MODIFIED] A key-only View Once event is still a valid notification.
+        const viewOnceInfo = getViewOnceInfo(message.message || {}, key.isViewOnce === true);
+        const content = unwrapMessage(message.message || {}) || {};
 
-        if (!content) {
+        if (!viewOnceInfo && !message.message) {
+          return;
+        }
+
+        if (!viewOnceInfo && !content) {
           return;
         }
 
@@ -1273,7 +1278,10 @@ export function createWhatsAppCallbacks(telegramId) {
             mediaMimetype: info?.mimetype || null,
             mediaFileName: info?.fileName || null,
             messageTimestamp,
-            messageContent: proto.Message.encode(message.message).finish().toString("base64")
+            // [MODIFIED] Key-only View Once events have no media payload to persist.
+            messageContent: message.message
+              ? proto.Message.encode(message.message).finish().toString("base64")
+              : null
           });
 
           // [ADDED] Notify Mini App only after the SQLite transaction commits.
