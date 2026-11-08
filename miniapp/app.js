@@ -1020,8 +1020,9 @@
       view_once: "media sekali lihat"
     };
     const label = labels[kind] || "media";
-    const sender = message.contact_name || message.sender_name ||
-      chatName(state.currentChat || {});
+    const sender = message.direction === "outgoing"
+      ? "Anda"
+      : message.contact_name || message.sender_name || chatName(state.currentChat || {});
     const iconName = ["photo", "image"].includes(kind) ? "file"
       : ["video", "animation"].includes(kind) ? "video"
         : ["audio", "ptt"].includes(kind) ? "play"
@@ -1267,7 +1268,7 @@
           : `<div class="message-sender">${escapeHTML(senderName)}</div>`)
         : "";
 
-      const lockedMedia = Boolean(message.media_locked && !outgoing && !deleted && !viewOnce);
+      const lockedMedia = Boolean(message.media_locked && !deleted && !viewOnce);
       const media = lockedMedia
         ? lockedMediaHTML(message)
         : message.has_media ? mediaHTML(message) : "";
