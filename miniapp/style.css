@@ -3249,6 +3249,51 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   0%,100% { opacity:.55; transform:scale(.92); }
   50% { opacity:1; transform:scale(1.08); }
 }
+/* [MODIFIED] Refine welcome spacing and keep the primary action compact. */
+.onboarding-welcome {
+  justify-content:center;
+  padding:30px 24px calc(34px + env(safe-area-inset-bottom));
+}
+.onboarding-welcome-logo {
+  width:88px;
+  height:88px;
+  margin-bottom:26px;
+  padding:15px;
+  border-radius:26px;
+}
+.onboarding-welcome-logo img {
+  max-width:58px;
+  max-height:58px;
+}
+.onboarding-welcome-kicker {
+  margin-bottom:11px;
+  font-size:8px;
+  letter-spacing:.18em;
+}
+.onboarding-welcome h1 {
+  font-size:clamp(28px,7.2vw,35px);
+  line-height:1.1;
+}
+.onboarding-welcome-description {
+  max-width:285px;
+  margin:13px auto 27px;
+  font-size:12px;
+  line-height:1.6;
+}
+.onboarding-welcome-button {
+  width:min(100%,280px);
+  min-height:50px;
+  margin:0 auto;
+  border-radius:15px;
+  font-size:13px;
+}
+@media(max-height:740px) {
+  .onboarding-welcome { padding-top:22px; padding-bottom:calc(26px + env(safe-area-inset-bottom)); }
+  .onboarding-welcome-logo { width:80px; height:80px; margin-bottom:21px; }
+  .onboarding-welcome-logo img { max-width:52px; max-height:52px; }
+  .onboarding-welcome-description { margin-bottom:22px; }
+  .onboarding-welcome-button { min-height:48px; }
+}
 @media(prefers-reduced-motion:reduce) {
   .loading-process-ring,.loading-brand-logo,.loading-brand-wrap::before { animation:none; }
 }
