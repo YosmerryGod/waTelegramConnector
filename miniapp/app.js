@@ -330,8 +330,6 @@
 
   function setPage(page) {
     state.page = page;
-    // [ADDED] Opening the Calls tab marks the currently received calls as seen.
-    if (page === "calls") markCallsSeen();
     closeTopbarSearch(false);
     updateTopbarTitle();
     // [ADDED] Show the add-contact action only on the Contacts page.
@@ -354,7 +352,8 @@
       }
     }
 
-    if (page === "calls" && (!state.callsLoaded || state.callsStale)) {
+    if (page === "calls") {
+      // [MODIFIED] Refresh first, then mark calls as seen after they are displayed.
       loadCalls();
     }
 
@@ -1332,6 +1331,7 @@
       }
       updateBottomNavBadges();
       renderCalls();
+      if (state.page === "calls") markCallsSeen();
     } catch (error) {
       state.callsLoaded = false;
       list.innerHTML = errorState(error.message, "retryCalls");
