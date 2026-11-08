@@ -786,12 +786,29 @@
       updateConversationHeader();
       renderMessages(data.messages || []);
 
-      // Status baca hanya lokal; tidak mengirim read receipt ke WhatsApp.
-      api(`/chats/${enc(chatId)}/read`, { method: "POST" }).catch(() => {});
-
-      if (known) {
-        known.unread_count = 0;
+      // [MODIFIED] Wait until the local read status is saved before refreshing unread badges.
+      try {
+        await api(`/chats/${enc(chatId)}/read`, { method: "POST" });
+      } catch (readError) {
+        console.warn("Could not mark chat as read in Mini App:", readError.message);
       }
+
+      // [MODIFIED] Clear the unread count immediately in the current UI.
+      const openedChat = state.chats.find(
+        (chat) => chat.whatsapp_chat_id === chatId
+      );
+
+      if (openedChat) {
+        openedChat.unread_count = 0;
+      }
+
+      state.chatCounts.unread = state.chats.filter(
+        (chat) => Number(chat.unread_count) > 0
+      ).length;
+
+      updateChatFilterCounts();
+      renderChats();
+      updateBottomNavBadges();
     } catch (error) {
       messageList.innerHTML = errorState(error.message, "retryMessages");
       $("#retryMessages")?.addEventListener("click", () => openChat(chatId));
