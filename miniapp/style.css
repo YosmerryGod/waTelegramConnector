@@ -3318,3 +3318,62 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 .nav-item .nav-badge.hidden {
   display: none;
 }
+
+
+/* [ADDED] Media players and document cards in the conversation timeline. */
+.audio-card,
+.document-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 62px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+
+.audio-card > .i,
+.document-card > .i {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.audio-card span,
+.document-card span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+  font-size: 13px;
+}
+
+.document-card strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-card small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.media-audio {
+  display: block;
+  width: min(100%, 280px);
+  min-height: 42px;
+  margin: 6px 0;
+}
