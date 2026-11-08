@@ -205,6 +205,11 @@ if (!messageColumns.includes("is_edited")) {
   db.exec("ALTER TABLE messages ADD COLUMN is_edited INTEGER NOT NULL DEFAULT 0");
 }
 
+// [ADDED] Preserve the first pre-edit text so users can expand it in the conversation.
+if (!messageColumns.includes("original_body")) {
+  db.exec("ALTER TABLE messages ADD COLUMN original_body TEXT");
+}
+
 // [ADDED] Migrate existing profile-cache databases before preparing queries.
 const profileCacheColumns = db
   .prepare("PRAGMA table_info(whatsapp_profile_cache)")
@@ -407,7 +412,8 @@ const statements = {
   // [ADDED] Update the original message body after a WhatsApp edit event.
   updateEditedMessage: db.prepare(`
     UPDATE messages
-    SET body = ?,
+    SET original_body = COALESCE(original_body, body),
+        body = ?,
         is_edited = 1
     WHERE telegram_id = ?
       AND whatsapp_chat_id = ?
