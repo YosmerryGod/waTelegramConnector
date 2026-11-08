@@ -3745,20 +3745,33 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   color: var(--muted);
   opacity: .58;
 }
+/* [MODIFIED] Keep the green toggle visible in a darker Premium-locked state. */
 .notification-switch.is-premium-locked {
-  display: grid;
-  place-items: center;
+  display: block;
   overflow: visible;
-  background: #18221d;
-  box-shadow: inset 0 0 0 1px #35483d;
+  background: #17633f;
+  box-shadow: inset 0 0 0 1px #287b54;
 }
+.notification-switch.is-premium-locked::after {
+  display: block;
+  transform: translateX(16px);
+  background: #a8c9b7;
+}
+/* [MODIFIED] Place the tilted crown just above the dark-green toggle. */
 .notification-lock-crown {
   position: absolute;
-  inset: 0;
+  top: -12px;
+  right: -5px;
+  left: auto;
+  bottom: auto;
+  z-index: 2;
   display: grid;
   place-items: center;
-  font-size: 14px;
+  width: 17px;
+  height: 17px;
+  font-size: 13px;
   line-height: 1;
   filter: none;
   transform: rotate(22deg);
+  pointer-events: none;
 }
