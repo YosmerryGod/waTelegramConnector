@@ -70,24 +70,53 @@
   <section id="wagramOnboarding" class="onboarding-screen hidden" aria-label="Pengenalan WAGRAM">
     <div class="onboarding-content onboarding-welcome" id="onboardingWelcome">
       <!-- [MODIFIED] Inline SVG hero illustration; no external or broken image asset. -->
-      <svg class="onboarding-hero-art" viewBox="0 0 420 280" role="img" aria-label="Ilustrasi WAGRAM menghubungkan WhatsApp dan Telegram" xmlns="http://www.w3.org/2000/svg">
+      <!-- [MODIFIED] Premium 3D-style WAGRAM ecosystem hero illustration. -->
+      <svg class="onboarding-hero-art" viewBox="0 0 520 430" role="img" aria-label="WAGRAM menghubungkan WhatsApp dan Telegram" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <linearGradient id="waTile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#36E58B"/><stop offset="1" stop-color="#079B59"/></linearGradient>
-          <linearGradient id="tgTile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#63D6FF"/><stop offset="1" stop-color="#1689D5"/></linearGradient>
-          <linearGradient id="linkLine" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#B7FFD9"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset="1" stop-color="#A8E9FF"/></linearGradient>
-          <filter id="tileShadow" x="-40%" y="-40%" width="180%" height="190%"><feGaussianBlur in="SourceAlpha" stdDeviation="12"/><feOffset dy="12"/><feComponentTransfer><feFuncA type="linear" slope=".25"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <linearGradient id="heroWa" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#56FF9B"/><stop offset=".48" stop-color="#0BCB65"/><stop offset="1" stop-color="#04783F"/></linearGradient>
+          <linearGradient id="heroTg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#69DFFF"/><stop offset=".5" stop-color="#169EEA"/><stop offset="1" stop-color="#0867B9"/></linearGradient>
+          <linearGradient id="heroBrand" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#35F28A"/><stop offset=".55" stop-color="#079C52"/><stop offset="1" stop-color="#005E35"/></linearGradient>
+          <linearGradient id="heroGlass" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="#FFFFFF" stop-opacity=".46"/><stop offset=".45" stop-color="#FFFFFF" stop-opacity=".08"/><stop offset="1" stop-color="#FFFFFF" stop-opacity=".02"/></linearGradient>
+          <linearGradient id="heroRing" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#8BFFB6" stop-opacity="0"/><stop offset=".3" stop-color="#9DFFC2"/><stop offset=".7" stop-color="#C5FFD9"/><stop offset="1" stop-color="#8BFFB6" stop-opacity="0"/></linearGradient>
+          <linearGradient id="heroBase" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#37E987"/><stop offset=".24" stop-color="#078B49"/><stop offset="1" stop-color="#004B2A"/></linearGradient>
+          <filter id="heroShadow" x="-50%" y="-50%" width="200%" height="220%"><feGaussianBlur in="SourceAlpha" stdDeviation="13"/><feOffset dy="15"/><feComponentTransfer><feFuncA type="linear" slope=".38"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="heroGlow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="9" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
-        <path d="M102 142 C145 63 275 63 318 142" fill="none" stroke="url(#linkLine)" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 10" opacity=".8"/>
-        <path d="M102 157 C145 236 275 236 318 157" fill="none" stroke="url(#linkLine)" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 10" opacity=".45"/>
-        <circle cx="210" cy="149" r="82" fill="#FFFFFF" opacity=".08"/>
-        <circle cx="210" cy="149" r="64" fill="#FFFFFF" opacity=".06"/>
-        <g filter="url(#tileShadow)" transform="rotate(-9 93 145)">
-          <rect x="24" y="77" width="138" height="138" rx="34" fill="#FFFFFF" fill-opacity=".18" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="2"/>
-          <rect x="34" y="87" width="118" height="118" rx="27" fill="url(#waTile)"/>
-          <!-- [MODIFIED] Original WhatsApp SVG path supplied by user. -->
-          <svg x="60" y="113" width="66" height="66" viewBox="-2 -2 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M16.8 5.7C14.4 2 9.5.9 5.7 3.2 2 5.5.8 10.5 3.2 14.2l.2.3-.8 3 3-.8.3.2c1.3.7 2.7 1.1 4.1 1.1 1.5 0 3-.4 4.3-1.2 3.7-2.4 4.8-7.3 2.5-11.1zm-2.1 7.7c-.4.6-.9 1-1.6 1.1-.4 0-.9.2-2.9-.6-1.7-.8-3.1-2.1-4.1-3.6-.6-.7-.9-1.6-1-2.5 0-.8.3-1.5.8-2 .2 0 .4 0 .5.4.2.5.7 1.7.7 1.8.1.1.1.3 0 .4.1.2 0 .4-.1.5-.1.1-.2.3-.3.4-.2.1-.3.3-.2.5.4.6.9 1.2 1.4 1.7.6.5 1.2.9 1.9 1.2.2.1.4.1.5-.1s.6-.7.8-.9c.2-.2.3-.2.5-.1l1.6.8c.1.1.3.1.3.5-.1.3-.1.7-.8 1.1Z" fill="#FFFFFF"/>
-          </svg>
+        <ellipse cx="260" cy="360" rx="176" ry="24" fill="#00FF7B" opacity=".2" filter="url(#heroGlow)"/>
+        <path d="M65 208C83 76 192 32 263 47c105 22 184 70 194 157" fill="none" stroke="#A4FFC5" stroke-width="2" opacity=".38"/>
+        <path d="M54 222C91 91 190 83 253 102c84 24 165 5 211 111" fill="none" stroke="url(#heroRing)" stroke-width="5" stroke-linecap="round" filter="url(#heroGlow)"/>
+        <path d="M72 230C118 329 208 341 276 314c69-27 125-68 177-119" fill="none" stroke="#9AFFBC" stroke-width="3" opacity=".72" stroke-linecap="round"/>
+        <ellipse cx="260" cy="349" rx="166" ry="24" fill="#003F27" opacity=".72"/>
+        <g filter="url(#heroShadow)">
+          <path d="M94 347c0-13 74-24 166-24s166 11 166 24v34c0 14-74 26-166 26S94 395 94 381Z" fill="url(#heroBase)" stroke="#8CFFB7" stroke-opacity=".55" stroke-width="2"/>
+          <ellipse cx="260" cy="347" rx="166" ry="25" fill="#0B8D4B" stroke="#8BFFB4" stroke-width="2"/>
+          <ellipse cx="260" cy="347" rx="123" ry="13" fill="#003F2A" opacity=".72"/>
+          <path d="M102 382c52 25 265 29 316 0" fill="none" stroke="#65FF9F" stroke-width="3" filter="url(#heroGlow)"/>
+        </g>
+        <g filter="url(#heroShadow)" transform="rotate(-13 119 225)">
+          <rect x="28" y="151" width="164" height="164" rx="42" fill="#003D29" opacity=".55"/>
+          <rect x="26" y="139" width="164" height="164" rx="42" fill="url(#heroWa)" stroke="#A8FFD0" stroke-width="3"/>
+          <rect x="33" y="146" width="150" height="150" rx="36" fill="url(#heroGlass)" stroke="#FFFFFF" stroke-opacity=".3"/>
+          <path d="M108 174c-29 0-52 22-52 50 0 10 3 20 9 28l-7 24 25-7c8 4 16 6 25 6 28 0 51-23 51-51s-23-50-51-50Zm0 87c-8 0-15-2-21-6l-3-2-14 4 4-14-2-3c-5-7-8-14-8-22 0-24 20-43 44-43s44 19 44 43-20 43-44 43Z" fill="#FFFFFF"/>
+          <path d="M91 214c3 14 17 29 31 34l10-10 14 7c-2 10-10 16-19 15-24-4-44-24-47-47-1-9 5-17 15-19l8 16-12 4Z" fill="#FFFFFF"/>
+        </g>
+        <g filter="url(#heroShadow)" transform="rotate(12 402 220)">
+          <rect x="324" y="139" width="164" height="164" rx="42" fill="#002E55" opacity=".55"/>
+          <rect x="322" y="127" width="164" height="164" rx="42" fill="url(#heroTg)" stroke="#B4EAFF" stroke-width="3"/>
+          <rect x="329" y="134" width="150" height="150" rx="36" fill="url(#heroGlass)" stroke="#FFFFFF" stroke-opacity=".3"/>
+          <path d="M353 201 452 160c8-3 13 2 10 11l-18 83c-2 8-8 10-14 5l-26-20-15 14c-4 4-7 3-8-3l5-28 53-49c3-3 0-5-3-3l-65 40-27-9c-8-3-8-7 9-14Z" fill="#FFFFFF"/>
+        </g>
+        <g filter="url(#heroShadow)">
+          <rect x="164" y="39" width="192" height="192" rx="48" fill="#00472D" opacity=".55"/>
+          <rect x="160" y="25" width="200" height="200" rx="49" fill="url(#heroBrand)" stroke="#B4FFD0" stroke-width="3"/>
+          <rect x="168" y="33" width="184" height="184" rx="43" fill="url(#heroGlass)" stroke="#FFFFFF" stroke-opacity=".35"/>
+          <path d="M260 70c-37 0-67 28-67 64 0 14 4 27 12 38l-9 34 36-10c9 5 19 7 29 7 37 0 67-30 67-67s-30-66-68-66Zm0 113c-10 0-19-3-27-8l-4-2-21 6 6-20-3-4c-7-9-10-19-10-30 0-32 26-57 59-57s59 25 59 57-26 58-59 58Z" fill="#FFFFFF"/>
+          <path d="m220 119 78-4-38 49-40-45Z" fill="#FFFFFF"/>
+          <path d="m220 119 78-4-38 9-40-5Z" fill="#0B8D4B" opacity=".9"/>
+        </g>
+        <path d="M184 255c-21-8-33-19-43-34m238 29c16-8 27-19 36-33" fill="none" stroke="#A4FFC4" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+        <circle cx="65" cy="106" r="4" fill="#C6FFDA"/><circle cx="448" cy="91" r="5" fill="#C6FFDA"/><circle cx="260" cy="8" r="4" fill="#FFFFFF" opacity=".8"/>
+      </svg>
         </g>
         <g filter="url(#tileShadow)" transform="rotate(9 327 145)">
           <rect x="258" y="77" width="138" height="138" rx="34" fill="#FFFFFF" fill-opacity=".18" stroke="#FFFFFF" stroke-opacity=".55" stroke-width="2"/>
@@ -110,6 +139,11 @@
       <p class="onboarding-welcome-kicker">YOUR WHATSAPP, CONNECTED</p>
       <h1>WA Telegram<br>Connector</h1>
       <p class="onboarding-welcome-description">Hubungkan WhatsApp ke Telegram. Sederhana, cepat, dan andal.</p>
+      <div class="onboarding-hero-benefits" aria-label="Keunggulan WAGRAM">
+        <span><b>↯</b> Real-time</span>
+        <span><b>◇</b> Aman &amp; Privat</span>
+        <span><b>▱</b> Fleksibel</span>
+      </div>
       <button class="onboarding-primary onboarding-welcome-button" id="onboardingNextButton" type="button">Mulai <span aria-hidden="true">→</span></button>
     </div>
 
