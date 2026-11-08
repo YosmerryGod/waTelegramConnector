@@ -1540,7 +1540,7 @@ function formatMembership(membership) {
 }
 
 // [ADDED] /me — show the caller's role and active plan.
-bot.onText(/^\/me(?:@\\w+)?$/, async (msg) => {
+bot.onText(/^\/me(?:@\w+)?$/, async (msg) => {
   const telegramId = String(msg.from.id);
   const user = getUser(telegramId);
   if (!user) {
@@ -1552,7 +1552,7 @@ bot.onText(/^\/me(?:@\\w+)?$/, async (msg) => {
 });
 
 // [ADDED] /set <plan> [telegram_id] — admin-only manual membership assignment.
-bot.onText(/^\/set(?:@\\w+)?(?:\\s+(\\S+))?(?:\\s+(\\d+))?$/, async (msg, match) => {
+bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
   const callerId = String(msg.from.id);
   if (!isAdmin(callerId)) {
     await sendText(callerId, "⛔ Command ini khusus admin.");
@@ -1590,7 +1590,7 @@ bot.onText(/^\/set(?:@\\w+)?(?:\\s+(\\S+))?(?:\\s+(\\d+))?$/, async (msg, match)
 });
 
 // [ADDED] /users — admin-only user and membership overview.
-bot.onText(/^\/users(?:@\\w+)?$/, async (msg) => {
+bot.onText(/^\/users(?:@\w+)?$/, async (msg) => {
   const callerId = String(msg.from.id);
   if (!isAdmin(callerId)) {
     await sendText(callerId, "⛔ Command ini khusus admin.");
@@ -1606,7 +1606,7 @@ bot.onText(/^\/users(?:@\\w+)?$/, async (msg) => {
 });
 
 // [ADDED] /user <telegram_id> — admin-only membership lookup.
-bot.onText(/^\/user(?:@\\w+)?\\s+(\\d+)$/, async (msg, match) => {
+bot.onText(/^\/user(?:@\w+)?\s+(\d+)$/, async (msg, match) => {
   const callerId = String(msg.from.id);
   if (!isAdmin(callerId)) {
     await sendText(callerId, "⛔ Command ini khusus admin.");
@@ -1790,6 +1790,8 @@ bot.setMyCommands([
   { command: "start", description: "Start WAGRAM and open the dashboard" },
   { command: "status", description: "Check WhatsApp connection status" },
   { command: "me", description: "Show your role and membership" },
+  { command: "set", description: "Admin: change a user's membership" },
+  { command: "users", description: "Admin: list registered users" },
   { command: "help", description: "Show WAGRAM help" }
 ]).catch((error) => {
   console.error("Failed to register Telegram commands:", error.message);
