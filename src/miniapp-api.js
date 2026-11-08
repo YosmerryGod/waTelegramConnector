@@ -548,10 +548,23 @@ router.get("/chats/:chatId/messages", (req, res) => {
       });
     }
 
+    // [ADDED] Enforce the group/channel Premium gate on the server.
+    const membership = getMembership(req.telegramId);
+    const isPremium = Boolean(membership?.plan && membership.plan !== "free");
+    const isGroupOrChannel = chat.chat_type === "group"
+      || String(chat.whatsapp_chat_id || "").endsWith("@newsletter");
+
+    if (!isPremium && isGroupOrChannel) {
+      return res.status(403).json({
+        ok: false,
+        error: "PREMIUM_REQUIRED",
+        message: "Grup dan saluran hanya tersedia untuk pengguna Premium."
+      });
+    }
+
     const limit = parseLimit(req.query.limit, 100, MAX_MESSAGES);
 
     // The database returns newest-first; reverse for chronological display.
-    const membership = getMembership(req.telegramId);
     const messages = listMessages(
       req.telegramId,
       chatId,
