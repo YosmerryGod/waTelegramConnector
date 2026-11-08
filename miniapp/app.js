@@ -569,8 +569,9 @@
     try {
       const data = await api("/connection");
       const connected = data.status === "connected";
+      const paused = data.status === "paused";
       phone.textContent = data.phoneNumber ? `+${String(data.phoneNumber).replace(/^\+/, "")}` : "Nomor belum tersedia";
-      $("#accountWhatsAppName").textContent = connected
+      $("#accountWhatsAppName").textContent = connected || paused
         ? (data.displayName || "WhatsApp")
         : "WhatsApp";
       const photo = $("#accountWhatsAppPhoto");
@@ -582,8 +583,14 @@
         photo.classList.add("hidden");
       }
       stateLabel.classList.toggle("is-connected", connected);
-      stateLabel.textContent = connected ? "Connected" : "Disconnected";
-      disconnectButton.disabled = !connected;
+      stateLabel.classList.toggle("is-paused", paused);
+      stateLabel.disabled = connected || (!paused && data.status !== "disconnected");
+      stateLabel.innerHTML = connected
+        ? "<i></i> Connected"
+        : paused
+          ? "<i></i> Paused"
+          : "<i></i> Disconnected";
+      disconnectButton.disabled = !connected && !paused;
     } catch (error) {
       phone.textContent = "Status koneksi tidak tersedia";
       stateLabel.classList.remove("is-connected");
@@ -2163,6 +2170,22 @@
         return;
       }
       toggleNotificationPreference(button);
+    });
+
+    // [ADDED] Resume a Free session from Paused using its saved WhatsApp authentication.
+    $("#accountWhatsAppState").addEventListener("click", async () => {
+      const button = $("#accountWhatsAppState");
+      if (!button.classList.contains("is-paused")) return;
+      button.disabled = true;
+      button.textContent = "Connecting…";
+      try {
+        await api("/connection/connect", { method: "POST", body: JSON.stringify({}) });
+        showToast("Mengaktifkan kembali WhatsApp…");
+      } catch (error) {
+        showToast(error.message);
+      } finally {
+        await loadWhatsAppAccount();
+      }
     });
 
     // [ADDED] Disconnect the currently linked WhatsApp session.
