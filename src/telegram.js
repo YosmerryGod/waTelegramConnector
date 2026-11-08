@@ -8,6 +8,10 @@ import { publishToMiniApp } from "./realtime.js";
 import {
   registerUser,
   getUser,
+  getMembership,
+  setMembership,
+  listMembershipUsers,
+  MEMBERSHIP_PLANS,
   getSession,
   updateSession,
   markSessionDisconnected,
@@ -1506,6 +1510,119 @@ bot.onText(/^\/start(?:@\w+)?$/, async (msg) => {
 // [REMOVED] Legacy Telegram command disabled; use the WAGRAM Mini App.
 
 
+// [ADDED] Admin access is restricted to configured Telegram IDs.
+const ADMIN_TELEGRAM_IDS = new Set(
+  String(process.env.ADMIN_TELEGRAM_IDS || "6838814141")
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => /^\d+$/.test(id))
+);
+
+function isAdmin(telegramId) {
+  return ADMIN_TELEGRAM_IDS.has(String(telegramId));
+}
+
+function formatMembership(membership) {
+  if (!membership) return "Account tidak ditemukan.";
+  const expiry = membership.plan_expires_at
+    ? new Date(membership.plan_expires_at).toLocaleString("id-ID", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: "Asia/Jakarta"
+      }) + " WIB"
+    : "Tidak ada batas waktu";
+  return [
+    `Role: ${membership.role}`,
+    `Plan: ${membership.plan_label} (${membership.plan})`,
+    `Batas akun WhatsApp: ${membership.sessions_limit}`,
+    `Berlaku sampai: ${expiry}`
+  ].join("\n");
+}
+
+// [ADDED] /me — show the caller's role and active plan.
+bot.onText(/^\/me(?:@\\w+)?$/, async (msg) => {
+  const telegramId = String(msg.from.id);
+  const user = getUser(telegramId);
+  if (!user) {
+    await sendText(telegramId, "Kirim /start terlebih dahulu.");
+    return;
+  }
+  await sendText(telegramId, "👤 <b>WAGRAM Account</b>\n\n" +
+    formatMembership(getMembership(telegramId)), { parse_mode: "HTML" });
+});
+
+// [ADDED] /set <plan> [telegram_id] — admin-only manual membership assignment.
+bot.onText(/^\/set(?:@\\w+)?(?:\\s+(\\S+))?(?:\\s+(\\d+))?$/, async (msg, match) => {
+  const callerId = String(msg.from.id);
+  if (!isAdmin(callerId)) {
+    await sendText(callerId, "⛔ Command ini khusus admin.");
+    return;
+  }
+
+  const plan = String(match?.[1] || "").toLowerCase();
+  const targetId = String(match?.[2] || callerId);
+  if (!Object.prototype.hasOwnProperty.call(MEMBERSHIP_PLANS, plan)) {
+    await sendText(callerId,
+      "Format: /set <code> [telegram_id]\n\n" +
+      "free — Free\n" +
+      "premium-a — 3 hari (Rp14.000)\n" +
+      "premium-b — 7 hari (Rp44.000)\n" +
+      "premium-c — 30 hari (Rp149.000)");
+    return;
+  }
+
+  const membership = setMembership(targetId, plan);
+  if (!membership) {
+    await sendText(callerId, `User ${targetId} belum terdaftar. Minta user mengirim /start dulu.`);
+    return;
+  }
+
+  await sendText(callerId,
+    `✅ Membership diperbarui untuk ${targetId}\n\n${formatMembership(membership)}`);
+  if (targetId !== callerId) {
+    try {
+      await sendText(targetId,
+        `🎉 Plan WAGRAM kamu diperbarui menjadi ${membership.plan_label}.\n\n${formatMembership(membership)}`);
+    } catch (error) {
+      console.warn("Could not notify membership target:", error.message);
+    }
+  }
+});
+
+// [ADDED] /users — admin-only user and membership overview.
+bot.onText(/^\/users(?:@\\w+)?$/, async (msg) => {
+  const callerId = String(msg.from.id);
+  if (!isAdmin(callerId)) {
+    await sendText(callerId, "⛔ Command ini khusus admin.");
+    return;
+  }
+  const users = listMembershipUsers();
+  const lines = users.slice(0, 40).map((user) =>
+    `• ${user.first_name || user.username || user.telegram_id} — ${user.membership?.plan || "free"} — ${user.telegram_id}`
+  );
+  await sendText(callerId,
+    `👥 <b>WAGRAM Users</b> (${users.length})\n\n${lines.join("\n") || "Belum ada user."}`,
+    { parse_mode: "HTML" });
+});
+
+// [ADDED] /user <telegram_id> — admin-only membership lookup.
+bot.onText(/^\/user(?:@\\w+)?\\s+(\\d+)$/, async (msg, match) => {
+  const callerId = String(msg.from.id);
+  if (!isAdmin(callerId)) {
+    await sendText(callerId, "⛔ Command ini khusus admin.");
+    return;
+  }
+  const targetId = match[1];
+  const user = getUser(targetId);
+  if (!user) {
+    await sendText(callerId, `User ${targetId} belum terdaftar.`);
+    return;
+  }
+  await sendText(callerId,
+    `👤 <b>User ${targetId}</b>\n\n${formatMembership(getMembership(targetId))}`,
+    { parse_mode: "HTML" });
+});
+
 // /status — show the live WhatsApp connection status.
 bot.onText(/^\/status(?:@\w+)?$/, async (msg) => {
   const telegramId = String(msg.from.id);
@@ -1657,6 +1774,7 @@ bot.onText(/^\/help(?:@\w+)?$/, async (msg) => {
       "<b>Available Commands</b>\n" +
       "/start — start WAGRAM and open your dashboard\n" +
       "/status — check your WhatsApp connection\n" +
+      "/me — show your role and membership\n" +
       "/help — show this guide\n\n" +
       "<b>What you can do</b>\n" +
       "• Manage your WhatsApp connection\n" +
@@ -1671,6 +1789,7 @@ bot.onText(/^\/help(?:@\w+)?$/, async (msg) => {
 bot.setMyCommands([
   { command: "start", description: "Start WAGRAM and open the dashboard" },
   { command: "status", description: "Check WhatsApp connection status" },
+  { command: "me", description: "Show your role and membership" },
   { command: "help", description: "Show WAGRAM help" }
 ]).catch((error) => {
   console.error("Failed to register Telegram commands:", error.message);
