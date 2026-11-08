@@ -330,6 +330,8 @@
 
   function setPage(page) {
     state.page = page;
+    // [ADDED] Opening the Calls tab marks the currently received calls as seen.
+    if (page === "calls") markCallsSeen();
     closeTopbarSearch(false);
     updateTopbarTitle();
     // [ADDED] Show the add-contact action only on the Contacts page.
@@ -592,6 +594,7 @@
       state.chats = state.filter === "archived" ? archivedChats : activeChats;
       state.chatsLoaded = true;
       updateChatFilterCounts();
+      updateBottomNavBadges();
       renderChats();
     } catch (error) {
       state.chatsLoaded = false;
@@ -603,6 +606,7 @@
   // [ADDED] Keep the count badges on chat filters synchronized with server data.
   function updateChatFilterCounts() {
     const counts = state.chatCounts;
+    updateBottomNavBadges();
     const labels = {
       all: "Semua",
       unread: "Belum dibaca",
@@ -1255,6 +1259,56 @@
      Panggilan
      --------------------------------------------------------- */
 
+  // [ADDED] Call notifications are tracked locally until the Calls tab is opened.
+  const CALLS_LAST_SEEN_KEY = "wagram-calls-last-seen";
+
+  function getCallsLastSeen() {
+    try {
+      const stored = localStorage.getItem(CALLS_LAST_SEEN_KEY);
+      return stored === null ? null : Number(stored) || 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function markCallsSeen() {
+    try {
+      localStorage.setItem(CALLS_LAST_SEEN_KEY, String(Date.now()));
+    } catch {
+      /* penyimpanan lokal tidak tersedia */
+    }
+    updateBottomNavBadges();
+  }
+
+  function updateBottomNavBadges() {
+    const messageBadge = $("#messagesNavBadge");
+    const callsBadge = $("#callsNavBadge");
+
+    const unreadMessages = state.chats.reduce(
+      (total, chat) => total + Math.max(0, Number(chat.unread_count) || 0),
+      0
+    );
+
+    if (messageBadge) {
+      messageBadge.textContent = unreadMessages > 99 ? "99+" : String(unreadMessages);
+      messageBadge.classList.toggle("hidden", unreadMessages <= 0);
+    }
+
+    if (callsBadge) {
+      const lastSeen = getCallsLastSeen();
+      const unseenCalls = lastSeen === null
+        ? 0
+        : state.calls.filter((call) =>
+            call.direction === "incoming" &&
+            !call.is_archived &&
+            toMs(call.call_timestamp) > lastSeen
+          ).length;
+
+      callsBadge.textContent = unseenCalls > 99 ? "99+" : String(unseenCalls);
+      callsBadge.classList.toggle("hidden", unseenCalls <= 0);
+    }
+  }
+
   async function loadCalls() {
     const list = $("#callsList");
 
@@ -1268,6 +1322,15 @@
       state.calls = data.calls || [];
       state.callsLoaded = true;
       state.callsStale = false;
+      // [ADDED] On first install, existing call history is the baseline, not unread.
+      if (getCallsLastSeen() === null) {
+        try {
+          localStorage.setItem(CALLS_LAST_SEEN_KEY, String(Date.now()));
+        } catch {
+          /* penyimpanan lokal tidak tersedia */
+        }
+      }
+      updateBottomNavBadges();
       renderCalls();
     } catch (error) {
       state.callsLoaded = false;
@@ -2324,7 +2387,7 @@
         }
       }
 
-      if (pendingCallsRefresh && state.page === "calls") loadCalls();
+      if (pendingCallsRefresh) loadCalls();
       pendingCallsRefresh = false;
 
       if (pendingConnectionStatus) {
@@ -2394,7 +2457,7 @@
 
     // [ADDED] One database snapshot after returning from background.
     if (state.chatsLoaded) loadChats();
-    if (state.page === "calls" && state.callsLoaded) loadCalls();
+    if (state.callsLoaded) loadCalls();
   }
 
   function init() {
@@ -2411,6 +2474,8 @@
       });
     });
 
+    // [ADDED] Load call history in the background so new incoming calls can badge the tab.
+    loadCalls();
     connectRealtime();
     window.addEventListener("online", connectRealtime);
     document.addEventListener("visibilitychange", handleVisibilityChange);
