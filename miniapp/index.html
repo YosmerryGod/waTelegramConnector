@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261109-locked-media">
+  <link rel="stylesheet" href="style.css?v=20261109-onboarding">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -65,6 +65,68 @@
       <symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10.5 6-3.5v10l-6-3.5"/></symbol>
     </defs>
   </svg>
+
+    <!-- [ADDED] First-open WAGRAM onboarding. -->
+  <section id="wagramOnboarding" class="onboarding-screen hidden" aria-label="Pengenalan WAGRAM">
+    <div class="onboarding-topline">
+      <span class="onboarding-brand-mark"><img src="./assets/wagram-logo.svg" alt="WAGRAM"></span>
+      <span class="onboarding-step" id="onboardingStep">01 / 02</span>
+    </div>
+    <div class="onboarding-content" id="onboardingWelcome">
+      <div class="onboarding-hero-art" aria-hidden="true">
+        <div class="onboarding-orbit onboarding-orbit-one"></div>
+        <div class="onboarding-orbit onboarding-orbit-two"></div>
+        <div class="onboarding-logo-glow"><img src="./assets/wagram-logo.svg" alt=""></div>
+        <span class="onboarding-float-icon onboarding-float-chat">▤</span>
+        <span class="onboarding-float-icon onboarding-float-phone">⌕</span>
+        <span class="onboarding-float-icon onboarding-float-bell">♧</span>
+      </div>
+      <p class="onboarding-eyebrow">YOUR WHATSAPP, CONNECTED</p>
+      <h1>Welcome to <span>WAGRAM</span></h1>
+      <p class="onboarding-description">Hubungkan WhatsApp dengan Telegram. Kelola pesan, panggilan, dan kontak dalam satu tempat.</p>
+      <button class="onboarding-primary" id="onboardingNextButton" type="button">Mulai <span aria-hidden="true">→</span></button>
+    </div>
+    <div class="onboarding-content onboarding-features hidden" id="onboardingFeatures">
+      <p class="onboarding-eyebrow">KENALI WAGRAM</p>
+      <h2>Semua jadi lebih praktis.</h2>
+      <p class="onboarding-description">Pantau aktivitas WhatsApp langsung dari Telegram.</p>
+      <div class="onboarding-feature-grid">
+        <article class="onboarding-feature-card"><span class="onboarding-feature-icon">▤</span><strong>Pesan WhatsApp</strong><small>Lihat percakapan dan riwayat pesan.</small></article>
+        <article class="onboarding-feature-card"><span class="onboarding-feature-icon">⌕</span><strong>Riwayat panggilan</strong><small>Pantau panggilan masuk dan keluar.</small></article>
+        <article class="onboarding-feature-card"><span class="onboarding-feature-icon">♙</span><strong>Kontak</strong><small>Simpan dan kelola kontak penting.</small></article>
+        <article class="onboarding-feature-card"><span class="onboarding-feature-icon">♧</span><strong>Notifikasi</strong><small>Atur aktivitas WhatsApp yang diteruskan.</small></article>
+      </div>
+      <div class="onboarding-plan-grid">
+        <article class="onboarding-plan-card">
+          <span class="onboarding-plan-label">FREE</span>
+          <strong class="onboarding-plan-price">Rp0</strong>
+          <ul>
+            <li>Pesan pribadi &amp; panggilan</li>
+            <li>1 WhatsApp session</li>
+            <li>Riwayat pesan 3 hari</li>
+            <li>Pause otomatis pukul <b>07.00 WIB</b></li>
+            <li>Hubungkan kembali secara manual</li>
+          </ul>
+        </article>
+        <article class="onboarding-plan-card is-premium">
+          <span class="onboarding-plan-label">PREMIUM</span>
+          <strong class="onboarding-plan-price">Lebih leluasa</strong>
+          <ul>
+            <li>Semua fitur Free</li>
+            <li>Grup &amp; saluran</li>
+            <li>Mention &amp; balasan</li>
+            <li>Media &amp; dokumen</li>
+            <li>Multi WhatsApp session</li>
+            <li>Tanpa pause otomatis</li>
+          </ul>
+        </article>
+      </div>
+      <p class="onboarding-footnote">Premium tersedia dalam pilihan 3, 7, dan 30 hari.</p>
+      <button class="onboarding-primary" id="onboardingFinishButton" type="button">Mulai Gunakan WAGRAM <span aria-hidden="true">→</span></button>
+      <button class="onboarding-back" id="onboardingBackButton" type="button">Kembali</button>
+    </div>
+    <div class="onboarding-pagination" aria-hidden="true"><span class="active" id="onboardingDotOne"></span><span id="onboardingDotTwo"></span></div>
+  </section>
 
   <div class="app">
     <header class="topbar" id="topbar">
@@ -471,7 +533,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261109-profile-connect"></script>
+  <script src="app.js?v=20261109-onboarding"></script>
   <script src="connection.js?v=20261109-profile-connect"></script>
 </body>
 </html>
