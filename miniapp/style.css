@@ -3318,6 +3318,34 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   border-color:rgba(255,255,255,.58);
   box-shadow:0 12px 28px rgba(0,0,0,.075),inset 0 1px 0 rgba(255,255,255,.8);
 }
+/* [MODIFIED] Hero artwork replaces the standalone logo on the welcome screen. */
+.onboarding-hero-art {
+  position:relative;
+  z-index:1;
+  display:block;
+  width:min(100%,390px);
+  height:auto;
+  max-height:42vh;
+  margin:0 auto 4px;
+  object-fit:contain;
+  mix-blend-mode:screen;
+  filter:drop-shadow(0 18px 28px rgba(0,45,24,.18));
+}
+.onboarding-welcome {
+  gap:0;
+  padding:18px 22px calc(28px + env(safe-area-inset-bottom));
+}
+.onboarding-welcome-kicker { margin-top:0; margin-bottom:10px; }
+.onboarding-welcome h1 { font-size:clamp(27px,7.2vw,35px); }
+.onboarding-welcome-description { margin:12px auto 22px; }
+.onboarding-welcome-button { width:220px; max-width:82%; min-height:48px; }
+.onboarding-pagination { padding-top:8px; }
+@media(max-height:740px) {
+  .onboarding-hero-art { width:min(100%,320px); max-height:36vh; margin-bottom:0; }
+  .onboarding-welcome { padding-top:8px; padding-bottom:calc(18px + env(safe-area-inset-bottom)); }
+  .onboarding-welcome-description { margin:9px auto 17px; }
+  .onboarding-welcome-button { min-height:46px; }
+}
 @media(prefers-reduced-motion:reduce) {
   .loading-process-ring,.loading-brand-logo,.loading-brand-wrap::before { animation:none; }
 }
