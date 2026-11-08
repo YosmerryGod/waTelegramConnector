@@ -2646,6 +2646,35 @@ body:has(#accountPage:not(.hidden)) .topbar {
 }
 .notification-switch[aria-checked="true"] { background:var(--accent); box-shadow:none; }
 .notification-switch[aria-checked="true"]::after { transform:translateX(16px); background:#fff; }
+/* [ADDED] Free users see premium-only notification controls as locked, not enabled. */
+.notification-option.is-premium-locked {
+  opacity:.48;
+}
+.notification-option.is-premium-locked .notification-option-icon,
+.notification-option.is-premium-locked .notification-option-copy {
+  color:var(--muted);
+}
+.notification-switch.is-premium-locked {
+  display:grid;
+  place-items:center;
+  overflow:visible;
+  background:var(--surface-2);
+  box-shadow:inset 0 0 0 1px var(--border);
+}
+.notification-switch.is-premium-locked::after { display:none; }
+.notification-lock-crown {
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  font-size:14px;
+  line-height:1;
+  filter:grayscale(.15);
+}
+.notification-switch.is-premium-locked:focus-visible {
+  outline:2px solid #d9a441;
+  outline-offset:3px;
+}
 .notification-coming-soon { opacity:.62; }
 .coming-soon-pill {
   flex:0 0 auto;
