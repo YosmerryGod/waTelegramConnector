@@ -798,8 +798,8 @@ export function updateWhatsAppMessage(telegramId, whatsappChatId, messageId, bod
           updated_at = @now
       WHERE telegram_id = @telegram_id
         AND whatsapp_chat_id = @whatsapp_chat_id
-        AND whatsapp_message_id = (
-          SELECT whatsapp_message_id
+        AND last_message_at = (
+          SELECT message_timestamp
           FROM messages
           WHERE telegram_id = @telegram_id
             AND whatsapp_chat_id = @whatsapp_chat_id
