@@ -2907,26 +2907,20 @@
     if (completed && !forcePreview) return;
 
     const welcome = $("#onboardingWelcome");
-    const sync = $("#onboardingSync");
     const plans = $("#onboardingFeatures");
     const dotOne = $("#onboardingDotOne");
     const dotTwo = $("#onboardingDotTwo");
-    const dotThree = $("#onboardingDotThree");
 
-    // [MODIFIED] Three-step onboarding: brand welcome, connection benefits, plan comparison.
+    // [MODIFIED] Two-step onboarding: custom visual welcome followed by plan comparison.
     const showStep = (step) => {
       welcome.classList.toggle("hidden", step !== 1);
-      sync.classList.toggle("hidden", step !== 2);
-      plans.classList.toggle("hidden", step !== 3);
+      plans.classList.toggle("hidden", step !== 2);
       dotOne.classList.toggle("active", step === 1);
       dotTwo.classList.toggle("active", step === 2);
-      dotThree.classList.toggle("active", step === 3);
     };
 
     $("#onboardingNextButton")?.addEventListener("click", () => showStep(2));
-    $("#onboardingSyncNextButton")?.addEventListener("click", () => showStep(3));
-    $("#onboardingSyncBackButton")?.addEventListener("click", () => showStep(1));
-    $("#onboardingBackButton")?.addEventListener("click", () => showStep(2));
+    $("#onboardingBackButton")?.addEventListener("click", () => showStep(1));
     $("#onboardingFinishButton")?.addEventListener("click", () => {
       try {
         const telegramUserId = String(tg?.initDataUnsafe?.user?.id || "guest");
