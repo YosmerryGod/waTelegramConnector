@@ -16,6 +16,8 @@ import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, 
 import {
   getUser,
   getMembership,
+  getSession,
+  setFreePauseDate,
   listChats,
   getChat,
   listMessages,
@@ -283,7 +285,12 @@ router.get("/account", (req, res) => {
 router.get("/connection", async (req, res) => {
   try {
     const connection = getWhatsAppStatus(req.telegramId);
-    const accountProfile = connection.status === "connected"
+    const storedSession = getSession(req.telegramId);
+    const status = storedSession?.connection_status === "paused" &&
+      connection.status === "disconnected"
+      ? "paused"
+      : connection.status;
+    const accountProfile = status === "connected"
       ? await getWhatsAppAccountProfile(req.telegramId)
       : { displayName: null, pictureUrl: null };
     const qr = connection.status === "qr"
@@ -293,8 +300,8 @@ router.get("/connection", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json({
       ok: true,
-      status: connection.status,
-      phoneNumber: connection.phoneNumber,
+      status,
+      phoneNumber: connection.phoneNumber || storedSession?.phone_number || null,
       displayName: accountProfile.displayName,
       pictureUrl: accountProfile.pictureUrl,
       qr: qr
@@ -326,8 +333,26 @@ router.post("/connection/disconnect", async (req, res) => {
 router.post("/connection/connect", async (req, res) => {
   try {
     const current = getWhatsAppStatus(req.telegramId);
+    const storedSession = getSession(req.telegramId);
+    const membership = getMembership(req.telegramId);
 
     if (current.status !== "connected") {
+      // [ADDED] A Free session resumed after the daily pause reuses its saved auth.
+      if (membership?.plan === "free") {
+        const witaParts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Makassar",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          hourCycle: "h23"
+        }).formatToParts(new Date());
+        const wita = Object.fromEntries(witaParts.map((part) => [part.type, part.value]));
+        if (Number(wita.hour) >= 8 && storedSession?.connection_status !== "paused") {
+          setFreePauseDate(req.telegramId, `${wita.year}-${wita.month}-${wita.day}`);
+        }
+      }
+
       await connectWhatsApp(
         req.telegramId,
         createWhatsAppCallbacks(req.telegramId)
