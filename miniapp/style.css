@@ -3280,3 +3280,41 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 .nav-item.selected span {
   max-width: 120px;
 }
+
+
+/* [ADDED] Unread counters float above their bottom navigation icons. */
+.nav-item {
+  position: relative;
+}
+
+.nav-item .nav-badge {
+  position: absolute;
+  top: 3px;
+  left: calc(50% + 7px);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+  pointer-events: none;
+}
+
+.nav-item.selected .nav-badge {
+  left: calc(50% + 13px);
+  border-color: #079c4b;
+}
+
+.nav-item .nav-badge.hidden {
+  display: none;
+}
