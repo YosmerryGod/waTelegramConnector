@@ -584,7 +584,7 @@
       }
       stateLabel.classList.toggle("is-connected", connected);
       stateLabel.classList.toggle("is-paused", paused);
-      stateLabel.disabled = connected || (!paused && data.status !== "disconnected");
+      stateLabel.disabled = !paused;
       stateLabel.innerHTML = connected
         ? "<i></i> Connected"
         : paused
@@ -2815,6 +2815,7 @@
       pendingCallsRefresh = false;
 
       if (pendingConnectionStatus) {
+        if (state.page === "account") loadWhatsAppAccount();
         $("#connectionStatus").textContent = pendingConnectionStatus === "connected"
           ? "WhatsApp terhubung"
           : `WhatsApp ${pendingConnectionStatus}`;
