@@ -779,7 +779,7 @@ export function updateWhatsAppMessage(telegramId, whatsappChatId, messageId, bod
   const waMessageId = String(messageId ?? "");
   const editedBody = body == null ? null : String(body);
 
-  if (!/^\\d+$/.test(ownerId) || !chatId || !waMessageId || editedBody === null) {
+  if (!/^\d+$/.test(ownerId) || !chatId || !waMessageId || editedBody === null) {
     return false;
   }
 
@@ -791,7 +791,7 @@ export function updateWhatsAppMessage(telegramId, whatsappChatId, messageId, bod
   ).changes > 0;
 
   if (changed) {
-    const preview = editedBody.replace(/\\s+/g, " ").slice(0, 240);
+    const preview = editedBody.replace(/\s+/g, " ").slice(0, 240);
     db.prepare(`
       UPDATE chats
       SET last_message_preview = @preview,
@@ -823,7 +823,7 @@ export function getWhatsAppMessageContent(telegramId, whatsappChatId, messageId,
   const chatId = String(whatsappChatId ?? "");
   const waMessageId = String(messageId ?? "");
 
-  if (!/^\\d+$/.test(ownerId) || !chatId || !waMessageId) {
+  if (!/^\d+$/.test(ownerId) || !chatId || !waMessageId) {
     return null;
   }
 
