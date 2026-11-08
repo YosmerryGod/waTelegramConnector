@@ -3418,3 +3418,66 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   font-style: italic;
   opacity: .85;
 }
+
+
+/* [ADDED] Smoothly expand the original text when an edited message is tapped. */
+.message[data-edit-expandable="true"] {
+  cursor:pointer;
+}
+.message-original {
+  display:grid;
+  grid-template-rows:0fr;
+  margin-top:0;
+  opacity:0;
+  transition:
+    grid-template-rows .34s cubic-bezier(.2,.75,.25,1),
+    margin-top .34s cubic-bezier(.2,.75,.25,1),
+    opacity .22s ease;
+}
+.message-original-inner {
+  min-height:0;
+  overflow:hidden;
+  padding:0 9px;
+  border-top:1px solid color-mix(in srgb,var(--info) 28%,transparent);
+}
+.message-original-label {
+  padding-top:0;
+  color:var(--info);
+  font-size:10px;
+  font-weight:750;
+  opacity:0;
+  transition:padding-top .34s ease,opacity .2s ease;
+}
+.message-original-text {
+  padding-top:0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.45;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  opacity:0;
+  transition:padding-top .34s ease,opacity .2s ease;
+}
+.message.show-original .message-original {
+  grid-template-rows:1fr;
+  margin-top:8px;
+  opacity:1;
+}
+.message.show-original .message-original-inner {
+  padding-bottom:3px;
+}
+.message.show-original .message-original-label {
+  padding-top:8px;
+  opacity:1;
+}
+.message.show-original .message-original-text {
+  padding-top:5px;
+  opacity:1;
+}
+@media(prefers-reduced-motion:reduce) {
+  .message-original,
+  .message-original-label,
+  .message-original-text {
+    transition:none;
+  }
+}
