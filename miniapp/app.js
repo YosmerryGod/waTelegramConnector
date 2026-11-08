@@ -778,10 +778,11 @@
             </button>
           </div>
           <button class="list-item chat-row-content" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}" ${isLocked ? 'data-premium-chat="true"' : ""}>
+            ${isLocked ? '<span class="premium-chat-crown" aria-label="Premium">👑</span>' : ""}
             ${avatar(name, name, "", chat.profile_picture_url)}
             <div class="item-body">
               <div class="item-row">
-                <span class="item-title">${escapeHTML(name)}${isLocked ? '<span class="premium-chat-crown" aria-label="Premium">👑</span>' : ""}</span>
+                <span class="item-title">${escapeHTML(name)}</span>
                 <span class="item-time ${unread ? "is-unread" : ""}">${escapeHTML(formatListTime(chat.last_message_at))}</span>
               </div>
               <div class="item-row">
