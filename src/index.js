@@ -40,7 +40,12 @@ const MINIAPP_API_PORT = Math.max(
 );
 
 const logger = pino({
-  level: LOG_LEVEL
+  level: LOG_LEVEL,
+  // [ADDED] Redact account/session identifiers from application logs.
+  redact: {
+    paths: ["telegramId", "*.telegramId"],
+    censor: "[REDACTED]"
+  }
 });
 
 // [ADDED] Express application and HTTP server.
