@@ -888,20 +888,33 @@
   }
 
   function mediaHTML(message) {
-    const kind = message.media_kind;
+    const kind = message.media_kind || message.message_type;
+    const mime = String(message.media_mimetype || "").toLowerCase();
+    const fileName = escapeHTML(message.media_file_name || "Dokumen");
+    const isSticker = kind === "sticker";
     const isImage =
       kind === "photo" ||
-      kind === "sticker" ||
-      (kind === "document" && /^image\//.test(message.media_mimetype || ""));
+      kind === "image" ||
+      isSticker ||
+      (kind === "document" && mime.startsWith("image/"));
 
     if (isImage) {
-      return `<div class="media ${kind === "sticker" ? "sticker" : ""}"><img class="media-img is-loading" alt="${kind === "sticker" ? "Stiker" : "Foto"}" data-media-img="${escapeHTML(message.id)}"></div>`;
+      return `<div class="media ${isSticker ? "sticker" : ""}"><img class="media-img is-loading" alt="${isSticker ? "Stiker" : "Foto"}" data-media-img="${escapeHTML(message.id)}"></div>`;
     }
 
     if (kind === "video" || kind === "animation") {
       const isGif = kind === "animation";
+      return `<button class="media video-card" type="button" data-media-video="${escapeHTML(message.id)}" data-gif="${isGif ? 1 : 0}">${icon("play")}<span>${isGif ? "Putar GIF" : "Putar video"}</span></button>`;
+    }
 
-      return `<button class="media video-card" type="button" data-media-video="${escapeHTML(message.id)}" data-gif="${isGif ? 1 : 0}">${icon("play")}<span>${isGif ? "GIF" : "Putar video"}</span></button>`;
+    if (kind === "audio" || kind === "ptt") {
+      const isVoice = /voice|ogg/i.test(message.media_file_name || mime);
+      return `<button class="media audio-card" type="button" data-media-audio="${escapeHTML(message.id)}">${icon("play")}<span>${isVoice ? "Putar pesan suara" : "Putar audio"}</span></button>`;
+    }
+
+    if (kind === "document" || message.media_file_name) {
+      const isPdf = mime === "application/pdf";
+      return `<button class="media document-card" type="button" data-media-document="${escapeHTML(message.id)}" data-file-name="${fileName}" data-open-inline="${isPdf ? 1 : 0}">${icon("file")}<span><strong>${fileName}</strong><small>${isPdf ? "PDF · Buka dokumen" : "Dokumen · Unduh file"}</small></span></button>`;
     }
 
     return "";
@@ -979,6 +992,60 @@
 
       button.replaceWith(video);
       video.play?.().catch(() => {});
+    } catch (error) {
+      label.textContent = original;
+      delete button.dataset.busy;
+      showToast(error.message);
+    }
+  }
+
+  // [ADDED] Load audio from the authenticated media endpoint on demand.
+  async function playAudio(button) {
+    if (button.dataset.busy) return;
+    button.dataset.busy = "1";
+    const label = button.querySelector("span");
+    const original = label.textContent;
+    label.textContent = "Memuat audio…";
+
+    try {
+      const url = await fetchMediaURL(button.dataset.mediaAudio);
+      const audio = document.createElement("audio");
+      audio.className = "media-audio";
+      audio.controls = true;
+      audio.preload = "metadata";
+      audio.src = url;
+      button.replaceWith(audio);
+      await audio.play().catch(() => {});
+    } catch (error) {
+      label.textContent = original;
+      delete button.dataset.busy;
+      showToast(error.message);
+    }
+  }
+
+  // [ADDED] Open PDFs in the browser and download other document types.
+  async function openDocument(button) {
+    if (button.dataset.busy) return;
+    button.dataset.busy = "1";
+    const label = button.querySelector("small");
+    const original = label.textContent;
+    label.textContent = "Menyiapkan dokumen…";
+
+    try {
+      const url = await fetchMediaURL(button.dataset.mediaDocument);
+      if (button.dataset.openInline === "1") {
+        const opened = window.open(url, "_blank", "noopener");
+        if (!opened) showToast("Izinkan pop-up untuk membuka PDF.");
+      } else {
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = button.dataset.fileName || "document";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+      label.textContent = original;
+      delete button.dataset.busy;
     } catch (error) {
       label.textContent = original;
       delete button.dataset.busy;
@@ -1912,7 +1979,19 @@
 
       const video = event.target.closest("[data-media-video]");
 
-      if (video) playVideo(video);
+      if (video) {
+        playVideo(video);
+        return;
+      }
+
+      const audio = event.target.closest("[data-media-audio]");
+      if (audio) {
+        playAudio(audio);
+        return;
+      }
+
+      const documentFile = event.target.closest("[data-media-document]");
+      if (documentFile) openDocument(documentFile);
     });
 
     $("#lightbox").addEventListener("click", closeLightbox);
