@@ -3796,3 +3796,17 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 #accountPage .notification-lock-crown {
   z-index: 20;
 }
+
+
+/* [MODIFIED] The expanded WhatsApp controls wrapper was the remaining clipping ancestor. */
+#accountPage .whatsapp-account-controls:not(.is-collapsed) {
+  overflow: visible !important;
+}
+#accountPage .whatsapp-account-controls:not(.is-collapsed) .embedded-notification-section,
+#accountPage .whatsapp-account-controls:not(.is-collapsed) .notification-options,
+#accountPage .whatsapp-account-controls:not(.is-collapsed) .notification-option {
+  overflow: visible !important;
+}
+#accountPage .whatsapp-account-controls:not(.is-collapsed) .notification-lock-crown {
+  z-index: 999;
+}
