@@ -2907,29 +2907,26 @@
     if (completed && !forcePreview) return;
 
     const welcome = $("#onboardingWelcome");
-    const features = $("#onboardingFeatures");
-    const step = $("#onboardingStep");
+    const sync = $("#onboardingSync");
+    const plans = $("#onboardingFeatures");
     const dotOne = $("#onboardingDotOne");
     const dotTwo = $("#onboardingDotTwo");
+    const dotThree = $("#onboardingDotThree");
 
-    const showFeatures = () => {
-      welcome.classList.add("hidden");
-      features.classList.remove("hidden");
-      step.textContent = "02 / 02";
-      dotOne.classList.remove("active");
-      dotTwo.classList.add("active");
+    // [MODIFIED] Three-step onboarding: brand welcome, connection benefits, plan comparison.
+    const showStep = (step) => {
+      welcome.classList.toggle("hidden", step !== 1);
+      sync.classList.toggle("hidden", step !== 2);
+      plans.classList.toggle("hidden", step !== 3);
+      dotOne.classList.toggle("active", step === 1);
+      dotTwo.classList.toggle("active", step === 2);
+      dotThree.classList.toggle("active", step === 3);
     };
 
-    const showWelcome = () => {
-      features.classList.add("hidden");
-      welcome.classList.remove("hidden");
-      step.textContent = "01 / 02";
-      dotTwo.classList.remove("active");
-      dotOne.classList.add("active");
-    };
-
-    $("#onboardingNextButton")?.addEventListener("click", showFeatures);
-    $("#onboardingBackButton")?.addEventListener("click", showWelcome);
+    $("#onboardingNextButton")?.addEventListener("click", () => showStep(2));
+    $("#onboardingSyncNextButton")?.addEventListener("click", () => showStep(3));
+    $("#onboardingSyncBackButton")?.addEventListener("click", () => showStep(1));
+    $("#onboardingBackButton")?.addEventListener("click", () => showStep(2));
     $("#onboardingFinishButton")?.addEventListener("click", () => {
       try {
         const telegramUserId = String(tg?.initDataUnsafe?.user?.id || "guest");
