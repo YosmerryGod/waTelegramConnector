@@ -373,6 +373,42 @@ function unwrapMessage(message) {
   return content || null;
 }
 
+// [ADDED] Detect View Once content before unwrapping WhatsApp message wrappers.
+function getViewOnceInfo(message) {
+  let content = message;
+
+  for (let i = 0; i < 8 && content; i++) {
+    const viewOnce =
+      content.viewOnceMessage?.message ||
+      content.viewOnceMessageV2?.message ||
+      content.viewOnceMessageV2Extension?.message;
+
+    if (viewOnce) {
+      const media = viewOnce.imageMessage
+        ? "foto"
+        : viewOnce.videoMessage || viewOnce.ptvMessage
+          ? "video"
+          : viewOnce.audioMessage
+            ? "audio"
+            : viewOnce.documentMessage
+              ? "dokumen"
+              : viewOnce.stickerMessage
+                ? "stiker"
+                : "media";
+
+      return { media };
+    }
+
+    content =
+      content.ephemeralMessage?.message ||
+      content.documentWithCaptionMessage?.message ||
+      content.editedMessage?.message ||
+      null;
+  }
+
+  return null;
+}
+
 // Convert a Long/number/string size to a number.
 function toNumber(value) {
   if (value === undefined || value === null) {
@@ -1099,14 +1135,17 @@ export function createWhatsAppCallbacks(telegramId) {
           return;
         }
 
+        // [ADDED] Detect View Once before unwrapMessage removes its wrapper.
+        const viewOnceInfo = getViewOnceInfo(message.message);
         const content = unwrapMessage(message.message);
 
         if (!content) {
           return;
         }
 
-        const info = getMediaInfo(content);
-        const body = info ? info.caption : getTextBody(content);
+        // [MODIFIED] Never attempt to download View Once media into WAGRAM.
+        const info = viewOnceInfo ? null : getMediaInfo(content);
+        let body = info ? info.caption : getTextBody(content);
 
         // Skip noise such as protocol events and removed reactions.
         if (body === null) {
@@ -1136,6 +1175,15 @@ export function createWhatsAppCallbacks(telegramId) {
         );
         const name = savedName || message.pushName || who;
 
+        // [ADDED] Give users a clear WhatsApp handoff notice for unsupported content.
+        if (viewOnceInfo) {
+          const senderLabel = isOutgoing ? "Anda" : name;
+          body = `${senderLabel} telah mengirim ${viewOnceInfo.media} sekali lihat. Lihat langsung di WhatsApp.`;
+        } else if (body === "Unsupported message type") {
+          const senderLabel = isOutgoing ? "Anda" : name;
+          body = `${senderLabel} mengirim jenis pesan yang belum didukung WAGRAM. Lihat langsung di WhatsApp.`;
+        }
+
         const groupName = isGroup
           ? await getGroupName(socket, id, remoteJid)
           : null;
@@ -1147,9 +1195,11 @@ export function createWhatsAppCallbacks(telegramId) {
           ? rawTimestamp * 1000
           : Date.now();
 
-        const messageType = info
-          ? (info.gif ? "animation" : info.kind)
-          : (
+        const messageType = viewOnceInfo
+          ? "view_once"
+          : info
+            ? (info.gif ? "animation" : info.kind)
+            : (
               content.locationMessage || content.liveLocationMessage
                 ? "location"
                 : content.contactMessage || content.contactsArrayMessage
