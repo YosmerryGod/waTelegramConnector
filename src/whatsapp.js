@@ -629,8 +629,16 @@ async function createSocket(id, entry) {
 
           logger.warn(
             {
+              // [ADDED] Identify the exact Telegram owner and linked WhatsApp account for each debug event.
               telegramId: id,
+              linkedWhatsApp: {
+                id: socket.user?.id || null,
+                phoneNumber: normalizePhoneJid(socket.user?.id)?.split("@")[0] || null,
+                name: socket.user?.name || socket.user?.notify || null
+              },
               type,
+              messageId: message.key.id || null,
+              remoteJid: message.key.remoteJid || null,
               fromMe: Boolean(message.key.fromMe),
               keys: Object.keys(message.message),
               isViewOnce: Boolean(message.key.isViewOnce),
