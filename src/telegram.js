@@ -32,6 +32,9 @@ import {
 // Telegram bot configuration.
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
+// [ADDED] Public Telegram Mini App URL.
+const MINI_APP_URL = process.env.MINI_APP_URL || "https://chat.doodweb.tech";
+
 const MESSAGE_LIMIT = Math.min(
   4000,
   Math.max(1000, Number(process.env.TELEGRAM_MESSAGE_LIMIT || 4000))
@@ -90,6 +93,18 @@ const groupNameCache = new Map();
 // ---------------------------------------------------------------------------
 // Telegram helpers
 // ---------------------------------------------------------------------------
+
+// [ADDED] Open the WAGRAM Mini App from Telegram messages.
+function openMiniAppOptions() {
+  return {
+    reply_markup: {
+      inline_keyboard: [[
+        { text: "Open WAGRAM", web_app: { url: MINI_APP_URL } }
+      ]]
+    }
+  };
+}
+
 
 // Escape text for Telegram HTML parse mode.
 function esc(value) {
@@ -964,9 +979,9 @@ export function createWhatsAppCallbacks(telegramId) {
         console.error("Failed to update session:", error.message);
       }
 
-      const notify = async (text) => {
+      const notify = async (text, options = {}) => {
         try {
-          await sendText(id, text);
+          await sendText(id, text, options);
         } catch (error) {
           console.error("Failed to send status:", error.message);
         }
@@ -995,7 +1010,8 @@ export function createWhatsAppCallbacks(telegramId) {
             notifiedDown.add(id);
 
             await notify(
-              "⚠️ WhatsApp disconnected. Reconnecting automatically."
+              "⚠️ <b>WhatsApp Connection Lost</b>\\n\\nWAGRAM is trying to reconnect automatically. Open WAGRAM to check your connection.",
+              { ...openMiniAppOptions(), parse_mode: "HTML" }
             );
           }, DISCONNECT_NOTICE_DELAY_MS);
 
@@ -1053,16 +1069,21 @@ export function createWhatsAppCallbacks(telegramId) {
       const messages = {
         connecting: "⏳ Connecting to WhatsApp...",
         qr: "📷 QR code is ready to scan.",
-        logged_out: "🚪 WhatsApp logged out. Use /connect to link again.",
+        logged_out:
+          "🚪 <b>WhatsApp Logged Out</b>\\n\\nYour WhatsApp account has been unlinked from WAGRAM. Open WAGRAM to reconnect your account.",
         replaced:
-          "⚠️ This WhatsApp session was taken over by another login or another running bot instance. " +
-          "Make sure only one instance is running, then use /connect."
+          "⚠️ <b>WhatsApp Session Replaced</b>\\n\\nThis WhatsApp session was taken over by another linked device or bot instance. Open WAGRAM to reconnect.",
       };
 
       const message = messages[status];
 
       if (message) {
-        await notify(message);
+        await notify(
+          message,
+          ["logged_out", "replaced"].includes(status)
+            ? { ...openMiniAppOptions(), parse_mode: "HTML" }
+            : {}
+        );
       }
     },
 
@@ -1317,28 +1338,22 @@ export function createWhatsAppCallbacks(telegramId) {
 // Commands
 // ---------------------------------------------------------------------------
 
-// /start — register Telegram user.
-bot.onText(/^\/start(?:@\w+)?$/, async (msg) => {
+// /start — register Telegram user and open WAGRAM.
+bot.onText(/^\\/start(?:@\\w+)?$/, async (msg) => {
   const telegramId = String(msg.from.id);
 
   try {
     registerUser(msg.from);
-
     await sendText(
       telegramId,
-      "👋 WhatsApp Bridge\n\n" +
-        "Forwards your WhatsApp messages, photos, videos, stickers, " +
-        "voice notes, files and call alerts to this chat.\n\n" +
-        "/connect — link WhatsApp\n" +
-        "/status — connection status\n" +
-        "/disconnect — unlink and delete session\n" +
-        "/save Name Number — save a phone number\n" +
-        "/contacts — list saved contacts\n" +
-        "/help — usage notes"
+      "👋 Welcome to WAGRAM\\n\\n" +
+        "Your WhatsApp, connected to Telegram.\\n\\n" +
+        "Manage your WhatsApp connection, conversations, calls, and contacts in one place.\\n\\n" +
+        "Tap below to open your WAGRAM dashboard.",
+      openMiniAppOptions()
     );
   } catch (error) {
     console.error("Failed to register Telegram user:", error.message);
-
     await sendText(telegramId, "Registration failed. Please try again.");
   }
 });
@@ -1379,36 +1394,40 @@ bot.onText(/^\/connect(?:@\w+)?$/, async (msg) => {
   }
 });
 
-// /status — show WhatsApp connection status.
-bot.onText(/^\/status(?:@\w+)?$/, async (msg) => {
+// /status — show the live WhatsApp connection status.
+bot.onText(/^\\/status(?:@\\w+)?$/, async (msg) => {
   const telegramId = String(msg.from.id);
-
   if (!isAuthorizedUser(telegramId)) {
     await sendText(telegramId, "Send /start first.");
     return;
   }
-
   const session = getSession(telegramId);
   const runtime = getWhatsAppStatus(telegramId);
-
-  const status =
-    runtime.status || session?.connection_status || "disconnected";
-
+  const status = runtime.status || session?.connection_status || "disconnected";
   const phone = runtime.phoneNumber || session?.phone_number;
-
   const lastConnected = session?.last_connected_at
     ? formatTimestamp(Math.floor(session.last_connected_at / 1000))
     : "never";
-
-  await sendText(
-    telegramId,
-    [
-      "📊 WhatsApp status",
-      `Status: ${status}`,
-      `Number: ${phone ? `+${phone}` : "not available"}`,
-      `Last connected: ${lastConnected}`
-    ].join("\n")
-  );
+  const connected = status === "connected";
+  const statusLabel = connected ? "🟢 CONNECTED" :
+    status === "logged_out" ? "🔴 LOGGED OUT" :
+    status === "replaced" ? "🟠 SESSION REPLACED" :
+    status === "connecting" || status === "qr" ? "🟡 CONNECTING" :
+    "🔴 DISCONNECTED";
+  const message = [
+    "<b>WAGRAM Status</b>",
+    "",
+    statusLabel,
+    connected
+      ? "Your WhatsApp connection is active."
+      : status === "connecting" || status === "qr"
+        ? "WAGRAM is preparing your WhatsApp connection."
+        : "Your WhatsApp is not connected. Open WAGRAM to reconnect.",
+    "",
+    "<b>WhatsApp:</b> " + (phone ? "+" + esc(phone) : "Not available"),
+    "<b>Last connected:</b> " + esc(lastConnected)
+  ].join("\\n");
+  await sendHtml(telegramId, message, connected ? {} : openMiniAppOptions());
 });
 
 // /disconnect — logout and remove this user's saved credentials.
@@ -1643,24 +1662,32 @@ bot.onText(/^\/delcontact(?:@\w+)?(?:\s+(\S+))?$/, async (msg, match) => {
   }
 });
 
-// /help — usage instructions.
-bot.onText(/^\/help(?:@\w+)?$/, async (msg) => {
+// /help — concise WAGRAM usage guide.
+bot.onText(/^\\/help(?:@\\w+)?$/, async (msg) => {
   await sendText(
     String(msg.from.id),
-    "📖 WhatsApp Bridge\n\n" +
-      "/start — register\n" +
-      "/connect — link WhatsApp via QR\n" +
-      "/status — connection status\n" +
-      "/disconnect — unlink and delete session\n" +
-      "/save Name Number — save a phone number (or share a contact card)\n" +
-      "/contacts — list saved contacts\n" +
-      "/delcontact Number — delete a saved contact\n\n" +
-      "Forwarded: text, emoji, photos, videos, GIFs, stickers, voice notes, " +
-      "audio, documents, locations, contacts and polls — incoming and outgoing.\n" +
-      "Calls: incoming and missed voice/video call alerts.\n\n" +
-      `Files above ${Math.floor(MAX_MEDIA_BYTES / 1024 / 1024)} MB are skipped (Telegram bot limit).\n` +
-      "A phone number is shown only when WhatsApp provides it; otherwise the sender ID is shown."
+    "📖 WAGRAM Help\\n\\n" +
+      "Your WhatsApp, connected to Telegram.\\n\\n" +
+      "<b>Available Commands</b>\\n" +
+      "/start — start WAGRAM and open your dashboard\\n" +
+      "/status — check your WhatsApp connection\\n" +
+      "/help — show this guide\\n\\n" +
+      "<b>What you can do</b>\\n" +
+      "• Manage your WhatsApp connection\\n" +
+      "• View conversations and contacts\\n" +
+      "• Access calls and media\\n" +
+      "• Manage WhatsApp from Telegram",
+    { parse_mode: "HTML", ...openMiniAppOptions() }
   );
+});
+
+// [ADDED] Keep Telegram's command menu focused on the three primary commands.
+bot.setMyCommands([
+  { command: "start", description: "Start WAGRAM and open the dashboard" },
+  { command: "status", description: "Check WhatsApp connection status" },
+  { command: "help", description: "Show WAGRAM help" }
+]).catch((error) => {
+  console.error("Failed to register Telegram commands:", error.message);
 });
 
 // Handle unexpected polling errors.
