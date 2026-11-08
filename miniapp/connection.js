@@ -1,4 +1,4 @@
-/* [ADDED] Mini App entry gate: QR only when WhatsApp is not connected. */
+/* [MODIFIED] WhatsApp QR pairing is opened only after the user presses Connect in Profile. */
 (() => {
   "use strict";
 
@@ -29,7 +29,6 @@
       <p class="connection-error" id="connectionError" hidden></p>
       <button class="connection-retry" id="connectionRetry" type="button" hidden>Coba hubungkan lagi</button>
     </div>`;
-  document.body.classList.add("connection-pending");
   document.body.appendChild(gate);
 
   let timer = null;
@@ -132,8 +131,16 @@
     beginConnection().then(checkConnection);
   });
 
+  // [MODIFIED] Keep the normal Mini App navigation visible on launch.
   tg?.ready?.();
   tg?.expand?.();
-  checkConnection();
-  timer = setInterval(checkConnection, 1800);
+
+  window.addEventListener("wagram:connect", () => {
+    if (completed || document.body.classList.contains("connection-pending")) return;
+    document.body.classList.add("connection-pending");
+    gate.classList.add("is-active");
+    beginConnection().then(checkConnection);
+    if (timer) clearInterval(timer);
+    timer = setInterval(checkConnection, 1800);
+  });
 })();
