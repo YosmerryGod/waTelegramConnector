@@ -1007,8 +1007,13 @@ router.get("/messages/:id/media", async (req, res) => {
         "audio/ogg", "audio/mpeg", "audio/mp4", "application/pdf"
       ]);
       const safeName = path.basename(String(media.media_file_name || "file"))
-        .replace(/[\\r\\n\\"]/g, "_");
-      const disposition = inlineTypes.has(mimetype) ? "inline" : "attachment";
+        .replace(/["\r\n]/g, "_");
+      const disposition = inlineTypes.has(mimetype) ||
+        mimetype.startsWith("image/") ||
+        mimetype.startsWith("video/") ||
+        mimetype.startsWith("audio/")
+        ? "inline"
+        : "attachment";
 
       res.setHeader("Content-Type", mimetype);
       res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${encodeURIComponent(safeName)}`);
