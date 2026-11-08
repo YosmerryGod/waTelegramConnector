@@ -13,12 +13,15 @@ import {
   getAllSessions,
   cleanupForwardedMessages,
   closeDatabase,
-  updateSession
+  updateSession,
+  getMembership,
+  setFreePauseDate
 } from "./database.js";
 
 import {
   restoreWhatsAppSessions,
-  shutdownWhatsApp
+  shutdownWhatsApp,
+  disconnectWhatsApp
 } from "./whatsapp.js";
 
 // [ADDED] Mini App REST API router.
@@ -282,9 +285,45 @@ function startApiServer() {
   });
 }
 
+// [ADDED] WITA calendar date and hour for the daily Free-tier pause.
+function getWitaClock() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Makassar",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return { date: `${values.year}-${values.month}-${values.day}`, hour: Number(values.hour) };
+}
+
+// [ADDED] Pause Free sessions at 08:00 WITA. Auth files are preserved.
+async function enforceFreeDailyPause() {
+  const { date, hour } = getWitaClock();
+  if (hour < 8) return;
+
+  for (const session of getAllSessions()) {
+    if (session.connection_status !== "connected") continue;
+    const membership = getMembership(session.telegram_id);
+    if (!membership || membership.plan !== "free") continue;
+    if (session.free_pause_date === date) continue;
+
+    try {
+      await disconnectWhatsApp(session.telegram_id);
+      updateSession(session.telegram_id, "paused");
+      setFreePauseDate(session.telegram_id, date);
+    } catch (error) {
+      logger.error({ err: error }, "Could not pause expired Free WhatsApp session.");
+    }
+  }
+}
+
 // [ADDED] Periodically remove expired message deduplication records.
 function startMaintenance() {
   cleanupTimer = setInterval(() => {
+    void enforceFreeDailyPause();
     try {
       const deleted = cleanupForwardedMessages();
 
@@ -362,26 +401,23 @@ async function shutdown(signal) {
       );
     }
 
-    // [ADDED] Mark active sessions disconnected in SQLite.
-    // Credentials remain on disk for a future restart.
-    for (const session of getAllSessions()) {
+    // [MODIFIED] Stop sockets while preserving saved authentication.
+    const sessionsBeforeShutdown = getAllSessions();
+    await shutdownWhatsApp();
+
+    // [ADDED] Free sessions require an explicit Connect after a server restart.
+    for (const session of sessionsBeforeShutdown) {
       try {
         updateSession(
           session.telegram_id,
-          "disconnected"
+          getMembership(session.telegram_id)?.plan === "free"
+            ? "paused"
+            : "disconnected"
         );
       } catch (error) {
-        logger.warn(
-          {
-            err: error,
-            telegramId: session.telegram_id
-          },
-          "Could not update session status during shutdown."
-        );
+        logger.warn({ err: error }, "Could not update session status during shutdown.");
       }
     }
-
-    await shutdownWhatsApp();
 
     try {
       await bot.stopPolling();
