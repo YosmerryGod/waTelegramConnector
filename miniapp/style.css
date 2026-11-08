@@ -771,12 +771,13 @@ button.list-item:active {
   text-align: right;
 }
 
-/* [ADDED] Dedicated, privacy-safe presentation for WhatsApp View Once messages. */
+/* [MODIFIED] Dedicated soft-yellow, privacy-safe presentation for WhatsApp View Once messages. */
 .message.view-once {
   width: min(82%, 310px);
   padding: 12px;
-  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
-  background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface));
+  border-color: color-mix(in srgb, #e5b63f 48%, var(--border));
+  background: color-mix(in srgb, #f5c542 17%, var(--surface));
+  box-shadow: inset 3px 0 0 #e5b63f;
 }
 .view-once-content {
   display: grid;
@@ -790,8 +791,8 @@ button.list-item:active {
   height: 38px;
   place-items: center;
   border-radius: 12px;
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: color-mix(in srgb, #f5c542 28%, var(--surface));
+  color: #9a6a00;
   font-size: 23px;
   font-weight: 700;
 }
@@ -813,17 +814,19 @@ button.list-item:active {
 }
 .view-once-action {
   grid-column: 1 / -1;
-  min-height: 36px;
+  min-height: 38px;
   margin-top: 2px;
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--border));
+  border: 1px solid #e5b63f;
   border-radius: 10px;
-  background: var(--surface);
-  color: var(--accent);
+  background: linear-gradient(135deg, #ffe49a, #f5c542);
+  color: #3d2b08;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
+  box-shadow: 2px 3px 7px rgba(130, 91, 13, .16);
 }
 .view-once-action:active {
   transform: scale(.98);
+  filter: brightness(.97);
 }
 
 /* ---------- Foto & video di percakapan ---------- */
