@@ -1869,6 +1869,11 @@
       const addSessionButton = event.target.closest("#addWhatsAppSessionButton");
       if (addSessionButton) {
         event.preventDefault();
+        // [MODIFIED] Free users are directed to the Premium upgrade sheet when adding a WhatsApp session.
+        if (!isPremiumMembership()) {
+          openPremiumSheet();
+          return;
+        }
         showToast("Tambah session WhatsApp akan tersedia pada pembaruan berikutnya.");
         return;
       }
