@@ -1010,7 +1010,7 @@ export function createWhatsAppCallbacks(telegramId) {
             notifiedDown.add(id);
 
             await notify(
-              "⚠️ <b>WhatsApp Connection Lost</b>\\n\\nWAGRAM is trying to reconnect automatically. Open WAGRAM to check your connection.",
+              "⚠️ <b>WhatsApp Connection Lost</b>\n\nWAGRAM is trying to reconnect automatically. Open WAGRAM to check your connection.",
               { ...openMiniAppOptions(), parse_mode: "HTML" }
             );
           }, DISCONNECT_NOTICE_DELAY_MS);
@@ -1070,9 +1070,9 @@ export function createWhatsAppCallbacks(telegramId) {
         connecting: "⏳ Connecting to WhatsApp...",
         qr: "📷 QR code is ready to scan.",
         logged_out:
-          "🚪 <b>WhatsApp Logged Out</b>\\n\\nYour WhatsApp account has been unlinked from WAGRAM. Open WAGRAM to reconnect your account.",
+          "🚪 <b>WhatsApp Logged Out</b>\n\nYour WhatsApp account has been unlinked from WAGRAM. Open WAGRAM to reconnect your account.",
         replaced:
-          "⚠️ <b>WhatsApp Session Replaced</b>\\n\\nThis WhatsApp session was taken over by another linked device or bot instance. Open WAGRAM to reconnect.",
+          "⚠️ <b>WhatsApp Session Replaced</b>\n\nThis WhatsApp session was taken over by another linked device or bot instance. Open WAGRAM to reconnect.",
       };
 
       const message = messages[status];
@@ -1339,16 +1339,16 @@ export function createWhatsAppCallbacks(telegramId) {
 // ---------------------------------------------------------------------------
 
 // /start — register Telegram user and open WAGRAM.
-bot.onText(/^\\/start(?:@\\w+)?$/, async (msg) => {
+bot.onText(/^\/start(?:@\w+)?$/, async (msg) => {
   const telegramId = String(msg.from.id);
 
   try {
     registerUser(msg.from);
     await sendText(
       telegramId,
-      "👋 Welcome to WAGRAM\\n\\n" +
-        "Your WhatsApp, connected to Telegram.\\n\\n" +
-        "Manage your WhatsApp connection, conversations, calls, and contacts in one place.\\n\\n" +
+      "👋 Welcome to WAGRAM\n\n" +
+        "Your WhatsApp, connected to Telegram.\n\n" +
+        "Manage your WhatsApp connection, conversations, calls, and contacts in one place.\n\n" +
         "Tap below to open your WAGRAM dashboard.",
       openMiniAppOptions()
     );
@@ -1395,7 +1395,7 @@ bot.onText(/^\/connect(?:@\w+)?$/, async (msg) => {
 });
 
 // /status — show the live WhatsApp connection status.
-bot.onText(/^\\/status(?:@\\w+)?$/, async (msg) => {
+bot.onText(/^\/status(?:@\w+)?$/, async (msg) => {
   const telegramId = String(msg.from.id);
   if (!isAuthorizedUser(telegramId)) {
     await sendText(telegramId, "Send /start first.");
@@ -1426,7 +1426,7 @@ bot.onText(/^\\/status(?:@\\w+)?$/, async (msg) => {
     "",
     "<b>WhatsApp:</b> " + (phone ? "+" + esc(phone) : "Not available"),
     "<b>Last connected:</b> " + esc(lastConnected)
-  ].join("\\n");
+  ].join("\n");
   await sendHtml(telegramId, message, connected ? {} : openMiniAppOptions());
 });
 
@@ -1663,19 +1663,19 @@ bot.onText(/^\/delcontact(?:@\w+)?(?:\s+(\S+))?$/, async (msg, match) => {
 });
 
 // /help — concise WAGRAM usage guide.
-bot.onText(/^\\/help(?:@\\w+)?$/, async (msg) => {
+bot.onText(/^\/help(?:@\w+)?$/, async (msg) => {
   await sendText(
     String(msg.from.id),
-    "📖 WAGRAM Help\\n\\n" +
-      "Your WhatsApp, connected to Telegram.\\n\\n" +
-      "<b>Available Commands</b>\\n" +
-      "/start — start WAGRAM and open your dashboard\\n" +
-      "/status — check your WhatsApp connection\\n" +
-      "/help — show this guide\\n\\n" +
-      "<b>What you can do</b>\\n" +
-      "• Manage your WhatsApp connection\\n" +
-      "• View conversations and contacts\\n" +
-      "• Access calls and media\\n" +
+    "📖 WAGRAM Help\n\n" +
+      "Your WhatsApp, connected to Telegram.\n\n" +
+      "<b>Available Commands</b>\n" +
+      "/start — start WAGRAM and open your dashboard\n" +
+      "/status — check your WhatsApp connection\n" +
+      "/help — show this guide\n\n" +
+      "<b>What you can do</b>\n" +
+      "• Manage your WhatsApp connection\n" +
+      "• View conversations and contacts\n" +
+      "• Access calls and media\n" +
       "• Manage WhatsApp from Telegram",
     { parse_mode: "HTML", ...openMiniAppOptions() }
   );
