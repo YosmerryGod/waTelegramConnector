@@ -287,13 +287,16 @@ router.post("/premium/orders", async (req, res) => {
     const order = createPremiumPaymentOrder(req.telegramId, period, baseAmount);
     const basePayload = "00020101021226570011ID.DANA.WWW011893600915003678691602090367869160303UMI51440014ID.CO.QRIS.WWW0215ID10266342920190303UMI5204899953033605405100005802ID5915WaGRAM, Service6011Banjarmasin610570111621960150011ID.DANA.WWW63043E14";
 
-    // [ADDED] Personalize the merchant display name with the Telegram username for testing.
+    // [MODIFIED] Use the purchasing user's verified Telegram username in the QRIS merchant label.
+    // EMV QRIS merchant name (tag 59) is limited to 25 characters.
     const telegramUsername = String(req.miniAppUser?.username || "")
       .replace(/^@+/, "")
       .replace(/[^a-zA-Z0-9_]/g, "")
-      .slice(0, 13);
+      .slice(0, 18);
     const merchantName = telegramUsername
-      ? ("WaGRAM@" + telegramUsername + ", Service").slice(0, 25)
+      ? telegramUsername.length <= 9
+        ? "WaGRAM@" + telegramUsername + ", Service"
+        : "WaGRAM@" + telegramUsername
       : "WaGRAM, Service";
     const merchantField = "59" + String(merchantName.length).padStart(2, "0") + merchantName;
 
