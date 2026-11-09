@@ -5840,3 +5840,37 @@ body.premium-page-active .premium-session-benefit {
 body.premium-page-active .premium-comparison h3 {
   display: none !important;
 }
+
+
+/* [MODIFIED] Place the duration selector beside the Premium heading, above the feature list. */
+body.premium-page-active .premium-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+body.premium-page-active .premium-heading > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+body.premium-page-active #premiumDurationTabs {
+  flex: 0 0 190px;
+  width: 190px;
+  min-width: 0;
+  margin: 0 0 2px;
+}
+body.premium-page-active .premium-comparison {
+  margin-top: 4px;
+}
+@media (max-width: 520px) {
+  body.premium-page-active .premium-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  body.premium-page-active #premiumDurationTabs {
+    flex: 1 1 100%;
+    width: 100%;
+    margin: 0;
+  }
+}
