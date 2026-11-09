@@ -588,11 +588,12 @@
       stateLabel.classList.toggle("is-connected", connected);
       stateLabel.classList.toggle("is-paused", paused);
       // [MODIFIED] Connect is available from Profile when WhatsApp is disconnected or paused.
+      stateLabel.classList.remove("is-connecting");
       stateLabel.disabled = connected;
       stateLabel.innerHTML = connected
         ? "<i></i> Connected"
         : paused
-          ? "<i></i> Connect"
+          ? "<i></i> Pause"
           : "<i></i> Connect";
       disconnectButton.disabled = !connected && !paused;
       renderFreePauseCountdown(); // [ADDED] Refresh countdown with connection status.
@@ -2198,14 +2199,19 @@
       toggleNotificationPreference(button);
     });
 
-    // [MODIFIED] Start WhatsApp pairing only when the user presses Connect in Profile.
+    // [MODIFIED] A paused session starts pairing from the same status button.
     $("#accountWhatsAppState").addEventListener("click", () => {
       const button = $("#accountWhatsAppState");
       if (button.disabled) return;
       button.disabled = true;
-      button.textContent = "Preparing…";
+      button.classList.add("is-connecting");
+      button.innerHTML = "<i></i> Connecting…";
       window.dispatchEvent(new Event("wagram:connect"));
-      window.setTimeout(() => loadWhatsAppAccount(), 1200);
+    });
+
+    // [ADDED] Restore the profile status only after the pairing flow confirms success.
+    window.addEventListener("wagram:connected", () => {
+      loadWhatsAppAccount();
     });
 
     // [ADDED] Disconnect the currently linked WhatsApp session.
