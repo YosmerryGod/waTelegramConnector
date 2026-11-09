@@ -2068,7 +2068,7 @@
       },
       "7d": {
         label: "PREMIUM 7 HARI",
-        oldPrice: "",
+        oldPrice: "Rp56.000",
         price: "Rp44.000",
         note: "Akses Premium selama 7 hari",
         sessions: 3,
@@ -2076,7 +2076,7 @@
       },
       "30d": {
         label: "PREMIUM 30 HARI",
-        oldPrice: "",
+        oldPrice: "Rp240.000",
         price: "Rp149.000",
         note: "Akses Premium selama 30 hari",
         sessions: 5,
