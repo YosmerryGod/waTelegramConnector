@@ -425,14 +425,14 @@ async function shutdown(signal) {
     const sessionsBeforeShutdown = getAllSessions();
     await shutdownWhatsApp();
 
-    // [ADDED] Free sessions require an explicit Connect after a server restart.
+    // [MODIFIED] A server restart is not a daily Free-tier pause.
+    // Preserve sessions already paused by the scheduler; mark other sessions
+    // disconnected so valid saved credentials can be restored on startup.
     for (const session of sessionsBeforeShutdown) {
       try {
         updateSession(
           session.telegram_id,
-          getMembership(session.telegram_id)?.plan === "free"
-            ? "paused"
-            : "disconnected"
+          session.connection_status === "paused" ? "paused" : "disconnected"
         );
       } catch (error) {
         logger.warn({ err: error }, "Could not update session status during shutdown.");
