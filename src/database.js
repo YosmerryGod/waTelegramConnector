@@ -201,7 +201,6 @@ if (!whatsappSessionColumns.includes("free_pause_date")) {
 }
 
 // [ADDED] Persist the administrator's Free-tier pause mode across restarts.
-// [ADDED] Persist the administrator's Free-tier pause mode across restarts.
 db.exec(`
   CREATE TABLE IF NOT EXISTS app_settings (
     setting_key TEXT PRIMARY KEY,
