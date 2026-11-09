@@ -579,6 +579,12 @@
         </div>
         <p class="premium-payment-status" id="premiumPaymentStatus" aria-live="polite">QR pratinjau</p>
         <p class="premium-payment-hint">Scan QRIS melalui aplikasi pembayaran dan pastikan nominalnya sesuai.</p>
+        <!-- [ADDED] Download QR image and notify admin after payment. -->
+        <div class="premium-payment-actions">
+          <button class="premium-payment-download" id="premiumPaymentDownloadButton" type="button">Unduh QRIS</button>
+          <button class="premium-payment-paid" id="premiumPaymentPaidButton" type="button" disabled>Saya sudah bayar</button>
+        </div>
+        <p class="premium-payment-confirmation" id="premiumPaymentConfirmation" aria-live="polite"></p>
       </section>
     </div>
 
