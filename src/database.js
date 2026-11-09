@@ -253,6 +253,27 @@ export function getPremiumPaymentOrder(telegramId, orderId) {
   `).get(String(orderId), String(telegramId)) || null;
 }
 
+// [ADDED] Admin lookup and one-time review decision for Premium payment orders.
+export function getPremiumPaymentOrderById(orderId) {
+  return db.prepare(`
+    SELECT * FROM premium_payment_orders
+    WHERE id = ?
+    LIMIT 1
+  `).get(String(orderId)) || null;
+}
+
+export function reviewPremiumPaymentOrder(orderId, decision) {
+  if (!["approved", "rejected"].includes(decision)) {
+    throw new Error("INVALID_PREMIUM_PAYMENT_DECISION");
+  }
+  const result = db.prepare(`
+    UPDATE premium_payment_orders
+    SET status = ?
+    WHERE id = ? AND status = 'pending' AND payment_reported_at IS NOT NULL
+  `).run(decision, String(orderId));
+  return result.changes > 0 ? getPremiumPaymentOrderById(orderId) : null;
+}
+
 export function markPremiumPaymentReported(telegramId, orderId) {
   const now = Date.now();
   const result = db.prepare(`
