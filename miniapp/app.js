@@ -614,14 +614,14 @@
     }
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Makassar", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
     const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    const nextPause = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 0, 0, 0));
+    const nextPause = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 6, 0, 0));
     if (Date.now() >= nextPause.getTime()) nextPause.setUTCDate(nextPause.getUTCDate() + 1);
     const remainingMinutes = Math.max(0, Math.floor((nextPause.getTime() - Date.now()) / 60000));
     const hours = Math.floor(remainingMinutes / 60);
     const minutes = remainingMinutes % 60;
     countdown.textContent = String(hours).padStart(2, "0") + "." + String(minutes).padStart(2, "0");
     countdown.classList.remove("hidden");
-    countdown.title = "Menuju pause otomatis pukul 08.00 WITA";
+    countdown.title = "Menuju pause otomatis pukul 14.00 WITA";
     countdown.setAttribute("aria-label", "Pause otomatis dalam " + hours + " jam " + minutes + " menit");
   }
 
