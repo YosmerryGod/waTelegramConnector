@@ -329,7 +329,7 @@ router.post("/premium/orders", async (req, res) => {
 router.post("/premium/orders/:orderId/paid", async (req, res) => {
   try {
     const orderId = String(req.params.orderId || "");
-    if (!/^premium_\\d+_[a-z0-9]+$/i.test(orderId)) {
+    if (!/^premium_\d+_[a-z0-9]+$/i.test(orderId)) {
       return res.status(400).json({ ok: false, error: "INVALID_ORDER_ID" });
     }
 
@@ -359,7 +359,7 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
     const adminIds = String(process.env.ADMIN_TELEGRAM_IDS || "6838814141")
       .split(",")
       .map((id) => id.trim())
-      .filter((id) => /^\\d+$/.test(id));
+      .filter((id) => /^\d+$/.test(id));
     const username = req.miniAppUser?.username
       ? "@" + req.miniAppUser.username
       : [req.miniAppUser?.first_name, req.miniAppUser?.last_name].filter(Boolean).join(" ") || "Telegram user";
