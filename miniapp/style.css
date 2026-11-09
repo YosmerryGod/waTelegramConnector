@@ -4725,3 +4725,56 @@ html[data-theme="dark"] .onboarding-primary {
   line-height: 1.35;
 }
 .profile-membership-meta:empty { display:none; }
+
+
+/* [ADDED] Full-page Premium purchase experience replaces the bottom sheet. */
+.premium-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 16px calc(18px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.premium-page-content {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 8px 0 20px;
+}
+.premium-page .premium-panel,
+.premium-page-content .premium-panel {
+  max-height: none;
+  overflow: visible;
+}
+.premium-page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  margin: 0 0 12px -7px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.premium-page-back .i { width: 18px; height: 18px; }
+.premium-page .premium-heading { padding-top: 8px; }
+.premium-page .premium-continue-button {
+  position: sticky;
+  bottom: 0;
+  margin-top: 16px;
+}
+.premium-page .premium-payment-note { padding-bottom: 4px; }
+body.premium-page-active #bottomNav { display: none !important; }
+body.premium-page-active #topbarSearchWrap,
+body.premium-page-active #addContactButton { display: none !important; }
+body.premium-page-active .premium-sheet { display: none !important; }
+@media (min-width: 700px) {
+  .premium-page { padding-right: 24px; padding-left: 24px; }
+  .premium-page-content { padding-top: 14px; }
+}
