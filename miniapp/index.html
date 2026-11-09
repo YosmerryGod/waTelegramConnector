@@ -14,8 +14,10 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261109-premium-contrast-v2">
+  <link rel="stylesheet" href="style.css?v=20261109-premium-popup-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- [ADDED] QR code renderer for Premium payment preview. -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 </head>
 <body>
   <!-- [ADDED] Branded splash loader shown until initial app data has settled. -->
@@ -561,6 +563,23 @@
         </div>
       </section>
     </main>
+
+    <!-- [ADDED] Premium QRIS payment popup preview. -->
+    <div class="premium-payment-modal hidden" id="premiumPaymentModal" role="dialog" aria-modal="true" aria-labelledby="premiumPaymentTitle">
+      <section class="premium-payment-content">
+        <button class="premium-payment-back" id="premiumPaymentBackButton" type="button" aria-label="Kembali">‹</button>
+        <h2 id="premiumPaymentTitle">Pembayaran Premium</h2>
+        <p class="premium-payment-plan" id="premiumPaymentPlan">PREMIUM 3 HARI</p>
+        <strong class="premium-payment-amount" id="premiumPaymentAmount">Rp14.000</strong>
+        <p class="premium-payment-unique" id="premiumPaymentUniqueCode">Kode unik: 000</p>
+        <div class="premium-payment-qr-wrap">
+          <canvas id="premiumPaymentQr" width="280" height="280" aria-label="Pratinjau QR"></canvas>
+          <img class="premium-payment-logo" src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM">
+        </div>
+        <p class="premium-payment-status" id="premiumPaymentStatus" aria-live="polite">QR pratinjau</p>
+        <p class="premium-payment-hint">Tampilan pratinjau. Pembayaran belum diaktifkan.</p>
+      </section>
+    </div>
 
     <!-- FORM KONTAK (bottom sheet) -->
     <div id="contactSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="contactFormTitle">
