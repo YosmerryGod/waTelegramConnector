@@ -4672,3 +4672,19 @@ html[data-theme="dark"] .onboarding-primary {
   letter-spacing:.3px; line-height:1;
   box-shadow:3px 3px 8px rgba(0,0,0,.22),-2px -2px 6px rgba(44,76,51,.06);
 }
+
+/* [ADDED] Connecting state for the profile WhatsApp status button. */
+.whatsapp-connection-state.is-connecting {
+  border-color:rgba(234,179,8,.32);
+  color:#d9b45a;
+  opacity:.9;
+}
+.whatsapp-connection-state.is-connecting i {
+  width:7px;
+  height:7px;
+  background:#d9b45a;
+  animation:whatsapp-connecting-pulse 1s ease-in-out infinite;
+}
+@keyframes whatsapp-connecting-pulse {
+  50% { opacity:.35; transform:scale(.8); }
+}
