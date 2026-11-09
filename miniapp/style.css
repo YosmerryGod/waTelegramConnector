@@ -5834,3 +5834,9 @@ body.premium-page-active .premium-plan-label,
 body.premium-page-active .premium-session-benefit {
   display: none !important;
 }
+
+
+/* [MODIFIED] The comparison table stands on its own without a redundant section heading. */
+body.premium-page-active .premium-comparison h3 {
+  display: none !important;
+}
