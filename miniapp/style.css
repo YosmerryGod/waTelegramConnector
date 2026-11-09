@@ -5797,3 +5797,32 @@ body.premium-page-active .premium-cta-wrap {
   body.premium-page-active .premium-continue-button { min-height: 36px; height: 36px; font-size: 12px; }
   body.premium-page-active .premium-payment-note { margin-top: 3px; font-size: 7px; }
 }
+
+
+/* [MODIFIED] Remove the comparison card so the feature list sits directly on the page. */
+body.premium-page-active .premium-comparison-scroll {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.premium-page-active .premium-comparison-table,
+body.premium-page-active .premium-comparison-table thead,
+body.premium-page-active .premium-comparison-table tbody,
+body.premium-page-active .premium-comparison-table tr,
+body.premium-page-active .premium-comparison-table th,
+body.premium-page-active .premium-comparison-table td {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body.premium-page-active .premium-comparison-table th,
+body.premium-page-active .premium-comparison-table td {
+  border: 0 !important;
+}
+body.premium-page-active .premium-comparison-table th {
+  padding-bottom: 9px;
+}
+body.premium-page-active .premium-comparison-table td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
