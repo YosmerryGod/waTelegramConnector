@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261109-premium-popup-v1">
+  <link rel="stylesheet" href="style.css?v=20261109-premium-popup-v2">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -568,7 +568,7 @@
     <!-- [ADDED] Premium QRIS payment popup preview. -->
     <div class="premium-payment-modal hidden" id="premiumPaymentModal" role="dialog" aria-modal="true" aria-labelledby="premiumPaymentTitle">
       <section class="premium-payment-content">
-        <button class="premium-payment-back" id="premiumPaymentBackButton" type="button" aria-label="Kembali">‹</button>
+        <button class="premium-payment-back" id="premiumPaymentBackButton" type="button" aria-label="Kembali" style="left:14px !important;right:auto !important">‹</button>
         <h2 id="premiumPaymentTitle">Pembayaran Premium</h2>
         <p class="premium-payment-plan" id="premiumPaymentPlan">PREMIUM 3 HARI</p>
         <strong class="premium-payment-amount" id="premiumPaymentAmount">Rp14.000</strong>
