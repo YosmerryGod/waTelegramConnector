@@ -5869,8 +5869,22 @@ body.premium-page-active .premium-comparison {
     gap: 10px;
   }
   body.premium-page-active #premiumDurationTabs {
-    flex: 1 1 100%;
+    flex: 0 0 100%;
     width: 100%;
     margin: 0;
+  }
+}
+
+
+/* [MODIFIED] Keep the duration selector inside the heading flex row, never as a full-height page item. */
+body.premium-page-active .premium-heading #premiumDurationTabs {
+  flex-grow: 0;
+  flex-shrink: 0;
+  align-self: center;
+}
+@media (max-width: 520px) {
+  body.premium-page-active .premium-heading #premiumDurationTabs {
+    flex: 0 0 100%;
+    align-self: stretch;
   }
 }
