@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261109-premium-100vh-v2">
+  <link rel="stylesheet" href="style.css?v=20261109-premium-free-premium-compare-v3">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -531,16 +531,15 @@
                 <tr><th>Fitur</th><th>Free</th><th>Premium</th></tr>
               </thead>
               <tbody>
-                <!-- [MODIFIED] Match the Free column to the notification categories available in the app. -->
+                <!-- [MODIFIED] Show the actual Free restrictions and Premium connection benefits. -->
                 <tr><td>Pesan pribadi</td><td><span class="premium-table-check">✓</span></td><td><span class="premium-table-check">✓</span></td></tr>
                 <tr><td>Panggilan</td><td><span class="premium-table-check">✓</span></td><td><span class="premium-table-check">✓</span></td></tr>
-                <tr><td>Grup</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
-                <tr><td>Saluran</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
-                <tr><td>Mention &amp; balasan</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
-                <tr><td>Media &amp; dokumen</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
-                <tr><td>Riwayat pesan</td><td>3 hari</td><td>Lebih panjang</td></tr>
+                <tr><td>Grup WhatsApp</td><td><span class="premium-table-dash">Terkunci</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Saluran WhatsApp</td><td><span class="premium-table-dash">Terkunci</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Media &amp; dokumen</td><td><span class="premium-table-dash">Terkunci</span></td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Pause otomatis harian</td><td>07.00 WIB</td><td><span class="premium-table-check">Tidak ada</span></td></tr>
+                <tr><td>Connect ulang</td><td>Manual</td><td>Tetap aktif</td></tr>
                 <tr><td>WhatsApp session</td><td>1</td><td id="premiumTableSessions">2</td></tr>
-                <tr><td>Prioritas dukungan</td><td><span class="premium-table-dash">—</span></td><td><span class="premium-table-check">✓</span></td></tr>
               </tbody>
             </table>
           </div>
@@ -606,7 +605,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261109-premium-100vh-v2"></script>
+  <script src="app.js?v=20261109-premium-free-premium-compare-v3"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
