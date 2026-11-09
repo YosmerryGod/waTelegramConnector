@@ -4660,3 +4660,15 @@ html[data-theme="dark"] .onboarding-primary {
     font-size:9px;
   }
 }
+
+
+/* [ADDED] Compact WAGRAM countdown chip beside the WhatsApp Connect state. */
+.free-pause-countdown {
+  display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center;
+  min-width:42px; min-height:30px; padding:0 7px;
+  border:1px solid rgba(234,179,8,.24); border-radius:8px;
+  background:linear-gradient(145deg,rgba(234,179,8,.10),rgba(13,25,17,.82));
+  color:#d9b45a; font-size:10px; font-weight:700; font-variant-numeric:tabular-nums;
+  letter-spacing:.3px; line-height:1;
+  box-shadow:3px 3px 8px rgba(0,0,0,.22),-2px -2px 6px rgba(44,76,51,.06);
+}
