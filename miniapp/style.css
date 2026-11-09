@@ -6172,3 +6172,51 @@ html[data-theme="dark"] body.premium-page-active .premium-duration-tab[aria-sele
     transition: none;
   }
 }
+
+
+/* [MODIFIED] Fix Premium feature text contrast in light and dark themes. */
+body.premium-page-active .premium-comparison-table,
+body.premium-page-active .premium-comparison-table tbody,
+body.premium-page-active .premium-comparison-table tr,
+body.premium-page-active .premium-comparison-table td {
+  color: var(--text, #17251d) !important;
+}
+
+body.premium-page-active .premium-comparison-table thead th {
+  color: var(--muted, #718078) !important;
+}
+
+body.premium-page-active .premium-comparison-table td:first-child {
+  color: var(--text, #17251d) !important;
+  opacity: 1 !important;
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-comparison-table,
+html[data-theme="dark"] body.premium-page-active .premium-comparison-table tbody,
+html[data-theme="dark"] body.premium-page-active .premium-comparison-table tr,
+html[data-theme="dark"] body.premium-page-active .premium-comparison-table td,
+html[data-theme="dark"] body.premium-page-active .premium-comparison-table td:first-child {
+  color: #edf7ef !important;
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-comparison-table thead th {
+  color: #8b9b8f !important;
+}
+
+/* [MODIFIED] Remove light neumorphic highlights from Premium controls in dark mode. */
+html[data-theme="dark"] body.premium-page-active .premium-page-back {
+  border-color: rgba(69,103,78,.22);
+  box-shadow: 4px 4px 10px rgba(0,0,0,.42), -3px -3px 8px rgba(37,64,44,.12);
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-continue-button {
+  box-shadow: 5px 5px 12px rgba(0,0,0,.5), -3px -3px 8px rgba(37,64,44,.12);
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-continue-button:active {
+  box-shadow: inset 3px 3px 7px rgba(0,0,0,.35), inset -3px -3px 7px rgba(39,212,119,.08);
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-button-old-price {
+  color: rgba(255,255,255,.68);
+}
