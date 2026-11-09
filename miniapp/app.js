@@ -2179,12 +2179,52 @@
         button.disabled = false;
       }
     });
-    // [ADDED] Keep the current server-created order for download and payment reporting.
+    // [MODIFIED] Keep the current server-created order for download and payment reporting.
     let activePremiumOrderId = null;
-    const downloadPremiumQr = () => {
-      const canvas = $("#premiumPaymentQr");
+    const downloadPremiumQr = async () => {
+      const sourceCanvas = $("#premiumPaymentQr");
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = sourceCanvas.width;
+      exportCanvas.height = sourceCanvas.height;
+      const context = exportCanvas.getContext("2d");
+
+      if (!context || !sourceCanvas.width || !sourceCanvas.height) {
+        throw new Error("Gambar QRIS belum siap diunduh.");
+      }
+
+      // [ADDED] Export the QR and the centered WAGRAM logo together as one PNG.
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      context.drawImage(sourceCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+
+      const logo = $("#premiumPaymentModal .premium-payment-logo");
+      if (logo?.complete && logo.naturalWidth > 0) {
+        const tileSize = Math.round(exportCanvas.width * 0.207);
+        const tileX = Math.round((exportCanvas.width - tileSize) / 2);
+        const tileY = Math.round((exportCanvas.height - tileSize) / 2);
+        const radius = Math.round(tileSize * 0.18);
+        const logoPadding = Math.round(tileSize * 0.12);
+
+        context.save();
+        context.beginPath();
+        context.roundRect(tileX, tileY, tileSize, tileSize, radius);
+        context.fillStyle = "#092016";
+        context.fill();
+        context.lineWidth = Math.max(2, Math.round(exportCanvas.width * 0.01));
+        context.strokeStyle = "#ffffff";
+        context.stroke();
+        context.drawImage(
+          logo,
+          tileX + logoPadding,
+          tileY + logoPadding,
+          tileSize - logoPadding * 2,
+          tileSize - logoPadding * 2
+        );
+        context.restore();
+      }
+
       const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/png");
+      link.href = exportCanvas.toDataURL("image/png");
       link.download = "WAGRAM-Premium-QRIS.png";
       document.body.appendChild(link);
       link.click();
