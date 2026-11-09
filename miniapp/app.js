@@ -547,7 +547,7 @@
     // [MODIFIED] Remove the separate expiry-date line below the tier badge.
     if (meta) meta.textContent = isPremium
       ? ""
-      : (isExpired ? "Masa Premium telah berakhir" : "Nikmati fitur dasar WAGRAM");
+      : (isExpired ? "Masa Premium telah berakhir" : ""); // [MODIFIED] Keep the Free Tier badge clean without supporting text.
 
     const expiry = hasExpiry
       ? expiryDate.toLocaleString("id-ID", {
