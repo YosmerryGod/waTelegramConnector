@@ -2136,12 +2136,11 @@
       document.body.classList.add("premium-payment-open");
 
       try {
-        if (!window.QRCode?.toCanvas) throw new Error("QR renderer belum tersedia");
         const result = await api("/premium/orders", {
           method: "POST",
           body: JSON.stringify({ period: selectedPremiumPeriod })
         });
-        if (!result.rawQris || !result.order?.amount) {
+        if (!result.rawQris || !result.qrDataUrl || !result.order?.amount) {
           throw new Error("Server tidak mengirim data QRIS yang valid.");
         }
 
@@ -2152,11 +2151,15 @@
           maximumFractionDigits: 0
         }).format(order.amount);
         $("#premiumPaymentUniqueCode").textContent = "Kode unik: " + order.uniqueCode;
-        await window.QRCode.toCanvas(canvas, result.rawQris, {
-          width: 280,
-          margin: 2,
-          errorCorrectionLevel: "H"
+        const qrImage = new Image();
+        await new Promise((resolve, reject) => {
+          qrImage.onload = resolve;
+          qrImage.onerror = reject;
+          qrImage.src = result.qrDataUrl;
         });
+        const context = canvas.getContext("2d");
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(qrImage, 0, 0, canvas.width, canvas.height);
         $("#premiumPaymentStatus").textContent = "QRIS siap dipindai";
       } catch (error) {
         const context = canvas.getContext("2d");
