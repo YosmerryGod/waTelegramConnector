@@ -396,6 +396,25 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
       return res.json({ ok: true, alreadyReported: true });
     }
 
+    // [ADDED] Validate payment proof before accepting the payment report.
+    const proofImage = String(req.body?.proofImage || "");
+    const proofMatch = proofImage.match(/^data:image\\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+    if (!proofMatch || proofMatch[2].length > 7 * 1024 * 1024) {
+      return res.status(400).json({
+        ok: false,
+        error: "PAYMENT_PROOF_REQUIRED",
+        message: "Pilih bukti pembayaran JPG, PNG, atau WEBP maksimal 5 MB."
+      });
+    }
+    const proofBuffer = Buffer.from(proofMatch[2], "base64");
+    if (!proofBuffer.length || proofBuffer.length > 5 * 1024 * 1024) {
+      return res.status(400).json({
+        ok: false,
+        error: "INVALID_PAYMENT_PROOF",
+        message: "Ukuran bukti pembayaran maksimal 5 MB."
+      });
+    }
+
     if (!markPremiumPaymentReported(req.telegramId, orderId)) {
       return res.status(409).json({
         ok: false,
@@ -423,8 +442,14 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
       "Periksa transaksi masuk di DANA sebelum mengaktifkan Premium."
     ].join("\\n");
 
+    const proofExtension = proofMatch[1] === "jpeg" ? "jpg" : proofMatch[1];
     const results = await Promise.allSettled(
-      adminIds.map((adminId) => bot.sendMessage(adminId, message, { parse_mode: "HTML" }))
+      adminIds.map((adminId) => bot.sendPhoto(
+        adminId,
+        proofBuffer,
+        { caption: message, parse_mode: "HTML" },
+        { filename: "bukti-pembayaran-premium." + proofExtension, contentType: "image/" + proofMatch[1] }
+      ))
     );
     const delivered = results.some((result) => result.status === "fulfilled");
     if (!delivered) {
