@@ -4688,3 +4688,29 @@ html[data-theme="dark"] .onboarding-primary {
 @keyframes whatsapp-connecting-pulse {
   50% { opacity:.35; transform:scale(.8); }
 }
+
+
+/* [MODIFIED] Countdown is integrated into the WhatsApp status button. */
+.whatsapp-connection-state .free-pause-countdown {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  min-height:0;
+  margin-left:3px;
+  padding:0 0 0 8px;
+  border:0;
+  border-left:1px solid currentColor;
+  border-radius:0;
+  background:none;
+  color:inherit;
+  font-size:10px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.2px;
+  line-height:1;
+  box-shadow:none;
+}
+.whatsapp-connection-state .free-pause-countdown.hidden {
+  display:none;
+}
