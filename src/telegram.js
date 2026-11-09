@@ -1897,7 +1897,7 @@ bot.setMyCommands([
 bot.on("callback_query", async (query) => {
   const callerId = String(query.from?.id || "");
   const data = String(query.data || "");
-  const match = data.match(/^premium:(approve|reject):(premium_\\d+_[a-z0-9]+)$/i);
+  const match = data.match(/^premium:(approve|reject):(premium_\d+_[a-z0-9]+)$/i);
 
   if (!match) return;
 
@@ -1951,9 +1951,9 @@ bot.on("callback_query", async (query) => {
       try {
         await sendText(
           reviewedOrder.telegram_id,
-          "🎉 <b>Pembayaran Premium berhasil diverifikasi!</b>\\n\\n" +
-            "Paket: <b>" + esc(membership.plan_label) + "</b>\\n" +
-            "Order: <code>" + esc(orderId) + "</code>\\n\\n" +
+          "🎉 <b>Pembayaran Premium berhasil diverifikasi!</b>\n\n" +
+            "Paket: <b>" + esc(membership.plan_label) + "</b>\n" +
+            "Order: <code>" + esc(orderId) + "</code>\n\n" +
             "Premium kamu sekarang sudah aktif. Selamat menikmati WAGRAM!",
           { parse_mode: "HTML", disable_web_page_preview: true }
         );
@@ -1965,8 +1965,8 @@ bot.on("callback_query", async (query) => {
     try {
       await sendText(
         reviewedOrder.telegram_id,
-        "❌ <b>Pembayaran Premium belum dapat disetujui.</b>\\n\\n" +
-          "Order: <code>" + esc(orderId) + "</code>\\n" +
+        "❌ <b>Pembayaran Premium belum dapat disetujui.</b>\n\n" +
+          "Order: <code>" + esc(orderId) + "</code>\n" +
           "Silakan hubungi admin WAGRAM jika merasa terjadi kesalahan.",
         { parse_mode: "HTML", disable_web_page_preview: true }
       );
@@ -1983,8 +1983,8 @@ bot.on("callback_query", async (query) => {
   if (query.message) {
     const originalCaption = String(query.message.caption || "");
     const statusLine = decision === "approved"
-      ? "\\n\\n✅ <b>DISETUJUI</b> oleh admin"
-      : "\\n\\n❌ <b>DITOLAK</b> oleh admin";
+      ? "\n\n✅ <b>DISETUJUI</b> oleh admin"
+      : "\n\n❌ <b>DITOLAK</b> oleh admin";
     await bot.editMessageCaption(originalCaption + statusLine, {
       chat_id: query.message.chat.id,
       message_id: query.message.message_id,
