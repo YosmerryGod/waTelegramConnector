@@ -5421,3 +5421,98 @@ body.premium-page-active .premium-payment-note {
   body.premium-page-active .premium-cta-wrap { margin-right: -18px; margin-left: -18px; padding-right: 18px; padding-left: 18px; }
   body.premium-page-active .premium-comparison-table { font-size: 12px; }
 }
+
+
+/* [MODIFIED] Premium screen follows the clean black-and-white subscription reference. */
+body.premium-page-active #premiumPage {
+  background: #000;
+  color: #f7f7f7;
+}
+body.premium-page-active .premium-page-content {
+  color: #f7f7f7;
+}
+body.premium-page-active .premium-page-back {
+  border: 1px solid #454545;
+  background: #292929;
+  color: #fff;
+}
+body.premium-page-active .premium-eyebrow,
+body.premium-page-active .premium-subtitle,
+body.premium-page-active .premium-comparison h3,
+body.premium-page-active .premium-comparison-table th,
+body.premium-page-active .premium-price-note,
+body.premium-page-active .premium-price-line del,
+body.premium-page-active .premium-payment-note,
+body.premium-page-active .premium-session-benefit small {
+  color: #b8b8b8;
+}
+body.premium-page-active .premium-heading h2 {
+  color: #f7f7f7;
+}
+body.premium-page-active .premium-heading h2 span,
+body.premium-page-active .premium-comparison-table th:last-child,
+body.premium-page-active .premium-comparison-table td:last-child,
+body.premium-page-active .premium-table-check {
+  color: #d9a441;
+}
+body.premium-page-active .premium-comparison-table th,
+body.premium-page-active .premium-comparison-table td {
+  border-bottom: 0;
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+body.premium-page-active .premium-comparison-table th:first-child,
+body.premium-page-active .premium-comparison-table td:first-child {
+  width: 72%;
+}
+body.premium-page-active .premium-comparison-table th:nth-child(2),
+body.premium-page-active .premium-comparison-table td:nth-child(2),
+body.premium-page-active .premium-comparison-table th:nth-child(3),
+body.premium-page-active .premium-comparison-table td:nth-child(3) {
+  width: 14%;
+}
+body.premium-page-active .premium-comparison-table td:first-child {
+  color: #f2f2f2;
+  font-size: 13px;
+  font-weight: 500;
+}
+body.premium-page-active .premium-comparison-table td:nth-child(2) {
+  color: #a7a7a7;
+}
+body.premium-page-active .premium-duration-tabs {
+  border-color: #353535;
+  background: #171717;
+}
+body.premium-page-active .premium-duration-tab {
+  color: #b8b8b8;
+}
+body.premium-page-active .premium-duration-tab.active {
+  background: #f4f4f4;
+  color: #111;
+}
+body.premium-page-active .premium-price-panel {
+  border-bottom-color: #333;
+}
+body.premium-page-active .premium-plan-label {
+  color: #b8b8b8;
+}
+body.premium-page-active .premium-price-line strong,
+body.premium-page-active .premium-session-benefit strong {
+  color: #f7f7f7;
+}
+body.premium-page-active .premium-session-icon {
+  border-color: #444;
+  color: #f7f7f7;
+}
+body.premium-page-active .premium-cta-wrap {
+  background: linear-gradient(to bottom, rgba(0,0,0,0), #000 20%);
+}
+body.premium-page-active .premium-continue-button {
+  background: #f7f7f7;
+  color: #111;
+  font-size: 15px;
+  font-weight: 750;
+}
+body.premium-page-active .premium-payment-note {
+  color: #aaa;
+}
