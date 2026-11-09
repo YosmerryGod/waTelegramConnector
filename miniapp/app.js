@@ -2122,45 +2122,50 @@
       const tab = event.target.closest("[data-period]");
       if (tab && premiumPlans[tab.dataset.period]) renderPremiumPlan(tab.dataset.period);
     });
-    // [ADDED] Build a dynamic QRIS payload from the merchant's supplied static template.
-    function buildPremiumQrisPayload(amount) {
-      const basePayload = "00020101021226570011ID.DANA.WWW011893600915003678691602090367869160303UMI51440014ID.CO.QRIS.WWW0215ID10266342920190303UMI5204899953033605405100005802ID5915WaGRAM, Service6011Banjarmasin610570111621960150011ID.DANA.WWW63043E14";
-      const amountText = String(Math.round(amount));
-      const amountField = "54" + String(amountText.length).padStart(2, "0") + amountText;
-      const payloadWithoutCrc = basePayload.replace(/5405\\d{5}/, amountField).slice(0, -8) + "6304";
-      let crc = 0xFFFF;
-      for (let index = 0; index < payloadWithoutCrc.length; index += 1) {
-        crc ^= payloadWithoutCrc.charCodeAt(index) << 8;
-        for (let bit = 0; bit < 8; bit += 1) {
-          crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
-          crc &= 0xFFFF;
-        }
-      }
-      return payloadWithoutCrc + crc.toString(16).toUpperCase().padStart(4, "0");
-    }
-
-    // [MODIFIED] Render the actual QRIS payload instead of a plain-text QR preview.
+    // [MODIFIED] Request a server-generated QRIS order and render its raw payload.
     $("#premiumContinueButton").addEventListener("click", async () => {
       const plan = premiumPlans[selectedPremiumPeriod];
-      const amount = Number(String(plan.price).replace(/[^0-9]/g, ""));
-      const uniqueCode = Math.floor(100 + Math.random() * 900);
-      const paymentAmount = amount + uniqueCode;
+      const button = $("#premiumContinueButton");
       const canvas = $("#premiumPaymentQr");
+      button.disabled = true;
       $("#premiumPaymentPlan").textContent = plan.label;
-      $("#premiumPaymentAmount").textContent = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(paymentAmount);
-      $("#premiumPaymentUniqueCode").textContent = "Kode unik: " + uniqueCode;
-      $("#premiumPaymentStatus").textContent = "Menyiapkan QRIS…";
+      $("#premiumPaymentAmount").textContent = "Menyiapkan…";
+      $("#premiumPaymentUniqueCode").textContent = "Membuat pesanan pembayaran";
+      $("#premiumPaymentStatus").textContent = "Menghubungi server…";
       $("#premiumPaymentModal").classList.remove("hidden");
       document.body.classList.add("premium-payment-open");
+
       try {
         if (!window.QRCode?.toCanvas) throw new Error("QR renderer belum tersedia");
-        const payload = buildPremiumQrisPayload(paymentAmount);
-        await window.QRCode.toCanvas(canvas, payload, { width: 280, margin: 2, errorCorrectionLevel: "H" });
-        $("#premiumPaymentStatus").textContent = "QRIS pratinjau";
+        const result = await api("/premium/orders", {
+          method: "POST",
+          body: JSON.stringify({ period: selectedPremiumPeriod })
+        });
+        if (!result.rawQris || !result.order?.amount) {
+          throw new Error("Server tidak mengirim data QRIS yang valid.");
+        }
+
+        const order = result.order;
+        $("#premiumPaymentAmount").textContent = new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          maximumFractionDigits: 0
+        }).format(order.amount);
+        $("#premiumPaymentUniqueCode").textContent = "Kode unik: " + order.uniqueCode;
+        await window.QRCode.toCanvas(canvas, result.rawQris, {
+          width: 280,
+          margin: 2,
+          errorCorrectionLevel: "H"
+        });
+        $("#premiumPaymentStatus").textContent = "QRIS siap dipindai";
       } catch (error) {
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
-        $("#premiumPaymentStatus").textContent = "QRIS gagal dimuat. Muat ulang Mini App.";
+        $("#premiumPaymentAmount").textContent = "—";
+        $("#premiumPaymentUniqueCode").textContent = "";
+        $("#premiumPaymentStatus").textContent = error.message || "QRIS gagal dimuat.";
+      } finally {
+        button.disabled = false;
       }
     });
     $("#premiumPaymentBackButton").addEventListener("click", () => {
