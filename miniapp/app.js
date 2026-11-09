@@ -2192,7 +2192,7 @@
         throw new Error("Gambar QRIS belum siap diunduh.");
       }
 
-      // [ADDED] Export the QR and the centered WAGRAM logo together as one PNG.
+      // [MODIFIED] Export the QR and centered WAGRAM logo as a single PNG.
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
       context.drawImage(sourceCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
@@ -2207,7 +2207,11 @@
 
         context.save();
         context.beginPath();
-        context.roundRect(tileX, tileY, tileSize, tileSize, radius);
+        if (typeof context.roundRect === "function") {
+          context.roundRect(tileX, tileY, tileSize, tileSize, radius);
+        } else {
+          context.rect(tileX, tileY, tileSize, tileSize);
+        }
         context.fillStyle = "#092016";
         context.fill();
         context.lineWidth = Math.max(2, Math.round(exportCanvas.width * 0.01));
@@ -2223,16 +2227,51 @@
         context.restore();
       }
 
+      // [ADDED] Use Android's native share sheet in Telegram WebView when supported.
+      const blob = await new Promise((resolve) => exportCanvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("Gagal membuat gambar QRIS.");
+
+      const file = new File([blob], "WAGRAM-Premium-QRIS.png", { type: "image/png" });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: "QRIS WAGRAM Premium"
+        });
+        return;
+      }
+
+      // [ADDED] Browser download fallback for WebViews without native file sharing.
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = exportCanvas.toDataURL("image/png");
+      link.href = objectUrl;
       link.download = "WAGRAM-Premium-QRIS.png";
+      link.style.display = "none";
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
     };
 
-    $("#premiumPaymentDownloadButton").addEventListener("click", () => {
-      if (activePremiumOrderId) downloadPremiumQr();
+    $("#premiumPaymentDownloadButton").addEventListener("click", async () => {
+      if (!activePremiumOrderId) {
+        $("#premiumPaymentStatus").textContent = "QRIS belum siap diunduh.";
+        return;
+      }
+      const button = $("#premiumPaymentDownloadButton");
+      const originalLabel = button.textContent;
+      button.disabled = true;
+      button.textContent = "Menyiapkan gambar…";
+      try {
+        await downloadPremiumQr();
+        $("#premiumPaymentStatus").textContent = "Gambar QRIS siap disimpan.";
+      } catch (error) {
+        if (error?.name !== "AbortError") {
+          $("#premiumPaymentStatus").textContent = error.message || "Gagal mengunduh QRIS.";
+        }
+      } finally {
+        button.disabled = false;
+        button.textContent = originalLabel;
+      }
     });
 
     $("#premiumPaymentPaidButton").addEventListener("click", async () => {
