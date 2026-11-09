@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261109-free-tier-clean-v4">
+  <link rel="stylesheet" href="style.css?v=20261109-premium-full-page-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -494,12 +494,10 @@
       <button class="nav-item" id="profileNav" type="button" aria-label="Profil"><svg class="i"><use href="#i-user"/></svg><span>Profil</span></button>
     </nav>
 
-    <!-- [ADDED] WAGRAM Premium plan selector bottom sheet. -->
-    <div id="premiumSheet" class="sheet premium-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="premiumSheetTitle">
-      <div class="sheet-backdrop" data-close-premium></div>
-      <section class="sheet-panel premium-panel">
-        <div class="sheet-handle"></div>
-        <button class="premium-close icon-button" type="button" data-close-premium aria-label="Tutup">×</button>
+    <!-- [MODIFIED] Dedicated full-page Premium subscription screen. -->
+    <main id="premiumPage" class="page premium-page hidden" aria-labelledby="premiumSheetTitle">
+      <section class="premium-page-content">
+        <button class="premium-page-back" id="premiumBackButton" type="button"><svg class="i"><use href="#i-back"/></svg><span>Kembali</span></button>
         <div class="premium-heading">
           <span class="premium-crown"><img src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM"></span>
           <div>
@@ -550,7 +548,7 @@
         <button class="premium-continue-button" id="premiumContinueButton" type="button">Lanjutkan · Rp14.000</button>
         <p class="premium-payment-note">Pembayaran dan aktivasi Premium akan tersedia pada tahap berikutnya.</p>
       </section>
-    </div>
+    </main>
 
     <!-- FORM KONTAK (bottom sheet) -->
     <div id="contactSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="contactFormTitle">
@@ -608,7 +606,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261109-free-tier-clean-v4"></script>
+  <script src="app.js?v=20261109-premium-full-page-v1"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
