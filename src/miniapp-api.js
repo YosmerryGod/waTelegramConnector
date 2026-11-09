@@ -298,6 +298,12 @@ router.post("/premium/orders", async (req, res) => {
     }
 
     const rawQris = payloadWithoutCrc + crc.toString(16).toUpperCase().padStart(4, "0");
+    const qrDataUrl = await QRCode.toDataURL(rawQris, {
+      width: 560,
+      margin: 2,
+      errorCorrectionLevel: "H",
+      color: { dark: "#101820", light: "#FFFFFF" }
+    });
     res.setHeader("Cache-Control", "no-store");
     return res.status(201).json({
       ok: true,
@@ -309,7 +315,8 @@ router.post("/premium/orders", async (req, res) => {
         amount: order.amount,
         expiresAt: order.expiresAt
       },
-      rawQris
+      rawQris,
+      qrDataUrl
     });
   } catch (error) {
     sendServerError(res, error, "Could not create Premium payment order");
