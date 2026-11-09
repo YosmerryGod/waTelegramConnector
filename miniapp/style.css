@@ -4363,3 +4363,113 @@ html[data-theme="dark"] .onboarding-primary {
   .onboarding-welcome { padding-left:14px; padding-right:14px; border-radius:24px; }
 }
 
+
+
+/* [ADDED] Full-viewport onboarding layout: remove the enclosing card. */
+.onboarding-screen {
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:stretch;
+  width:100vw;
+  height:100vh;
+  height:100dvh;
+  min-height:100vh;
+  min-height:100dvh;
+  padding:0;
+  margin:0;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 24%,rgba(25,116,66,.16),transparent 48%),
+    linear-gradient(155deg,#08130c 0%,#0b1710 52%,#07100b 100%);
+}
+
+.onboarding-welcome {
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  height:auto;
+  min-height:0;
+  max-width:none;
+  margin:0;
+  padding:calc(18px + env(safe-area-inset-top)) 22px calc(14px + env(safe-area-inset-bottom));
+  overflow:hidden;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  color:#eef8f0;
+  box-shadow:none;
+}
+
+.onboarding-welcome::before,
+.onboarding-welcome::after {
+  border-color:rgba(65,190,112,.12);
+  pointer-events:none;
+}
+
+.onboarding-hero-art {
+  flex:0 1 auto;
+  width:min(100%,440px);
+  max-height:42vh;
+  margin:0 auto 10px;
+}
+
+.onboarding-welcome h1 {
+  color:#eef8f0;
+}
+
+.onboarding-welcome-description {
+  color:rgba(220,235,224,.66);
+}
+
+.onboarding-hero-benefits {
+  flex-wrap:wrap;
+  margin-bottom:20px;
+}
+
+.onboarding-hero-benefits span {
+  background:linear-gradient(145deg,#142219,#0c1710);
+  border-color:rgba(89,150,108,.14);
+  color:#e4f1e7;
+  box-shadow:5px 5px 12px rgba(0,0,0,.34),-3px -3px 9px rgba(37,72,46,.06);
+}
+
+.onboarding-welcome-button {
+  flex:0 0 auto;
+}
+
+.onboarding-pagination {
+  flex:0 0 auto;
+  width:100%;
+  padding:8px 0 calc(14px + env(safe-area-inset-bottom));
+  background:transparent;
+}
+
+@media(max-height:740px) {
+  .onboarding-welcome {
+    padding-top:calc(10px + env(safe-area-inset-top));
+    padding-bottom:8px;
+  }
+  .onboarding-hero-art {
+    width:min(100%,380px);
+    max-height:38vh;
+    margin-bottom:6px;
+  }
+  .onboarding-welcome-description {
+    margin-top:10px;
+    margin-bottom:14px;
+  }
+  .onboarding-hero-benefits {
+    margin-bottom:14px;
+  }
+}
+
+@media(max-width:360px) {
+  .onboarding-welcome {
+    padding-left:14px;
+    padding-right:14px;
+  }
+}
