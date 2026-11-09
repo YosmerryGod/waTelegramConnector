@@ -480,6 +480,7 @@
       state.membership = data.account || null;
       renderMembership();
       renderNotificationPreferences(); // [ADDED] Reapply notification access after the membership refresh.
+      renderFreePauseCountdown(); // [ADDED] Show countdown after membership is known.
       // [ADDED] Re-render chat rows after the server confirms the plan; chats and membership load in parallel on startup.
       if (state.chatsLoaded && state.page === "chats") renderChats();
     } catch (error) {
@@ -594,12 +595,34 @@
           ? "<i></i> Connect"
           : "<i></i> Connect";
       disconnectButton.disabled = !connected && !paused;
+      renderFreePauseCountdown(); // [ADDED] Refresh countdown with connection status.
     } catch (error) {
       phone.textContent = "Status koneksi tidak tersedia";
       stateLabel.classList.remove("is-connected");
       stateLabel.textContent = "Status tidak tersedia";
       disconnectButton.disabled = true;
     }
+  }
+
+  // [ADDED] Countdown until the next automatic Free-tier pause at 08:00 WITA.
+  function renderFreePauseCountdown() {
+    const countdown = $("#freePauseCountdown");
+    if (!countdown) return;
+    if (!state.membership || state.membership.plan !== "free") {
+      countdown.classList.add("hidden");
+      return;
+    }
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Makassar", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    const nextPause = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 8, 0, 0));
+    if (Date.now() >= nextPause.getTime()) nextPause.setUTCDate(nextPause.getUTCDate() + 1);
+    const remainingMinutes = Math.max(0, Math.floor((nextPause.getTime() - Date.now()) / 60000));
+    const hours = Math.floor(remainingMinutes / 60);
+    const minutes = remainingMinutes % 60;
+    countdown.textContent = String(hours).padStart(2, "0") + "." + String(minutes).padStart(2, "0");
+    countdown.classList.remove("hidden");
+    countdown.title = "Menuju pause otomatis pukul 08.00 WITA";
+    countdown.setAttribute("aria-label", "Pause otomatis dalam " + hours + " jam " + minutes + " menit");
   }
 
   // [ADDED] Persist notification preferences locally on this device.
@@ -2958,6 +2981,8 @@
 
     // [ADDED] Load call history in the background so new incoming calls can badge the tab.
     loadCalls();
+    // [ADDED] Keep HH.MM countdown aligned with the 08:00 WITA pause.
+    window.setInterval(renderFreePauseCountdown, 15000);
     connectRealtime();
     // [ADDED] Poll only while a conversation is open; WebSocket remains the fast path.
     window.setInterval(() => {
