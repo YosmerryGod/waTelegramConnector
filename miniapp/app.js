@@ -2227,29 +2227,33 @@
         context.restore();
       }
 
-      // [ADDED] Use Android's native share sheet in Telegram WebView when supported.
-      const blob = await new Promise((resolve) => exportCanvas.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("Gagal membuat gambar QRIS.");
+      // [MODIFIED] Use Telegram's native file download API instead of a WebView blob download.
+      const imageData = exportCanvas.toDataURL("image/png");
+      const prepared = await api("/premium/orders/" + encodeURIComponent(activePremiumOrderId) + "/qr-download", {
+        method: "POST",
+        body: JSON.stringify({ imageData })
+      });
+      if (!prepared.downloadUrl) throw new Error("Server tidak menyiapkan file QRIS.");
 
-      const file = new File([blob], "WAGRAM-Premium-QRIS.png", { type: "image/png" });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: "QRIS WAGRAM Premium"
+      const downloadUrl = new URL(prepared.downloadUrl, new URL(API_BASE, window.location.href)).toString();
+      if (tg?.downloadFile && (!tg.isVersionAtLeast || tg.isVersionAtLeast("8.0"))) {
+        tg.downloadFile({
+          url: downloadUrl,
+          file_name: "WAGRAM-Premium-QRIS.png"
+        }, (accepted) => {
+          $("#premiumPaymentStatus").textContent = accepted
+            ? "Download QRIS dimulai."
+            : "Download QRIS dibatalkan.";
         });
         return;
       }
 
-      // [ADDED] Browser download fallback for WebViews without native file sharing.
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = "WAGRAM-Premium-QRIS.png";
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      // [ADDED] Fallback for older Telegram clients: open the attachment URL in the browser.
+      if (tg?.openLink) {
+        tg.openLink(downloadUrl);
+      } else {
+        window.location.href = downloadUrl;
+      }
     };
 
     $("#premiumPaymentDownloadButton").addEventListener("click", async () => {
