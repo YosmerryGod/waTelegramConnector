@@ -591,10 +591,10 @@
       stateLabel.classList.remove("is-connecting");
       stateLabel.disabled = connected;
       stateLabel.innerHTML = connected
-        ? "<i></i> Connected"
+        ? '<i></i> Connected <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>'
         : paused
-          ? "<i></i> Pause"
-          : "<i></i> Connect";
+          ? '<i></i> Pause <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>'
+          : '<i></i> Connect <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>';
       disconnectButton.disabled = !connected && !paused;
       renderFreePauseCountdown(); // [ADDED] Refresh countdown with connection status.
     } catch (error) {
@@ -607,7 +607,7 @@
 
   // [ADDED] Countdown until the next automatic Free-tier pause at 08:00 WITA.
   function renderFreePauseCountdown() {
-    const countdown = $("#freePauseCountdown");
+    const countdown = $("#accountWhatsAppState .free-pause-countdown");
     if (!countdown) return;
     if (!state.membership || state.membership.plan !== "free") {
       countdown.classList.add("hidden");
