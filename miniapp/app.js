@@ -493,20 +493,14 @@
     }
   }
 
-  // [ADDED] Reflect the current plan and expiry in the Profile identity card.
+  // [MODIFIED] Show the active Premium package and remaining subscription time in Profile.
   function renderMembership() {
     const tier = $(".profile-tier");
     if (!tier) return;
 
     const membership = state.membership;
-    if (!membership) {
-      tier.textContent = "FREE TIER";
-      tier.removeAttribute("title");
-      tier.classList.remove("is-premium", "is-admin");
-      return;
-    }
-
-    const isPremium = membership.plan && membership.plan !== "free";
+    const upgradeButton = $("#upgradePremiumButton");
+    const meta = $("#profileMembershipMeta");
     const planLabels = {
       free: "FREE TIER",
       "premium-a": "PREMIUM A",
@@ -514,12 +508,59 @@
       "premium-c": "PREMIUM C"
     };
 
-    tier.textContent = planLabels[membership.plan] || "FREE TIER";
-    tier.classList.toggle("is-premium", Boolean(isPremium));
+    if (!membership) {
+      tier.textContent = "FREE TIER";
+      tier.removeAttribute("title");
+      tier.classList.remove("is-premium", "is-admin");
+      if (upgradeButton) upgradeButton.innerHTML = '<span aria-hidden="true">♛</span> Upgrade Premium';
+      if (meta) meta.textContent = "Nikmati fitur dasar WAGRAM";
+      return;
+    }
+
+    const expiryDate = membership.plan_expires_at
+      ? new Date(membership.plan_expires_at)
+      : null;
+    const hasExpiry = expiryDate && !Number.isNaN(expiryDate.getTime());
+    const isExpired = hasExpiry && expiryDate.getTime() <= Date.now();
+    const isPremium = Boolean(membership.plan && membership.plan !== "free" && !isExpired);
+    const rawPlanLabel = String(membership.plan_label || planLabels[membership.plan] || "Premium");
+    const isThreeDayPlan = /3\\s*(hari|day)/i.test(rawPlanLabel)
+      || Number(membership.duration_days || membership.plan_duration_days) === 3;
+
+    tier.textContent = isPremium
+      ? (isThreeDayPlan ? "PREMIUM · 3 HARI" : (planLabels[membership.plan] || "PREMIUM"))
+      : "FREE TIER";
+    tier.classList.toggle("is-premium", isPremium);
     tier.classList.toggle("is-admin", membership.role === "admin");
 
-    const expiry = membership.plan_expires_at
-      ? new Date(membership.plan_expires_at).toLocaleString("id-ID", {
+    if (upgradeButton) {
+      upgradeButton.innerHTML = isPremium
+        ? '<span aria-hidden="true">♛</span> Perpanjang Premium'
+        : '<span aria-hidden="true">♛</span> Upgrade Premium';
+    }
+
+    let remaining = "Tanpa batas waktu";
+    if (hasExpiry) {
+      const diff = expiryDate.getTime() - Date.now();
+      if (diff <= 0) {
+        remaining = "Masa Premium telah berakhir";
+      } else if (diff < 24 * 60 * 60 * 1000) {
+        const hours = Math.max(1, Math.ceil(diff / (60 * 60 * 1000)));
+        remaining = `Aktif · tersisa ${hours} jam`;
+      } else {
+        const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
+        remaining = `Aktif · tersisa ${days} hari`;
+      }
+    } else if (isPremium) {
+      remaining = "Premium aktif · tanpa batas waktu";
+    } else {
+      remaining = "Nikmati fitur dasar WAGRAM";
+    }
+
+    if (meta) meta.textContent = remaining;
+
+    const expiry = hasExpiry
+      ? expiryDate.toLocaleString("id-ID", {
           dateStyle: "medium",
           timeStyle: "short",
           timeZone: "Asia/Jakarta"
@@ -528,7 +569,7 @@
 
     tier.title = [
       `Role: ${membership.role || "user"}`,
-      `Plan: ${membership.plan_label || planLabels[membership.plan] || "Free"}`,
+      `Plan: ${rawPlanLabel}`,
       `Batas akun WhatsApp: ${membership.sessions_limit || 1}`,
       `Berlaku sampai: ${expiry}`
     ].join("\\n");
