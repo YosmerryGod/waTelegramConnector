@@ -4972,3 +4972,197 @@ body.premium-page-active .premium-payment-note {
   body.premium-page-active .premium-comparison-table td { padding-top: 2px; padding-bottom: 2px; }
   body.premium-page-active .premium-continue-button { flex-basis: 38px; min-height: 38px; margin-top: 5px; }
 }
+
+
+/* [ADDED] Premium page visual polish: cleaner hierarchy, calmer surfaces and clearer plan selection. */
+body.premium-page-active #premiumPage {
+  background:
+    radial-gradient(ellipse at 88% 3%, color-mix(in srgb,#d9a441 12%,transparent), transparent 38%),
+    var(--bg);
+}
+body.premium-page-active .premium-page-content {
+  position: relative;
+  gap: 0;
+  padding: 9px 14px 10px;
+  background: transparent;
+}
+body.premium-page-active .premium-page-back {
+  width: fit-content;
+  padding: 0 9px 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb,var(--surface) 78%,transparent);
+  color: var(--muted);
+  font-size: 11px;
+  transition: background .18s ease, color .18s ease;
+}
+body.premium-page-active .premium-heading {
+  position: relative;
+  align-items: center;
+  gap: 11px;
+  padding: 5px 0 12px;
+}
+body.premium-page-active .premium-crown {
+  flex-basis: 42px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(217,164,65,.34);
+  border-radius: 14px;
+  background: linear-gradient(145deg,#fff0c5,#e4b957);
+  box-shadow: 0 5px 14px rgba(164,116,30,.16);
+}
+body.premium-page-active .premium-crown img {
+  width: 30px;
+  height: 30px;
+}
+body.premium-page-active .premium-eyebrow {
+  color: #b8872d;
+  font-size: 9px;
+  letter-spacing: .16em;
+}
+body.premium-page-active .premium-heading h2 {
+  margin-top: 3px;
+  font-size: clamp(17px,4.6vw,20px);
+  font-weight: 850;
+  letter-spacing: -.65px;
+  line-height: 1.15;
+}
+body.premium-page-active .premium-subtitle {
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+body.premium-page-active .premium-duration-tabs {
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: color-mix(in srgb,var(--surface) 82%,var(--bg));
+  box-shadow: none;
+}
+body.premium-page-active .premium-duration-tab {
+  min-height: 34px;
+  border-radius: 9px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+body.premium-page-active .premium-duration-tab.active {
+  background: linear-gradient(135deg,#f5d98f,#d9a441);
+  color: #382708;
+  box-shadow: 0 2px 7px rgba(151,105,25,.2);
+}
+body.premium-page-active .premium-price-panel {
+  position: relative;
+  margin-top: 9px;
+  padding: 10px 12px 9px;
+  border: 1px solid color-mix(in srgb,#d9a441 34%,var(--border));
+  border-radius: 14px;
+  background: linear-gradient(125deg,color-mix(in srgb,#d9a441 9%,var(--surface)),var(--surface));
+  box-shadow: 0 4px 14px rgba(0,0,0,.045);
+}
+body.premium-page-active .premium-plan-label {
+  font-size: 9px;
+  letter-spacing: .13em;
+}
+body.premium-page-active .premium-price-line strong {
+  font-size: clamp(24px,6.5vw,29px);
+  letter-spacing: -1.1px;
+}
+body.premium-page-active .premium-price-line del {
+  font-size: 11px;
+}
+body.premium-page-active .premium-price-note {
+  color: #a97920;
+  font-size: 9px;
+}
+body.premium-page-active .premium-session-benefit {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb,#d9a441 20%,var(--divider));
+}
+body.premium-page-active .premium-session-icon {
+  flex-basis: 29px;
+  width: 29px;
+  height: 29px;
+  border-radius: 9px;
+}
+body.premium-page-active .premium-session-benefit strong {
+  font-size: 10px;
+  font-weight: 800;
+}
+body.premium-page-active .premium-session-benefit small {
+  font-size: 8px;
+}
+body.premium-page-active .premium-comparison {
+  margin-top: 10px;
+}
+body.premium-page-active .premium-comparison h3 {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: -.15px;
+}
+body.premium-page-active .premium-comparison-scroll {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 3px 10px rgba(0,0,0,.035);
+}
+body.premium-page-active .premium-comparison-table {
+  font-size: 9px;
+}
+body.premium-page-active .premium-comparison-table th {
+  background: color-mix(in srgb,var(--surface-2) 82%,var(--bg));
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: .02em;
+}
+body.premium-page-active .premium-comparison-table th:last-child {
+  color: #a97920;
+}
+body.premium-page-active .premium-comparison-table td:first-child {
+  color: var(--text);
+  font-weight: 600;
+}
+body.premium-page-active .premium-comparison-table td:nth-child(2) {
+  color: var(--muted);
+}
+body.premium-page-active .premium-comparison-table td:nth-child(3) {
+  color: var(--text);
+  font-weight: 750;
+}
+body.premium-page-active .premium-table-dash {
+  color: #a0a0a0;
+  font-size: 8px;
+}
+body.premium-page-active .premium-table-check {
+  color: #159b58;
+  font-size: 14px;
+}
+body.premium-page-active .premium-continue-button {
+  min-height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg,#f4d78e,#d8a33e);
+  color: #342507;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: .01em;
+  box-shadow: 0 5px 13px rgba(166,119,31,.2);
+  transition: transform .16s ease, filter .16s ease;
+}
+body.premium-page-active .premium-continue-button:active {
+  transform: translateY(1px) scale(.995);
+  filter: brightness(.97);
+}
+body.premium-page-active .premium-payment-note {
+  color: var(--muted);
+  font-size: 8px;
+}
+@media (max-height:700px) {
+  body.premium-page-active .premium-heading { padding-bottom: 8px; }
+  body.premium-page-active .premium-crown { flex-basis: 36px; width: 36px; height: 36px; }
+  body.premium-page-active .premium-crown img { width: 26px; height: 26px; }
+  body.premium-page-active .premium-price-panel { margin-top: 7px; }
+  body.premium-page-active .premium-comparison { margin-top: 7px; }
+}
