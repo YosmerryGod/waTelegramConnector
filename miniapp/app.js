@@ -2944,11 +2944,15 @@
     // [ADDED] Keep the WAGRAM splash visible until the first account, WhatsApp
     // connection, and chat requests have all completed (successfully or with an error).
     const loadingScreen = $("#appLoadingScreen");
-    Promise.allSettled([loadMe(), loadChats()]).then(() => {
-      requestAnimationFrame(() => {
-        loadingScreen?.classList.add("is-hidden");
-        window.setTimeout(() => loadingScreen?.remove(), 380);
-        initOnboarding(); // [ADDED] Show onboarding after the initial app load settles.
+    // [MODIFIED] Resolve the authenticated membership through loadMe() before the first chat render.
+    // This prevents Premium groups from being rendered as locked while /account is still loading.
+    loadMe().finally(() => {
+      loadChats().finally(() => {
+        requestAnimationFrame(() => {
+          loadingScreen?.classList.add("is-hidden");
+          window.setTimeout(() => loadingScreen?.remove(), 380);
+          initOnboarding(); // [ADDED] Show onboarding after the initial app load settles.
+        });
       });
     });
 
