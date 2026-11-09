@@ -41,7 +41,9 @@ import {
   saveWhatsAppProfileCache,
   getWhatsAppParticipantName,
   hasWhatsAppParticipant,
-  createPremiumPaymentOrder // [ADDED] Server-side Premium payment order allocation.
+  createPremiumPaymentOrder, // [ADDED] Server-side Premium payment order allocation.
+  getPremiumPaymentOrder, // [ADDED] Read an order owned by the authenticated user.
+  markPremiumPaymentReported // [ADDED] Record a user's payment confirmation.
 } from "./database.js";
 
 const router = express.Router();
@@ -320,6 +322,76 @@ router.post("/premium/orders", async (req, res) => {
     });
   } catch (error) {
     sendServerError(res, error, "Could not create Premium payment order");
+  }
+});
+
+// [ADDED] User reports that a Premium QRIS payment has been completed.
+router.post("/premium/orders/:orderId/paid", async (req, res) => {
+  try {
+    const orderId = String(req.params.orderId || "");
+    if (!/^premium_\\d+_[a-z0-9]+$/i.test(orderId)) {
+      return res.status(400).json({ ok: false, error: "INVALID_ORDER_ID" });
+    }
+
+    const order = getPremiumPaymentOrder(req.telegramId, orderId);
+    if (!order) {
+      return res.status(404).json({ ok: false, error: "PREMIUM_ORDER_NOT_FOUND" });
+    }
+    if (order.status !== "pending" || order.expires_at <= Date.now()) {
+      return res.status(409).json({
+        ok: false,
+        error: "PREMIUM_ORDER_EXPIRED",
+        message: "Pesanan sudah kedaluwarsa. Silakan buat QRIS baru."
+      });
+    }
+    if (order.payment_reported_at) {
+      return res.json({ ok: true, alreadyReported: true });
+    }
+
+    if (!markPremiumPaymentReported(req.telegramId, orderId)) {
+      return res.status(409).json({
+        ok: false,
+        error: "PAYMENT_ALREADY_REPORTED",
+        message: "Konfirmasi pembayaran sudah dikirim."
+      });
+    }
+
+    const adminIds = String(process.env.ADMIN_TELEGRAM_IDS || "6838814141")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => /^\\d+$/.test(id));
+    const username = req.miniAppUser?.username
+      ? "@" + req.miniAppUser.username
+      : [req.miniAppUser?.first_name, req.miniAppUser?.last_name].filter(Boolean).join(" ") || "Telegram user";
+    const message = [
+      "💳 <b>Konfirmasi Pembayaran Premium</b>",
+      "",
+      "<b>Order:</b> <code>" + order.id + "</code>",
+      "<b>User:</b> " + username.replace(/[&<>]/g, ""),
+      "<b>Telegram ID:</b> <code>" + req.telegramId + "</code>",
+      "<b>Paket:</b> " + order.plan_period.toUpperCase(),
+      "<b>Nominal:</b> Rp" + Number(order.amount).toLocaleString("id-ID"),
+      "",
+      "Periksa transaksi masuk di DANA sebelum mengaktifkan Premium."
+    ].join("\\n");
+
+    const results = await Promise.allSettled(
+      adminIds.map((adminId) => bot.sendMessage(adminId, message, { parse_mode: "HTML" }))
+    );
+    const delivered = results.some((result) => result.status === "fulfilled");
+    if (!delivered) {
+      console.error("Premium payment report could not reach any admin.");
+      return res.status(502).json({
+        ok: false,
+        error: "ADMIN_NOTIFICATION_FAILED",
+        message: "Konfirmasi tersimpan, tetapi notifikasi admin gagal dikirim."
+      });
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, reported: true });
+  } catch (error) {
+    sendServerError(res, error, "Could not report Premium payment");
   }
 });
 
