@@ -6347,6 +6347,54 @@ html[data-theme="dark"] .premium-payment-back {
   color: #edf7ef;
   box-shadow: 4px 4px 10px rgba(0,0,0,.35);
 }
+/* [ADDED] Actions for the QRIS payment dialog. */
+.premium-payment-logo {
+  background: #092016;
+  border: 3px solid #092016;
+  box-shadow: 0 0 0 2px #ffffff;
+  object-fit: contain;
+  filter: none;
+}
+.premium-payment-actions {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 9px;
+  width: 100%;
+  margin-top: 7px;
+}
+.premium-payment-actions button {
+  min-height: 46px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+}
+.premium-payment-download {
+  background: var(--surface, #f4fbf6);
+  color: var(--text, #17251d);
+  border: 1px solid var(--border, rgba(20,70,40,.16)) !important;
+}
+.premium-payment-paid {
+  background: var(--accent, #08a94f);
+  color: #fff;
+}
+.premium-payment-actions button:disabled {
+  opacity: .45;
+}
+.premium-payment-confirmation {
+  min-height: 16px;
+  margin: 0;
+  color: var(--accent, #08a94f);
+  font-size: 11px;
+  line-height: 1.45;
+}
+html[data-theme="dark"] .premium-payment-download {
+  background: #18231b;
+  border-color: rgba(69,103,78,.3) !important;
+  color: #edf7ef;
+}
 @media (max-width: 420px) {
   .premium-payment-modal { padding-left: 14px; padding-right: 14px; }
   .premium-payment-content { padding-left: 16px; padding-right: 16px; }
