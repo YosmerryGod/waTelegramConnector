@@ -66,6 +66,8 @@
     if (timer) clearInterval(timer);
     document.body.classList.remove("connection-pending");
     gate.remove();
+    // [ADDED] Notify the profile button after the server confirms WhatsApp is connected.
+    window.dispatchEvent(new Event("wagram:connected"));
     tg?.ready?.();
     tg?.expand?.();
   }
