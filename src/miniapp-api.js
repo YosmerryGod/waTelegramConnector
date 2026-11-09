@@ -266,6 +266,24 @@ router.get("/health", (_req, res) => {
   });
 });
 
+// [ADDED] Temporary QRIS image downloads requested through Telegram's native Mini App API.
+const premiumQrDownloads = new Map();
+
+router.get("/premium/qr-download/:token.png", (req, res) => {
+  const token = String(req.params.token || "");
+  const entry = premiumQrDownloads.get(token);
+  if (!entry || entry.expiresAt <= Date.now()) {
+    premiumQrDownloads.delete(token);
+    return res.status(404).send("QRIS download expired.");
+  }
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Content-Disposition", 'attachment; filename="WAGRAM-Premium-QRIS.png"');
+  res.setHeader("Access-Control-Allow-Origin", "https://web.telegram.org");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Content-Length", entry.buffer.length);
+  return res.end(entry.buffer);
+});
 // All routes below require authenticated Telegram Mini App data.
 router.use(requireMiniAppAuth);
 
@@ -325,6 +343,36 @@ router.post("/premium/orders", async (req, res) => {
   }
 });
 
+// [ADDED] Store a generated QRIS PNG briefly for Telegram's native download API.
+router.post("/premium/orders/:orderId/qr-download", (req, res) => {
+  try {
+    const orderId = String(req.params.orderId || "");
+    if (!/^premium_\d+_[a-z0-9]+$/i.test(orderId)) {
+      return res.status(400).json({ ok: false, error: "INVALID_ORDER_ID" });
+    }
+    const order = getPremiumPaymentOrder(req.telegramId, orderId);
+    if (!order || order.status !== "pending" || order.expires_at <= Date.now()) {
+      return res.status(404).json({ ok: false, error: "PREMIUM_ORDER_NOT_AVAILABLE" });
+    }
+    const imageData = String(req.body?.imageData || "");
+    const match = imageData.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/);
+    if (!match || match[1].length > 1500000) {
+      return res.status(400).json({ ok: false, error: "INVALID_QR_IMAGE" });
+    }
+    const buffer = Buffer.from(match[1], "base64");
+    if (!buffer.length || buffer.length > 1024 * 1024) {
+      return res.status(400).json({ ok: false, error: "QR_IMAGE_TOO_LARGE" });
+    }
+    const token = crypto.randomBytes(24).toString("hex");
+    premiumQrDownloads.set(token, { buffer, expiresAt: Date.now() + 5 * 60 * 1000 });
+    return res.json({
+      ok: true,
+      downloadUrl: "/api/miniapp/premium/qr-download/" + token + ".png"
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Could not prepare Premium QRIS download");
+  }
+});
 // [ADDED] User reports that a Premium QRIS payment has been completed.
 router.post("/premium/orders/:orderId/paid", async (req, res) => {
   try {
