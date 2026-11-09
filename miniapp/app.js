@@ -50,7 +50,8 @@
     contacts: "#contactsPage",
     connections: "#connectionsPage",
     automation: "#automationPage",
-    account: "#accountPage"
+    account: "#accountPage",
+    premium: "#premiumPage" // [ADDED] Dedicated Premium subscription page.
   };
 
   const NAVS = {
@@ -336,6 +337,8 @@
     updateTopbarTitle();
     // [ADDED] Show the add-contact action only on the Contacts page.
     $("#addContactButton").classList.toggle("hidden", page !== "contacts");
+    $("#bottomNav").classList.toggle("hidden", page === "premium");
+    document.body.classList.toggle("premium-page-active", page === "premium");
     closeConversationUI();
 
     for (const [key, selector] of Object.entries(PAGES)) {
@@ -379,7 +382,8 @@
       chats: "Pesan",
       calls: "Panggilan",
       contacts: "Kontak",
-      account: "Profil"
+      account: "Profil",
+      premium: "WAGRAM Premium"
     };
 
     $("#topbarTitle").textContent = titles[state.page] || "Pesan";
@@ -2008,14 +2012,7 @@
       const upgradeButton = event.target.closest("#upgradePremiumButton");
       if (!upgradeButton) return;
       event.preventDefault();
-      const sheet = document.querySelector("#premiumSheet");
-      if (!sheet) {
-        showToast("Halaman Premium belum dapat dibuka. Muat ulang aplikasi.");
-        return;
-      }
-      renderPremiumPlan("3d");
-      sheet.classList.remove("hidden");
-      tg?.BackButton?.show?.();
+      openPremiumSheet();
     });
 
     // [ADDED] Animated global search control in the top bar.
@@ -2058,7 +2055,7 @@
     });
 
     // [ADDED] Open the Premium plan selector from the Profile page.
-    const premiumSheet = $("#premiumSheet");
+    const premiumSheet = $("#premiumPage");
     let selectedPremiumPeriod = "3d";
     const premiumPlans = {
       "3d": {
@@ -2108,22 +2105,22 @@
 
     function openPremiumSheet() {
       renderPremiumPlan("3d");
-      premiumSheet.classList.remove("hidden");
+      setPage("premium");
       tg?.BackButton?.show?.();
     }
 
     function closePremiumSheet() {
-      premiumSheet.classList.add("hidden");
-      if (tg?.BackButton && state.page !== "chats") tg.BackButton.show?.();
+      setPage("account");
+      tg?.BackButton?.show?.();
     }
+
+    $("#premiumBackButton").addEventListener("click", closePremiumSheet);
 
     $("#premiumDurationTabs").addEventListener("click", (event) => {
       const tab = event.target.closest("[data-period]");
       if (tab && premiumPlans[tab.dataset.period]) renderPremiumPlan(tab.dataset.period);
     });
-    premiumSheet.querySelectorAll("[data-close-premium]").forEach((element) => {
-      element.addEventListener("click", closePremiumSheet);
-    });
+    // [REMOVED] Bottom-sheet backdrop and close bindings; the full page uses its back control.
     $("#premiumContinueButton").addEventListener("click", () => {
       showToast("Pembayaran Premium belum diaktifkan.");
     });
@@ -2763,7 +2760,7 @@
         closeProfileSheet();
       } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
-      } else if (!$("#premiumSheet").classList.contains("hidden")) {
+      } else if (state.page === "premium") {
         closePremiumSheet();
       } else {
         setPage("chats");
