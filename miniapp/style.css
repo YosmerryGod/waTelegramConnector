@@ -4714,3 +4714,14 @@ html[data-theme="dark"] .onboarding-primary {
 .whatsapp-connection-state .free-pause-countdown.hidden {
   display:none;
 }
+
+
+/* [ADDED] Premium subscription status below the plan badge. */
+.profile-membership-meta {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.profile-membership-meta:empty { display:none; }
