@@ -493,7 +493,7 @@
     }
   }
 
-  // [MODIFIED] Show Premium and its live time-to-expiry countdown in one tier badge.
+  // [MODIFIED] Show Premium and its live days-hours-minutes expiry countdown in one tier badge.
   function renderMembership() {
     const tier = $(".profile-tier");
     if (!tier) return;
@@ -525,12 +525,13 @@
     const isPremium = Boolean(membership.plan && membership.plan !== "free" && !isExpired);
     const rawPlanLabel = String(membership.plan_label || planLabels[membership.plan] || "Premium");
     const remainingMs = hasExpiry ? Math.max(0, expiryDate.getTime() - Date.now()) : 0;
-    const remainingHours = Math.floor(remainingMs / (60 * 60 * 1000));
-    const remainingMinutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
-    const expiryCountdown = String(remainingHours).padStart(2, "0")
-      + "." + String(remainingMinutes).padStart(2, "0");
+    const totalMinutes = Math.floor(remainingMs / 60000);
+    const remainingDays = Math.floor(totalMinutes / 1440);
+    const remainingHours = Math.floor((totalMinutes % 1440) / 60);
+    const remainingMinutes = totalMinutes % 60;
+    const expiryCountdown = `${remainingDays} hari ${String(remainingHours).padStart(2, "0")} jam ${String(remainingMinutes).padStart(2, "0")} menit`;
 
-    // [MODIFIED] Keep the expiry timer inside the same Premium badge.
+    // [MODIFIED] Keep the remaining subscription time in the Premium badge only.
     tier.textContent = isPremium
       ? (hasExpiry ? `PREMIUM · ${expiryCountdown}` : "PREMIUM")
       : "FREE TIER";
@@ -543,21 +544,10 @@
         : '<span aria-hidden="true">♛</span> Upgrade Premium';
     }
 
-    if (meta) {
-      if (isPremium && hasExpiry) {
-        meta.textContent = "Berlaku sampai " + expiryDate.toLocaleString("id-ID", {
-          dateStyle: "medium",
-          timeStyle: "short",
-          timeZone: "Asia/Jakarta"
-        }) + " WIB";
-      } else if (isPremium) {
-        meta.textContent = "Premium aktif · tanpa batas waktu";
-      } else if (isExpired) {
-        meta.textContent = "Masa Premium telah berakhir";
-      } else {
-        meta.textContent = "Nikmati fitur dasar WAGRAM";
-      }
-    }
+    // [MODIFIED] Remove the separate expiry-date line below the tier badge.
+    if (meta) meta.textContent = isPremium
+      ? ""
+      : (isExpired ? "Masa Premium telah berakhir" : "Nikmati fitur dasar WAGRAM");
 
     const expiry = hasExpiry
       ? expiryDate.toLocaleString("id-ID", {
