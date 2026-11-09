@@ -286,9 +286,23 @@ router.post("/premium/orders", async (req, res) => {
 
     const order = createPremiumPaymentOrder(req.telegramId, period, baseAmount);
     const basePayload = "00020101021226570011ID.DANA.WWW011893600915003678691602090367869160303UMI51440014ID.CO.QRIS.WWW0215ID10266342920190303UMI5204899953033605405100005802ID5915WaGRAM, Service6011Banjarmasin610570111621960150011ID.DANA.WWW63043E14";
+
+    // [ADDED] Personalize the merchant display name with the Telegram username for testing.
+    const telegramUsername = String(req.miniAppUser?.username || "")
+      .replace(/^@+/, "")
+      .replace(/[^a-zA-Z0-9_]/g, "")
+      .slice(0, 13);
+    const merchantName = telegramUsername
+      ? ("WaGRAM@" + telegramUsername + ", Service").slice(0, 25)
+      : "WaGRAM, Service";
+    const merchantField = "59" + String(merchantName.length).padStart(2, "0") + merchantName;
+
     const amountText = String(order.amount);
     const amountField = "54" + String(amountText.length).padStart(2, "0") + amountText;
-    const payloadWithoutCrc = basePayload.replace("540510000", amountField).slice(0, -8) + "6304";
+    const payloadWithoutCrc = basePayload
+      .replace("540510000", amountField)
+      .replace("5915WaGRAM, Service", merchantField)
+      .slice(0, -8) + "6304";
 
     let crc = 0xFFFF;
     for (let index = 0; index < payloadWithoutCrc.length; index += 1) {
