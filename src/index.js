@@ -310,7 +310,7 @@ async function enforceFreeDailyPause() {
   if (getAppSetting("free_daily_pause_enabled", "1") !== "1") return;
 
   const { date, hour } = getWitaClock();
-  if (hour < 8) return;
+  if (hour < 14) return; // [MODIFIED] Temporary test pause time: 14:00 WITA.
 
   for (const session of getAllSessions()) {
     if (session.connection_status !== "connected") continue;
