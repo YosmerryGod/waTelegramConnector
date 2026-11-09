@@ -363,6 +363,8 @@
             <span id="accountWhatsAppPhone">Memeriksa koneksi…</span>
           </div>
           <button class="whatsapp-connection-state" id="accountWhatsAppState" type="button" disabled><i></i> Memeriksa status</button>
+          <!-- [ADDED] Countdown until the next automatic Free-tier pause at 08:00 WITA. -->
+          <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off" title="Menuju pause otomatis pukul 08.00 WITA">00.00</span>
           <button class="whatsapp-controls-toggle" id="whatsappControlsToggle" type="button" aria-expanded="false" aria-label="Buka pengaturan akun WhatsApp">
             <svg class="i"><use href="#i-back"/></svg>
           </button>
@@ -606,7 +608,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261109-premium-first-load-fix"></script>
+  <script src="app.js?v=20261109-free-pause-countdown"></script>
   <script src="connection.js?v=20261109-profile-connect"></script>
 </body>
 </html>
