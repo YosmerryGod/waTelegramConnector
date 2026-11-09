@@ -31,7 +31,9 @@ import {
   deleteContactByPhone,
   recordCall,
   findContactName,
-  attachTelegramFile
+  attachTelegramFile,
+  getPremiumPaymentOrderById, // [ADDED] Load a payment order for admin review.
+  reviewPremiumPaymentOrder // [ADDED] Apply an admin approval or rejection.
 } from "./database.js";
 
 import { saveWhatsAppMedia } from "./media-storage.js";
@@ -1889,6 +1891,112 @@ bot.setMyCommands([
   { command: "help", description: "Show WAGRAM help" }
 ]).catch((error) => {
   console.error("Failed to register Telegram commands:", error.message);
+});
+
+// [ADDED] Admin-only inline actions for Premium payment verification.
+bot.on("callback_query", async (query) => {
+  const callerId = String(query.from?.id || "");
+  const data = String(query.data || "");
+  const match = data.match(/^premium:(approve|reject):(premium_\\d+_[a-z0-9]+)$/i);
+
+  if (!match) return;
+
+  if (!isAdmin(callerId)) {
+    await bot.answerCallbackQuery(query.id, {
+      text: "Aksi ini khusus admin.",
+      show_alert: true
+    });
+    return;
+  }
+
+  const decision = match[1] === "approve" ? "approved" : "rejected";
+  const orderId = match[2];
+  const order = getPremiumPaymentOrderById(orderId);
+
+  if (!order || order.status !== "pending" || !order.payment_reported_at) {
+    await bot.answerCallbackQuery(query.id, {
+      text: "Order sudah diproses atau tidak ditemukan.",
+      show_alert: true
+    });
+    return;
+  }
+
+  const reviewedOrder = reviewPremiumPaymentOrder(orderId, decision);
+  if (!reviewedOrder) {
+    await bot.answerCallbackQuery(query.id, {
+      text: "Order sudah diproses oleh admin lain.",
+      show_alert: true
+    });
+    return;
+  }
+
+  if (decision === "approved") {
+    const planByPeriod = {
+      "3d": "premium-a",
+      "7d": "premium-b",
+      "30d": "premium-c"
+    };
+    const plan = planByPeriod[reviewedOrder.plan_period];
+    const membership = setMembership(reviewedOrder.telegram_id, plan);
+
+    if (membership) {
+      publishToMiniApp(reviewedOrder.telegram_id, {
+        type: "membership.updated",
+        data: {
+          plan: membership.plan,
+          role: membership.role,
+          plan_expires_at: membership.plan_expires_at
+        }
+      });
+      try {
+        await sendText(
+          reviewedOrder.telegram_id,
+          "🎉 <b>Pembayaran Premium berhasil diverifikasi!</b>\\n\\n" +
+            "Paket: <b>" + esc(membership.plan_label) + "</b>\\n" +
+            "Order: <code>" + esc(orderId) + "</code>\\n\\n" +
+            "Premium kamu sekarang sudah aktif. Selamat menikmati WAGRAM!",
+          { parse_mode: "HTML", disable_web_page_preview: true }
+        );
+      } catch (error) {
+        console.warn("Could not notify Premium customer:", error.message);
+      }
+    }
+  } else {
+    try {
+      await sendText(
+        reviewedOrder.telegram_id,
+        "❌ <b>Pembayaran Premium belum dapat disetujui.</b>\\n\\n" +
+          "Order: <code>" + esc(orderId) + "</code>\\n" +
+          "Silakan hubungi admin WAGRAM jika merasa terjadi kesalahan.",
+        { parse_mode: "HTML", disable_web_page_preview: true }
+      );
+    } catch (error) {
+      console.warn("Could not notify rejected Premium customer:", error.message);
+    }
+  }
+
+  const resultText = decision === "approved"
+    ? "Pembayaran disetujui. Premium user telah diaktifkan."
+    : "Pembayaran ditolak.";
+  await bot.answerCallbackQuery(query.id, { text: resultText });
+
+  if (query.message) {
+    const originalCaption = String(query.message.caption || "");
+    const statusLine = decision === "approved"
+      ? "\\n\\n✅ <b>DISETUJUI</b> oleh admin"
+      : "\\n\\n❌ <b>DITOLAK</b> oleh admin";
+    await bot.editMessageCaption(originalCaption + statusLine, {
+      chat_id: query.message.chat.id,
+      message_id: query.message.message_id,
+      parse_mode: "HTML",
+      reply_markup: { inline_keyboard: [] }
+    }).catch(async () => {
+      await bot.editMessageReplyMarkup(
+        { inline_keyboard: [] },
+        { chat_id: query.message.chat.id, message_id: query.message.message_id }
+      ).catch(() => {});
+    });
+  }
 });
 
 // Handle unexpected polling errors.
