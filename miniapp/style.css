@@ -5728,3 +5728,72 @@ body.premium-page-active .premium-payment-note {
   body.premium-page-active .premium-cta-wrap { margin-right: -18px; margin-left: -18px; padding-right: 18px; padding-left: 18px; }
   body.premium-page-active .premium-comparison-table td:first-child { font-size: 10px; }
 }
+
+
+/* [MODIFIED] Fit every Premium element within the device's visible 100dvh area. */
+body.premium-page-active #premiumPage {
+  box-sizing: border-box;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+body.premium-page-active .premium-page-content {
+  box-sizing: border-box;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+body.premium-page-active .premium-comparison {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}
+body.premium-page-active .premium-comparison-scroll {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+body.premium-page-active .premium-comparison-table {
+  height: 100%;
+  table-layout: fixed;
+}
+body.premium-page-active .premium-comparison-table tbody tr {
+  height: calc((100% - 22px) / 8);
+}
+body.premium-page-active .premium-cta-wrap {
+  flex: 0 0 auto;
+  margin-top: auto;
+}
+@media (max-height: 760px) {
+  body.premium-page-active .premium-page-content { padding-top: 5px; padding-bottom: 5px; }
+  body.premium-page-active .premium-page-back { margin-bottom: 5px; }
+  body.premium-page-active .premium-heading { padding-bottom: 8px; }
+  body.premium-page-active .premium-heading h2 { font-size: clamp(25px, 6.5vw, 32px); }
+  body.premium-page-active .premium-subtitle { margin-top: 5px; font-size: 11px; line-height: 1.25; }
+  body.premium-page-active .premium-comparison-table th,
+  body.premium-page-active .premium-comparison-table td { padding-top: 1px; padding-bottom: 1px; }
+  body.premium-page-active .premium-purchase { margin-top: 5px; }
+  body.premium-page-active .premium-price-panel { margin-top: 3px; padding-top: 4px; padding-bottom: 4px; }
+  body.premium-page-active .premium-cta-wrap { padding-top: 5px; }
+}
+@media (max-height: 650px) {
+  body.premium-page-active .premium-page-content { padding-top: 3px; padding-bottom: 3px; }
+  body.premium-page-active .premium-page-back { flex-basis: 28px; width: 28px; height: 28px; min-height: 28px; margin-bottom: 3px; }
+  body.premium-page-active .premium-heading { padding-bottom: 5px; }
+  body.premium-page-active .premium-eyebrow { margin-bottom: 2px; font-size: 8px; }
+  body.premium-page-active .premium-heading h2 { font-size: 25px; }
+  body.premium-page-active .premium-subtitle { margin-top: 3px; font-size: 9px; }
+  body.premium-page-active .premium-comparison h3 { margin-bottom: 2px; font-size: 9px; }
+  body.premium-page-active .premium-comparison-table { font-size: 9px; }
+  body.premium-page-active .premium-comparison-table td:first-child { font-size: 9px; }
+  body.premium-page-active .premium-table-check,
+  body.premium-page-active .premium-table-dash { font-size: 13px; }
+  body.premium-page-active .premium-purchase-label { margin-bottom: 3px; font-size: 9px; }
+  body.premium-page-active .premium-duration-tabs { min-height: 30px; }
+  body.premium-page-active .premium-duration-tab { min-height: 24px; font-size: 9px; }
+  body.premium-page-active .premium-price-line strong { font-size: 18px; }
+  body.premium-page-active .premium-session-benefit small { display: none; }
+  body.premium-page-active .premium-continue-button { min-height: 36px; height: 36px; font-size: 12px; }
+  body.premium-page-active .premium-payment-note { margin-top: 3px; font-size: 7px; }
+}
