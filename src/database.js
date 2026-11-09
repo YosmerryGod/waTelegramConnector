@@ -201,14 +201,17 @@ if (!whatsappSessionColumns.includes("free_pause_date")) {
 }
 
 // [ADDED] Persist the administrator's Free-tier pause mode across restarts.
+// [ADDED] Persist the administrator's Free-tier pause mode across restarts.
 db.exec(`
   CREATE TABLE IF NOT EXISTS app_settings (
     setting_key TEXT PRIMARY KEY,
     setting_value TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   );
+`);
 
-  -- [ADDED] Premium payment orders with server-assigned unique amounts.
+// [ADDED] Keep Premium payment order schema in a separate SQLite statement.
+db.exec(`
   CREATE TABLE IF NOT EXISTS premium_payment_orders (
     id TEXT PRIMARY KEY,
     telegram_id TEXT NOT NULL,
@@ -223,7 +226,9 @@ db.exec(`
     FOREIGN KEY (telegram_id)
       REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
   );
+`);
 
+db.exec(`
   CREATE INDEX IF NOT EXISTS idx_premium_orders_owner
     ON premium_payment_orders(telegram_id, created_at DESC);
 
