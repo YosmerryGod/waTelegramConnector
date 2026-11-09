@@ -4473,3 +4473,30 @@ html[data-theme="dark"] .onboarding-primary {
     padding-right:14px;
   }
 }
+
+
+/* [ADDED] Supplied onboarding benefit SVGs, styled to match WAGRAM neumorphism. */
+.onboarding-hero-benefits .onboarding-benefit-icon {
+  display:block;
+  flex:0 0 auto;
+  width:16px;
+  height:16px;
+  color:#39d889;
+  fill:currentColor;
+  opacity:.96;
+}
+
+.onboarding-hero-benefits span:first-child .onboarding-benefit-icon {
+  width:15px;
+  height:15px;
+}
+
+.onboarding-hero-benefits span:nth-child(2) .onboarding-benefit-icon {
+  width:17px;
+  height:17px;
+}
+
+.onboarding-hero-benefits span:nth-child(3) .onboarding-benefit-icon {
+  width:16px;
+  height:16px;
+}
