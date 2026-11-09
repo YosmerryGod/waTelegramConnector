@@ -206,8 +206,7 @@ db.exec(`
     setting_key TEXT PRIMARY KEY,
     setting_value TEXT NOT NULL,
     updated_at INTEGER NOT NULL
-  )
-
+  );
 
   -- [ADDED] Premium payment orders with server-assigned unique amounts.
   CREATE TABLE IF NOT EXISTS premium_payment_orders (
