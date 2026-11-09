@@ -2278,23 +2278,90 @@
       }
     });
 
-    $("#premiumPaymentPaidButton").addEventListener("click", async () => {
+    // [ADDED] Require an image proof before the user can report a Premium payment.
+    let selectedPremiumProof = null;
+    const proofModal = $("#premiumProofModal");
+    const proofInput = $("#premiumProofInput");
+    const proofPreview = $("#premiumProofPreview");
+    const proofPlaceholder = $("#premiumProofPlaceholder");
+    const proofConfirmButton = $("#premiumProofConfirmButton");
+
+    $("#premiumPaymentPaidButton").addEventListener("click", () => {
       if (!activePremiumOrderId) return;
-      const button = $("#premiumPaymentPaidButton");
-      button.disabled = true;
-      button.textContent = "Mengirim konfirmasi…";
-      $("#premiumPaymentConfirmation").textContent = "";
+      selectedPremiumProof = null;
+      proofInput.value = "";
+      proofPreview.removeAttribute("src");
+      proofPreview.classList.add("hidden");
+      proofPlaceholder.classList.remove("hidden");
+      proofConfirmButton.disabled = true;
+      $("#premiumProofError").textContent = "";
+      proofModal.classList.remove("hidden");
+    });
+
+    proofInput.addEventListener("change", () => {
+      const file = proofInput.files?.[0] || null;
+      selectedPremiumProof = null;
+      proofConfirmButton.disabled = true;
+      $("#premiumProofError").textContent = "";
+      if (!file) return;
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+        $("#premiumProofError").textContent = "Format gambar harus JPG, PNG, atau WEBP.";
+        proofInput.value = "";
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        $("#premiumProofError").textContent = "Ukuran gambar maksimal 5 MB.";
+        proofInput.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        selectedPremiumProof = String(reader.result || "");
+        proofPreview.src = selectedPremiumProof;
+        proofPreview.classList.remove("hidden");
+        proofPlaceholder.classList.add("hidden");
+        proofConfirmButton.disabled = false;
+      };
+      reader.onerror = () => {
+        $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    $("#premiumProofCancelButton").addEventListener("click", () => {
+      proofModal.classList.add("hidden");
+      selectedPremiumProof = null;
+    });
+
+    proofModal.addEventListener("click", (event) => {
+      if (event.target === proofModal) {
+        proofModal.classList.add("hidden");
+        selectedPremiumProof = null;
+      }
+    });
+
+    proofConfirmButton.addEventListener("click", async () => {
+      if (!activePremiumOrderId || !selectedPremiumProof) return;
+      const paidButton = $("#premiumPaymentPaidButton");
+      proofConfirmButton.disabled = true;
+      $("#premiumProofCancelButton").disabled = true;
+      proofConfirmButton.textContent = "Mengirim…";
+      $("#premiumProofError").textContent = "";
       try {
         await api("/premium/orders/" + encodeURIComponent(activePremiumOrderId) + "/paid", {
           method: "POST",
-          body: JSON.stringify({})
+          body: JSON.stringify({ proofImage: selectedPremiumProof })
         });
-        button.textContent = "Konfirmasi terkirim";
-        $("#premiumPaymentConfirmation").textContent = "Admin sudah diberi tahu. Premium aktif setelah pembayaran diverifikasi.";
+        proofModal.classList.add("hidden");
+        paidButton.disabled = true;
+        paidButton.textContent = "Konfirmasi terkirim";
+        $("#premiumPaymentConfirmation").textContent = "Bukti pembayaran terkirim. Premium aktif setelah diverifikasi admin.";
       } catch (error) {
-        button.disabled = false;
-        button.textContent = "Saya sudah bayar";
-        $("#premiumPaymentConfirmation").textContent = error.message || "Konfirmasi gagal dikirim.";
+        $("#premiumProofError").textContent = error.message || "Bukti pembayaran gagal dikirim.";
+      } finally {
+        proofConfirmButton.disabled = !selectedPremiumProof;
+        $("#premiumProofCancelButton").disabled = false;
+        proofConfirmButton.textContent = "Confirm";
       }
     });
 
