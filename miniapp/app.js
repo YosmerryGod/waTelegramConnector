@@ -493,7 +493,7 @@
     }
   }
 
-  // [MODIFIED] Show the active Premium package and remaining subscription time in Profile.
+  // [MODIFIED] Show Premium and its live time-to-expiry countdown in one tier badge.
   function renderMembership() {
     const tier = $(".profile-tier");
     if (!tier) return;
@@ -524,11 +524,15 @@
     const isExpired = hasExpiry && expiryDate.getTime() <= Date.now();
     const isPremium = Boolean(membership.plan && membership.plan !== "free" && !isExpired);
     const rawPlanLabel = String(membership.plan_label || planLabels[membership.plan] || "Premium");
-    const isThreeDayPlan = /3\\s*(hari|day)/i.test(rawPlanLabel)
-      || Number(membership.duration_days || membership.plan_duration_days) === 3;
+    const remainingMs = hasExpiry ? Math.max(0, expiryDate.getTime() - Date.now()) : 0;
+    const remainingHours = Math.floor(remainingMs / (60 * 60 * 1000));
+    const remainingMinutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+    const expiryCountdown = String(remainingHours).padStart(2, "0")
+      + "." + String(remainingMinutes).padStart(2, "0");
 
+    // [MODIFIED] Keep the expiry timer inside the same Premium badge.
     tier.textContent = isPremium
-      ? (isThreeDayPlan ? "PREMIUM · 3 HARI" : (planLabels[membership.plan] || "PREMIUM"))
+      ? (hasExpiry ? `PREMIUM · ${expiryCountdown}` : "PREMIUM")
       : "FREE TIER";
     tier.classList.toggle("is-premium", isPremium);
     tier.classList.toggle("is-admin", membership.role === "admin");
@@ -539,25 +543,21 @@
         : '<span aria-hidden="true">♛</span> Upgrade Premium';
     }
 
-    let remaining = "Tanpa batas waktu";
-    if (hasExpiry) {
-      const diff = expiryDate.getTime() - Date.now();
-      if (diff <= 0) {
-        remaining = "Masa Premium telah berakhir";
-      } else if (diff < 24 * 60 * 60 * 1000) {
-        const hours = Math.max(1, Math.ceil(diff / (60 * 60 * 1000)));
-        remaining = `Aktif · tersisa ${hours} jam`;
+    if (meta) {
+      if (isPremium && hasExpiry) {
+        meta.textContent = "Berlaku sampai " + expiryDate.toLocaleString("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short",
+          timeZone: "Asia/Jakarta"
+        }) + " WIB";
+      } else if (isPremium) {
+        meta.textContent = "Premium aktif · tanpa batas waktu";
+      } else if (isExpired) {
+        meta.textContent = "Masa Premium telah berakhir";
       } else {
-        const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
-        remaining = `Aktif · tersisa ${days} hari`;
+        meta.textContent = "Nikmati fitur dasar WAGRAM";
       }
-    } else if (isPremium) {
-      remaining = "Premium aktif · tanpa batas waktu";
-    } else {
-      remaining = "Nikmati fitur dasar WAGRAM";
     }
-
-    if (meta) meta.textContent = remaining;
 
     const expiry = hasExpiry
       ? expiryDate.toLocaleString("id-ID", {
@@ -3030,6 +3030,8 @@
     loadCalls();
     // [ADDED] Keep HH.MM countdown aligned with the 08:00 WITA pause.
     window.setInterval(renderFreePauseCountdown, 15000);
+    // [ADDED] Refresh the Premium expiry timer displayed in the tier badge.
+    window.setInterval(renderMembership, 15000);
     connectRealtime();
     // [ADDED] Poll only while a conversation is open; WebSocket remains the fast path.
     window.setInterval(() => {
