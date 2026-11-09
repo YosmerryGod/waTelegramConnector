@@ -98,6 +98,9 @@
       }
 
       if (status === "qr" && data.qr) {
+        // [ADDED] Only show the pairing screen if the saved WhatsApp session cannot resume silently.
+        document.body.classList.add("connection-pending");
+        gate.classList.add("is-active");
         const wrap = document.getElementById("connectionQrWrap");
         if (wrap.dataset.qr !== data.qr) {
           wrap.dataset.qr = data.qr;
@@ -137,10 +140,9 @@
   tg?.ready?.();
   tg?.expand?.();
 
+  // [MODIFIED] Resume a paused WhatsApp session silently; keep the user on the Profile page.
   window.addEventListener("wagram:connect", () => {
-    if (completed || document.body.classList.contains("connection-pending")) return;
-    document.body.classList.add("connection-pending");
-    gate.classList.add("is-active");
+    if (completed || timer) return;
     beginConnection().then(checkConnection);
     if (timer) clearInterval(timer);
     timer = setInterval(checkConnection, 1800);
