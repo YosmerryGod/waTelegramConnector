@@ -430,16 +430,21 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
     const username = req.miniAppUser?.username
       ? "@" + req.miniAppUser.username
       : [req.miniAppUser?.first_name, req.miniAppUser?.last_name].filter(Boolean).join(" ") || "Telegram user";
+    const planLabels = { "3d": "Premium 3 Hari", "7d": "Premium 7 Hari", "30d": "Premium 30 Hari" };
+    const safeUsername = username.replace(/[&<>]/g, "");
     const message = [
-      "💳 <b>Konfirmasi Pembayaran Premium</b>",
+      "💎 <b>WAGRAM PREMIUM — PEMBAYARAN</b>",
       "",
-      "<b>Order:</b> <code>" + order.id + "</code>",
-      "<b>User:</b> " + username.replace(/[&<>]/g, ""),
-      "<b>Telegram ID:</b> <code>" + req.telegramId + "</code>",
-      "<b>Paket:</b> " + order.plan_period.toUpperCase(),
-      "<b>Nominal:</b> Rp" + Number(order.amount).toLocaleString("id-ID"),
+      "📦 <b>Detail Pesanan</b>",
+      "Paket: <b>" + planLabels[order.plan_period] + "</b>",
+      "Total: <b>Rp" + Number(order.amount).toLocaleString("id-ID") + "</b>",
+      "Order ID: <code>" + order.id + "</code>",
       "",
-      "Periksa transaksi masuk di DANA sebelum mengaktifkan Premium."
+      "👤 <b>Informasi Pengguna</b>",
+      "Username: " + safeUsername,
+      "Telegram ID: <code>" + req.telegramId + "</code>",
+      "",
+      "⚠️ Verifikasi dana masuk di DANA sebelum menyetujui pembayaran."
     ].join("\\n");
 
     const proofExtension = proofMatch[1] === "jpeg" ? "jpg" : proofMatch[1];
@@ -447,7 +452,16 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
       adminIds.map((adminId) => bot.sendPhoto(
         adminId,
         proofBuffer,
-        { caption: message, parse_mode: "HTML" },
+        {
+          caption: message,
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [[
+              { text: "✅ Setujui", callback_data: "premium:approve:" + order.id },
+              { text: "❌ Tolak", callback_data: "premium:reject:" + order.id }
+            ]]
+          }
+        },
         { filename: "bukti-pembayaran-premium." + proofExtension, contentType: "image/" + proofMatch[1] }
       ))
     );
