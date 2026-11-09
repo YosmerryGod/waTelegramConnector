@@ -207,6 +207,29 @@ db.exec(`
     setting_value TEXT NOT NULL,
     updated_at INTEGER NOT NULL
   )
+
+
+  -- [ADDED] Premium payment orders with server-assigned unique amounts.
+  CREATE TABLE IF NOT EXISTS premium_payment_orders (
+    id TEXT PRIMARY KEY,
+    telegram_id TEXT NOT NULL,
+    plan_period TEXT NOT NULL CHECK (plan_period IN ('3d', '7d', '30d')),
+    base_amount INTEGER NOT NULL,
+    unique_code INTEGER NOT NULL CHECK (unique_code BETWEEN 100 AND 999),
+    amount INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+      CHECK (status IN ('pending', 'approved', 'rejected', 'expired')),
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    FOREIGN KEY (telegram_id)
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_premium_orders_owner
+    ON premium_payment_orders(telegram_id, created_at DESC);
+
+  CREATE INDEX IF NOT EXISTS idx_premium_orders_pending_amount
+    ON premium_payment_orders(amount, status, expires_at);
 `);
 
 
@@ -1695,3 +1718,50 @@ export function closeDatabase() {
 }
 
 export default db;
+
+// [ADDED] Create a pending Premium payment order and reserve a unique amount.
+// The transaction prevents two concurrent users from receiving the same
+// amount while an earlier order is still pending.
+export function createPremiumPaymentOrder(telegramId, planPeriod, baseAmount) {
+  const id = `premium_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  const now = Date.now();
+  const expiresAt = now + 15 * 60 * 1000;
+  const ownerId = String(telegramId);
+
+  const createOrder = db.transaction(() => {
+    db.prepare(`
+      UPDATE premium_payment_orders
+      SET status = 'expired'
+      WHERE status = 'pending' AND expires_at <= ?
+    `).run(now);
+
+    for (let attempt = 0; attempt < 900; attempt += 1) {
+      const uniqueCode = 100 + Math.floor(Math.random() * 900);
+      const amount = Number(baseAmount) + uniqueCode;
+      const reserved = db.prepare(`
+        SELECT 1 FROM premium_payment_orders
+        WHERE amount = ? AND status = 'pending' AND expires_at > ?
+        LIMIT 1
+      `).get(amount, now);
+
+      if (reserved) continue;
+
+      db.prepare(`
+        INSERT INTO premium_payment_orders (
+          id, telegram_id, plan_period, base_amount, unique_code,
+          amount, status, created_at, expires_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      `).run(
+        id, ownerId, planPeriod, Number(baseAmount),
+        uniqueCode, amount, now, expiresAt
+      );
+
+      return { id, planPeriod, baseAmount: Number(baseAmount), uniqueCode, amount, createdAt: now, expiresAt };
+    }
+
+    throw new Error("PREMIUM_PAYMENT_AMOUNT_POOL_EXHAUSTED");
+  });
+
+  return createOrder();
+}
