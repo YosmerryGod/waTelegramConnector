@@ -142,7 +142,7 @@ app.use((req, res, next) => {
 });
 
 // [ADDED] Parse JSON bodies for Mini App API requests.
-app.use(express.json({ limit: "32kb" }));
+app.use(express.json({ limit: "8mb" })); // [MODIFIED] Allow payment proof image payloads.
 
 // [ADDED] Mount Mini App API.
 app.use("/api/miniapp", miniAppApi);
