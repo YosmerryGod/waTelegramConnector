@@ -529,7 +529,7 @@
     const remainingDays = Math.floor(totalMinutes / 1440);
     const remainingHours = Math.floor((totalMinutes % 1440) / 60);
     const remainingMinutes = totalMinutes % 60;
-    const expiryCountdown = `${remainingDays} hari ${String(remainingHours).padStart(2, "0")} jam ${String(remainingMinutes).padStart(2, "0")} menit`;
+    const expiryCountdown = `${remainingDays}d ${String(remainingHours).padStart(2, "0")}h ${String(remainingMinutes).padStart(2, "0")}m`; // [MODIFIED] Compact countdown units save badge space.
 
     // [MODIFIED] Keep the remaining subscription time in the Premium badge only.
     tier.textContent = isPremium
