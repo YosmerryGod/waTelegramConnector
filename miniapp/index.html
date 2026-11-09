@@ -588,6 +588,28 @@
       </section>
     </div>
 
+    <!-- [ADDED] Premium payment proof upload popup. -->
+    <div class="premium-proof-modal hidden" id="premiumProofModal" role="dialog" aria-modal="true" aria-labelledby="premiumProofTitle">
+      <section class="premium-proof-content">
+        <h2 id="premiumProofTitle">Bukti Pembayaran</h2>
+        <p class="premium-proof-description">Pilih screenshot bukti pembayaran dari DANA atau galeri perangkat.</p>
+        <label class="premium-proof-picker" for="premiumProofInput">
+          <img id="premiumProofPreview" class="premium-proof-preview hidden" alt="Pratinjau bukti pembayaran">
+          <span id="premiumProofPlaceholder" class="premium-proof-placeholder">
+            <span class="premium-proof-icon">＋</span>
+            <strong>Pilih gambar</strong>
+            <small>JPG, PNG, atau WEBP · Maks. 5 MB</small>
+          </span>
+        </label>
+        <input id="premiumProofInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+        <p id="premiumProofError" class="premium-proof-error" aria-live="polite"></p>
+        <div class="premium-proof-actions">
+          <button type="button" id="premiumProofCancelButton" class="premium-proof-cancel">Cancel</button>
+          <button type="button" id="premiumProofConfirmButton" class="premium-proof-confirm" disabled>Confirm</button>
+        </div>
+      </section>
+    </div>
+
     <!-- FORM KONTAK (bottom sheet) -->
     <div id="contactSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="contactFormTitle">
       <div class="sheet-backdrop" data-close-sheet></div>
