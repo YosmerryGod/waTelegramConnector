@@ -2122,22 +2122,46 @@
       const tab = event.target.closest("[data-period]");
       if (tab && premiumPlans[tab.dataset.period]) renderPremiumPlan(tab.dataset.period);
     });
-    // [ADDED] Open the Premium QRIS payment popup preview.
+    // [ADDED] Build a dynamic QRIS payload from the merchant's supplied static template.
+    function buildPremiumQrisPayload(amount) {
+      const basePayload = "00020101021226570011ID.DANA.WWW011893600915003678691602090367869160303UMI51440014ID.CO.QRIS.WWW0215ID10266342920190303UMI5204899953033605405100005802ID5915WaGRAM, Service6011Banjarmasin610570111621960150011ID.DANA.WWW63043E14";
+      const amountText = String(Math.round(amount));
+      const amountField = "54" + String(amountText.length).padStart(2, "0") + amountText;
+      const payloadWithoutCrc = basePayload.replace(/5405\\d{5}/, amountField).slice(0, -8) + "6304";
+      let crc = 0xFFFF;
+      for (let index = 0; index < payloadWithoutCrc.length; index += 1) {
+        crc ^= payloadWithoutCrc.charCodeAt(index) << 8;
+        for (let bit = 0; bit < 8; bit += 1) {
+          crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+          crc &= 0xFFFF;
+        }
+      }
+      return payloadWithoutCrc + crc.toString(16).toUpperCase().padStart(4, "0");
+    }
+
+    // [MODIFIED] Render the actual QRIS payload instead of a plain-text QR preview.
     $("#premiumContinueButton").addEventListener("click", async () => {
       const plan = premiumPlans[selectedPremiumPeriod];
       const amount = Number(String(plan.price).replace(/[^0-9]/g, ""));
       const uniqueCode = Math.floor(100 + Math.random() * 900);
       const paymentAmount = amount + uniqueCode;
+      const canvas = $("#premiumPaymentQr");
       $("#premiumPaymentPlan").textContent = plan.label;
       $("#premiumPaymentAmount").textContent = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(paymentAmount);
       $("#premiumPaymentUniqueCode").textContent = "Kode unik: " + uniqueCode;
+      $("#premiumPaymentStatus").textContent = "Menyiapkan QRIS…";
       $("#premiumPaymentModal").classList.remove("hidden");
       document.body.classList.add("premium-payment-open");
       try {
-        if (window.QRCode && window.QRCode.toCanvas) {
-          await window.QRCode.toCanvas($("#premiumPaymentQr"), "WAGRAM PREMIUM " + selectedPremiumPeriod + " " + paymentAmount, { width: 280, margin: 2, errorCorrectionLevel: "H" });
-        }
-      } catch (error) { $("#premiumPaymentStatus").textContent = "QR pratinjau gagal dimuat."; }
+        if (!window.QRCode?.toCanvas) throw new Error("QR renderer belum tersedia");
+        const payload = buildPremiumQrisPayload(paymentAmount);
+        await window.QRCode.toCanvas(canvas, payload, { width: 280, margin: 2, errorCorrectionLevel: "H" });
+        $("#premiumPaymentStatus").textContent = "QRIS pratinjau";
+      } catch (error) {
+        const context = canvas.getContext("2d");
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        $("#premiumPaymentStatus").textContent = "QRIS gagal dimuat. Muat ulang Mini App.";
+      }
     });
     $("#premiumPaymentBackButton").addEventListener("click", () => {
       $("#premiumPaymentModal").classList.add("hidden");
