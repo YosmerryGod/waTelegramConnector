@@ -2145,6 +2145,11 @@
         }
 
         const order = result.order;
+        activePremiumOrderId = order.id;
+        $("#premiumPaymentDownloadButton").disabled = false;
+        $("#premiumPaymentPaidButton").disabled = false;
+        $("#premiumPaymentPaidButton").textContent = "Saya sudah bayar";
+        $("#premiumPaymentConfirmation").textContent = "";
         $("#premiumPaymentAmount").textContent = new Intl.NumberFormat("id-ID", {
           style: "currency",
           currency: "IDR",
@@ -2164,6 +2169,9 @@
       } catch (error) {
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
+        activePremiumOrderId = null;
+        $("#premiumPaymentDownloadButton").disabled = true;
+        $("#premiumPaymentPaidButton").disabled = true;
         $("#premiumPaymentAmount").textContent = "—";
         $("#premiumPaymentUniqueCode").textContent = "";
         $("#premiumPaymentStatus").textContent = error.message || "QRIS gagal dimuat.";
@@ -2171,6 +2179,42 @@
         button.disabled = false;
       }
     });
+    // [ADDED] Keep the current server-created order for download and payment reporting.
+    let activePremiumOrderId = null;
+    const downloadPremiumQr = () => {
+      const canvas = $("#premiumPaymentQr");
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = "WAGRAM-Premium-QRIS.png";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+
+    $("#premiumPaymentDownloadButton").addEventListener("click", () => {
+      if (activePremiumOrderId) downloadPremiumQr();
+    });
+
+    $("#premiumPaymentPaidButton").addEventListener("click", async () => {
+      if (!activePremiumOrderId) return;
+      const button = $("#premiumPaymentPaidButton");
+      button.disabled = true;
+      button.textContent = "Mengirim konfirmasi…";
+      $("#premiumPaymentConfirmation").textContent = "";
+      try {
+        await api("/premium/orders/" + encodeURIComponent(activePremiumOrderId) + "/paid", {
+          method: "POST",
+          body: JSON.stringify({})
+        });
+        button.textContent = "Konfirmasi terkirim";
+        $("#premiumPaymentConfirmation").textContent = "Admin sudah diberi tahu. Premium aktif setelah pembayaran diverifikasi.";
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = "Saya sudah bayar";
+        $("#premiumPaymentConfirmation").textContent = error.message || "Konfirmasi gagal dikirim.";
+      }
+    });
+
     // [MODIFIED] Close the payment dialog without navigating away from Premium.
     function closePremiumPaymentModal() {
       $("#premiumPaymentModal").classList.add("hidden");
