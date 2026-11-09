@@ -17,7 +17,8 @@
   <link rel="stylesheet" href="style.css?v=20261109-premium-popup-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js" onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.4/qrcode.min.js'"></script>
 </head>
 <body>
   <!-- [ADDED] Branded splash loader shown until initial app data has settled. -->
