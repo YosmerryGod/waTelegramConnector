@@ -5964,3 +5964,26 @@ body.premium-page-active .premium-heading .premium-duration-tab {
     font-size: 8px;
   }
 }
+
+
+/* [MODIFIED] Keep Free and Premium comparison headers on a single line. */
+body.premium-page-active .premium-comparison-table {
+  table-layout: fixed;
+}
+body.premium-page-active .premium-comparison-table th:first-child,
+body.premium-page-active .premium-comparison-table td:first-child {
+  width: 64%;
+}
+body.premium-page-active .premium-comparison-table th:nth-child(2),
+body.premium-page-active .premium-comparison-table td:nth-child(2),
+body.premium-page-active .premium-comparison-table th:nth-child(3),
+body.premium-page-active .premium-comparison-table td:nth-child(3) {
+  width: 18%;
+}
+body.premium-page-active .premium-comparison-table thead th:nth-child(2),
+body.premium-page-active .premium-comparison-table thead th:nth-child(3) {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+  font-size: 10px;
+}
