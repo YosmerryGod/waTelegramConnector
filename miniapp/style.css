@@ -5166,3 +5166,258 @@ body.premium-page-active .premium-payment-note {
   body.premium-page-active .premium-price-panel { margin-top: 7px; }
   body.premium-page-active .premium-comparison { margin-top: 7px; }
 }
+
+
+/* [ADDED] Premium page rebuilt around the clean ChatGPT Plus comparison layout. */
+body.premium-page-active #premiumPage {
+  background: var(--bg);
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+body.premium-page-active .premium-page-content {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 680px;
+  min-height: 100%;
+  height: auto;
+  max-height: none;
+  margin: 0 auto;
+  padding: 22px 24px 24px;
+  overflow: visible;
+  gap: 0;
+  background: transparent;
+}
+body.premium-page-active .premium-page-back {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  justify-content: center;
+  margin: 0 0 24px -4px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+}
+body.premium-page-active .premium-page-back span { display: none; }
+body.premium-page-active .premium-page-back .i { width: 21px; height: 21px; }
+body.premium-page-active .premium-heading {
+  display: block;
+  padding: 0 0 34px;
+}
+body.premium-page-active .premium-crown { display: none; }
+body.premium-page-active .premium-eyebrow {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+body.premium-page-active .premium-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(32px, 8vw, 43px);
+  font-weight: 650;
+  letter-spacing: -1.8px;
+  line-height: 1.12;
+}
+body.premium-page-active .premium-heading h2 span { color: var(--premium-accent, #d9a441); }
+body.premium-page-active .premium-subtitle {
+  max-width: 440px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+body.premium-page-active .premium-comparison {
+  display: block;
+  flex: 0 0 auto;
+  min-height: 0;
+  margin: 0;
+}
+body.premium-page-active .premium-comparison h3 {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+body.premium-page-active .premium-comparison-scroll {
+  overflow: visible;
+}
+body.premium-page-active .premium-comparison-table {
+  width: 100%;
+  height: auto;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: var(--text);
+  font-size: 13px;
+}
+body.premium-page-active .premium-comparison-table th,
+body.premium-page-active .premium-comparison-table td {
+  padding: 13px 5px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.35;
+  text-align: center;
+}
+body.premium-page-active .premium-comparison-table th:first-child,
+body.premium-page-active .premium-comparison-table td:first-child {
+  width: 66%;
+  padding-left: 0;
+  text-align: left;
+}
+body.premium-page-active .premium-comparison-table th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+body.premium-page-active .premium-comparison-table th:last-child,
+body.premium-page-active .premium-comparison-table td:last-child {
+  color: var(--premium-accent, #d9a441);
+}
+body.premium-page-active .premium-table-check {
+  color: var(--premium-accent, #d9a441);
+  font-size: 19px;
+  font-weight: 600;
+}
+body.premium-page-active .premium-table-dash {
+  color: var(--muted);
+  font-size: 19px;
+  font-weight: 500;
+}
+body.premium-page-active .premium-purchase {
+  margin-top: 27px;
+}
+body.premium-page-active .premium-purchase-label {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+body.premium-page-active .premium-duration-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 44px;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+body.premium-page-active .premium-duration-tab {
+  flex: 1;
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+body.premium-page-active .premium-duration-tab.active {
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: none;
+}
+body.premium-page-active .premium-price-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 13px;
+  padding: 15px 0;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body.premium-page-active .premium-plan-label {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .8px;
+}
+body.premium-page-active .premium-price-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+body.premium-page-active .premium-price-line strong {
+  color: var(--text);
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -.7px;
+}
+body.premium-page-active .premium-price-line del {
+  color: var(--muted);
+  font-size: 12px;
+}
+body.premium-page-active .premium-price-note {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+body.premium-page-active .premium-session-benefit {
+  max-width: 145px;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+body.premium-page-active .premium-session-icon {
+  flex: 0 0 29px;
+  width: 29px;
+  height: 29px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+}
+body.premium-page-active .premium-session-icon .i { width: 16px; height: 16px; }
+body.premium-page-active .premium-session-benefit strong {
+  color: var(--text);
+  font-size: 10px;
+}
+body.premium-page-active .premium-session-benefit small {
+  color: var(--muted);
+  font-size: 9px;
+}
+body.premium-page-active .premium-cta-wrap {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: auto -24px 0;
+  padding: 18px 24px max(10px, env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, color-mix(in srgb,var(--bg) 0%,transparent), var(--bg) 20%);
+}
+body.premium-page-active .premium-continue-button {
+  display: block;
+  width: 100%;
+  min-height: 54px;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: none;
+}
+body.premium-page-active .premium-payment-note {
+  margin: 9px 0 0;
+  padding: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  text-align: center;
+}
+@media (max-width: 380px) {
+  body.premium-page-active .premium-page-content { padding-right: 18px; padding-left: 18px; }
+  body.premium-page-active .premium-cta-wrap { margin-right: -18px; margin-left: -18px; padding-right: 18px; padding-left: 18px; }
+  body.premium-page-active .premium-comparison-table { font-size: 12px; }
+}
