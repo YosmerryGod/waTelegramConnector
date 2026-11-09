@@ -5987,3 +5987,15 @@ body.premium-page-active .premium-comparison-table thead th:nth-child(3) {
   overflow-wrap: normal;
   font-size: 10px;
 }
+
+
+/* [MODIFIED] Show the selected plan price inside the primary action button. */
+body.premium-page-active .premium-price-panel {
+  display: none !important;
+}
+body.premium-page-active .premium-continue-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
