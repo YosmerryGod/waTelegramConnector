@@ -40,7 +40,8 @@ import {
   getWhatsAppProfileCache,
   saveWhatsAppProfileCache,
   getWhatsAppParticipantName,
-  hasWhatsAppParticipant
+  hasWhatsAppParticipant,
+  createPremiumPaymentOrder // [ADDED] Server-side Premium payment order allocation.
 } from "./database.js";
 
 const router = express.Router();
@@ -265,6 +266,56 @@ router.get("/health", (_req, res) => {
 
 // All routes below require authenticated Telegram Mini App data.
 router.use(requireMiniAppAuth);
+
+// [ADDED] Create a pending Premium order and return its dynamic QRIS payload.
+router.post("/premium/orders", async (req, res) => {
+  try {
+    const prices = { "3d": 14000, "7d": 44000, "30d": 149000 };
+    const period = String(req.body?.period || "");
+    const baseAmount = prices[period];
+
+    if (!baseAmount) {
+      return res.status(400).json({
+        ok: false,
+        error: "INVALID_PREMIUM_PLAN",
+        message: "Paket Premium tidak valid."
+      });
+    }
+
+    const order = createPremiumPaymentOrder(req.telegramId, period, baseAmount);
+    const basePayload = "00020101021226570011ID.DANA.WWW011893600915003678691602090367869160303UMI51440014ID.CO.QRIS.WWW0215ID10266342920190303UMI5204899953033605405100005802ID5915WaGRAM, Service6011Banjarmasin610570111621960150011ID.DANA.WWW63043E14";
+    const amountText = String(order.amount);
+    const amountField = "54" + String(amountText.length).padStart(2, "0") + amountText;
+    const payloadWithoutCrc = basePayload.replace("540510000", amountField).slice(0, -8) + "6304";
+
+    let crc = 0xFFFF;
+    for (let index = 0; index < payloadWithoutCrc.length; index += 1) {
+      crc ^= payloadWithoutCrc.charCodeAt(index) << 8;
+      for (let bit = 0; bit < 8; bit += 1) {
+        crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
+        crc &= 0xFFFF;
+      }
+    }
+
+    const rawQris = payloadWithoutCrc + crc.toString(16).toUpperCase().padStart(4, "0");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(201).json({
+      ok: true,
+      order: {
+        id: order.id,
+        period: order.planPeriod,
+        baseAmount: order.baseAmount,
+        uniqueCode: order.uniqueCode,
+        amount: order.amount,
+        expiresAt: order.expiresAt
+      },
+      rawQris
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not create Premium payment order");
+  }
+});
+
 
 // [ADDED] Current role and membership for the authenticated Mini App account.
 router.get("/account", (req, res) => {
