@@ -614,7 +614,7 @@
     }
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Makassar", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
     const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-    const nextPause = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 8, 0, 0));
+    const nextPause = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day), 0, 0, 0));
     if (Date.now() >= nextPause.getTime()) nextPause.setUTCDate(nextPause.getUTCDate() + 1);
     const remainingMinutes = Math.max(0, Math.floor((nextPause.getTime() - Date.now()) / 60000));
     const hours = Math.floor(remainingMinutes / 60);
