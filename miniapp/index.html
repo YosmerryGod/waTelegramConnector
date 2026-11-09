@@ -553,7 +553,10 @@
         </section>
 
         <div class="premium-cta-wrap">
-          <button class="premium-continue-button" id="premiumContinueButton" type="button">Lanjutkan · Rp14.000</button>
+          <button class="premium-continue-button" id="premiumContinueButton" type="button">
+            <span class="premium-button-old-price" id="premiumButtonOldPrice">Rp24.000</span>
+            <span class="premium-button-current-price" id="premiumButtonCurrentPrice">Lanjutkan · Rp14.000</span>
+          </button>
           <p class="premium-payment-note">Pembayaran dan aktivasi Premium akan tersedia pada tahap berikutnya.</p>
         </div>
       </section>
@@ -615,7 +618,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261109-premium-reference-clean-v3"></script>
+  <script src="app.js?v=20261109-premium-button-old-price-v4"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
