@@ -5826,3 +5826,11 @@ body.premium-page-active .premium-comparison-table td {
   padding-top: 8px;
   padding-bottom: 8px;
 }
+
+
+/* [MODIFIED] Remove repeated brand, plan and session labels for a cleaner Premium page. */
+body.premium-page-active .premium-eyebrow,
+body.premium-page-active .premium-plan-label,
+body.premium-page-active .premium-session-benefit {
+  display: none !important;
+}
