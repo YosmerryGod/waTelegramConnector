@@ -2122,9 +2122,26 @@
       const tab = event.target.closest("[data-period]");
       if (tab && premiumPlans[tab.dataset.period]) renderPremiumPlan(tab.dataset.period);
     });
-    // [REMOVED] Bottom-sheet backdrop and close bindings; the full page uses its back control.
-    $("#premiumContinueButton").addEventListener("click", () => {
-      showToast("Pembayaran Premium belum diaktifkan.");
+    // [ADDED] Open the Premium QRIS payment popup preview.
+    $("#premiumContinueButton").addEventListener("click", async () => {
+      const plan = premiumPlans[selectedPremiumPeriod];
+      const amount = Number(String(plan.price).replace(/[^0-9]/g, ""));
+      const uniqueCode = Math.floor(100 + Math.random() * 900);
+      const paymentAmount = amount + uniqueCode;
+      $("#premiumPaymentPlan").textContent = plan.label;
+      $("#premiumPaymentAmount").textContent = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(paymentAmount);
+      $("#premiumPaymentUniqueCode").textContent = "Kode unik: " + uniqueCode;
+      $("#premiumPaymentModal").classList.remove("hidden");
+      document.body.classList.add("premium-payment-open");
+      try {
+        if (window.QRCode && window.QRCode.toCanvas) {
+          await window.QRCode.toCanvas($("#premiumPaymentQr"), "WAGRAM PREMIUM " + selectedPremiumPeriod + " " + paymentAmount, { width: 280, margin: 2, errorCorrectionLevel: "H" });
+        }
+      } catch (error) { $("#premiumPaymentStatus").textContent = "QR pratinjau gagal dimuat."; }
+    });
+    $("#premiumPaymentBackButton").addEventListener("click", () => {
+      $("#premiumPaymentModal").classList.add("hidden");
+      document.body.classList.remove("premium-payment-open");
     });
 
     // [ADDED] Expand or collapse all WhatsApp account controls from the status row.
