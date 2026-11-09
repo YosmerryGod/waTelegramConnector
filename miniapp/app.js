@@ -480,6 +480,8 @@
       state.membership = data.account || null;
       renderMembership();
       renderNotificationPreferences(); // [ADDED] Reapply notification access after the membership refresh.
+      // [ADDED] Re-render chat rows after the server confirms the plan; chats and membership load in parallel on startup.
+      if (state.chatsLoaded && state.page === "chats") renderChats();
     } catch (error) {
       console.error("Could not load WAGRAM membership:", error);
       if (!state.membership) {
