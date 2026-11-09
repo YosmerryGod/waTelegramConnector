@@ -2171,9 +2171,19 @@
         button.disabled = false;
       }
     });
-    $("#premiumPaymentBackButton").addEventListener("click", () => {
+    // [MODIFIED] Close the payment dialog without navigating away from Premium.
+    function closePremiumPaymentModal() {
       $("#premiumPaymentModal").classList.add("hidden");
       document.body.classList.remove("premium-payment-open");
+    }
+    $("#premiumPaymentBackButton").addEventListener("click", closePremiumPaymentModal);
+    $("#premiumPaymentModal").addEventListener("click", (event) => {
+      if (event.target === $("#premiumPaymentModal")) closePremiumPaymentModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !$("#premiumPaymentModal").classList.contains("hidden")) {
+        closePremiumPaymentModal();
+      }
     });
 
     // [ADDED] Expand or collapse all WhatsApp account controls from the status row.
