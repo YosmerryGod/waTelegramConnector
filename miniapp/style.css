@@ -6022,3 +6022,153 @@ body.premium-page-active .premium-button-current-price {
   font-size: 15px;
   font-weight: 750;
 }
+
+
+/* [ADDED] Premium page follows the WAGRAM light-green neumorphic theme without introducing cards. */
+body.premium-page-active {
+  background: var(--bg, #edf6f0) !important;
+  color: var(--text, #17251d);
+}
+
+body.premium-page-active #premiumPage,
+body.premium-page-active .premium-page-content,
+body.premium-page-active .premium-heading,
+body.premium-page-active .premium-comparison,
+body.premium-page-active .premium-comparison-scroll,
+body.premium-page-active .premium-purchase,
+body.premium-page-active .premium-cta-wrap {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+body.premium-page-active .premium-page-content {
+  color: var(--text, #17251d);
+}
+
+body.premium-page-active .premium-page-back {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 1px solid var(--border, rgba(255,255,255,.88));
+  border-radius: 12px;
+  background: var(--surface, #f4fbf6);
+  color: var(--text, #17251d);
+  box-shadow: var(--shadow, 7px 7px 18px rgba(39,88,58,.12), -7px -7px 18px rgba(255,255,255,.92));
+}
+
+body.premium-page-active .premium-heading h2 {
+  color: var(--text, #17251d);
+  font-weight: 800;
+  letter-spacing: -.45px;
+}
+
+body.premium-page-active .premium-heading h2 span {
+  color: var(--accent, #08a94f);
+}
+
+body.premium-page-active .premium-subtitle,
+body.premium-page-active .premium-payment-note {
+  color: var(--muted, #718078);
+}
+
+body.premium-page-active .premium-duration-tabs {
+  padding: 4px;
+  border: 1px solid var(--border, rgba(255,255,255,.88));
+  border-radius: 14px;
+  background: var(--surface-2, #e5f0e8);
+  box-shadow: inset 3px 3px 7px rgba(39,88,58,.08), inset -3px -3px 7px rgba(255,255,255,.82);
+}
+
+body.premium-page-active .premium-duration-tab {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted, #718078);
+  font-weight: 700;
+  transition: background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+body.premium-page-active .premium-duration-tab.active,
+body.premium-page-active .premium-duration-tab[aria-selected="true"] {
+  background: var(--surface, #f4fbf6);
+  color: var(--accent, #08a94f);
+  box-shadow: 3px 3px 7px rgba(39,88,58,.12), -3px -3px 7px rgba(255,255,255,.9);
+}
+
+body.premium-page-active .premium-comparison-table {
+  color: var(--text, #17251d);
+}
+
+body.premium-page-active .premium-comparison-table thead th {
+  color: var(--muted, #718078);
+  font-weight: 700;
+}
+
+body.premium-page-active .premium-comparison-table tbody tr {
+  border-bottom: 1px solid var(--divider, rgba(113,145,123,.13));
+}
+
+body.premium-page-active .premium-comparison-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+body.premium-page-active .premium-table-check {
+  color: var(--accent, #08a94f);
+  font-weight: 800;
+}
+
+body.premium-page-active .premium-table-dash {
+  color: var(--muted, #718078);
+}
+
+body.premium-page-active .premium-continue-button {
+  min-height: 48px;
+  border: 1px solid rgba(8,169,79,.18);
+  border-radius: 15px;
+  background: linear-gradient(145deg, #0dbb59, #079747);
+  color: #fff;
+  box-shadow: 5px 5px 12px rgba(0,125,57,.2), -4px -4px 10px rgba(255,255,255,.75);
+  font-weight: 800;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+
+body.premium-page-active .premium-continue-button:active {
+  transform: translateY(1px);
+  box-shadow: inset 3px 3px 7px rgba(0,90,40,.2), inset -3px -3px 7px rgba(255,255,255,.16);
+}
+
+body.premium-page-active .premium-button-old-price {
+  color: rgba(255,255,255,.68);
+}
+
+body.premium-page-active .premium-button-current-price {
+  color: #fff;
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-page-back {
+  background: var(--surface, #111a14);
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-duration-tabs {
+  background: var(--surface-2, #18251c);
+  box-shadow: inset 3px 3px 7px rgba(0,0,0,.3), inset -3px -3px 7px rgba(51,81,57,.12);
+}
+
+html[data-theme="dark"] body.premium-page-active .premium-duration-tab.active,
+html[data-theme="dark"] body.premium-page-active .premium-duration-tab[aria-selected="true"] {
+  background: var(--surface, #111a14);
+  color: var(--accent, #27d477);
+  box-shadow: 3px 3px 7px rgba(0,0,0,.35), -3px -3px 7px rgba(51,81,57,.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.premium-page-active .premium-duration-tab,
+  body.premium-page-active .premium-continue-button {
+    transition: none;
+  }
+}
