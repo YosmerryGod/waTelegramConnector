@@ -348,7 +348,9 @@ router.post("/connection/connect", async (req, res) => {
           hourCycle: "h23"
         }).formatToParts(new Date());
         const wita = Object.fromEntries(witaParts.map((part) => [part.type, part.value]));
-        if (Number(wita.hour) >= 8 && storedSession?.connection_status !== "paused") {
+        // [MODIFIED] A Free user who manually resumes after today's pause cutoff
+        // is exempt from another automatic pause until the next WITA day.
+        if (Number(wita.hour) >= 14) {
           setFreePauseDate(req.telegramId, `${wita.year}-${wita.month}-${wita.day}`);
         }
       }
