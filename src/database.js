@@ -235,6 +235,39 @@ db.exec(`
     ON premium_payment_orders(amount, status, expires_at);
 `);
 
+// [ADDED] Track whether the user has reported a completed payment.
+const premiumOrderColumns = db
+  .prepare("PRAGMA table_info(premium_payment_orders)")
+  .all()
+  .map((column) => column.name);
+
+if (!premiumOrderColumns.includes("payment_reported_at")) {
+  db.exec("ALTER TABLE premium_payment_orders ADD COLUMN payment_reported_at INTEGER");
+}
+
+export function getPremiumPaymentOrder(telegramId, orderId) {
+  return db.prepare(`
+    SELECT * FROM premium_payment_orders
+    WHERE id = ? AND telegram_id = ?
+    LIMIT 1
+  `).get(String(orderId), String(telegramId)) || null;
+}
+
+export function markPremiumPaymentReported(telegramId, orderId) {
+  const now = Date.now();
+  const result = db.prepare(`
+    UPDATE premium_payment_orders
+    SET payment_reported_at = ?
+    WHERE id = ?
+      AND telegram_id = ?
+      AND status = 'pending'
+      AND expires_at > ?
+      AND payment_reported_at IS NULL
+  `).run(now, String(orderId), String(telegramId), now);
+  return result.changes > 0;
+}
+
+
 
 const configuredAdminIds = String(
   process.env.ADMIN_TELEGRAM_IDS || "6838814141"
