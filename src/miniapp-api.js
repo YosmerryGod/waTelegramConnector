@@ -445,7 +445,7 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
       "Telegram ID: <code>" + req.telegramId + "</code>",
       "",
       "⚠️ Verifikasi dana masuk di DANA sebelum menyetujui pembayaran."
-    ].join("\\n");
+    ].join("\n");
 
     const proofExtension = proofMatch[1] === "jpeg" ? "jpg" : proofMatch[1];
     const results = await Promise.allSettled(
