@@ -6260,8 +6260,8 @@ body.premium-payment-open { overflow: hidden !important; }
 .premium-payment-back {
   position: absolute;
   top: 14px;
-  left: 14px;
-  right: auto; /* [MODIFIED] Place the back button on the left. */
+  left: 14px !important; /* [MODIFIED] Force the back button to the left edge. */
+  right: auto !important;
   display: grid;
   place-items: center;
   width: 38px;
