@@ -4500,3 +4500,163 @@ html[data-theme="dark"] .onboarding-primary {
   width:16px;
   height:16px;
 }
+
+
+/* [ADDED] Premium selection step uses the same edge-to-edge viewport as welcome. */
+.onboarding-screen:has(#onboardingFeatures:not(.hidden)) {
+  width:100vw;
+  height:100vh;
+  height:100dvh;
+  min-height:100vh;
+  min-height:100dvh;
+  padding:0;
+  overflow:hidden;
+}
+
+.onboarding-plans {
+  display:flex;
+  flex:1 1 auto;
+  flex-direction:column;
+  justify-content:center;
+  align-items:stretch;
+  width:100%;
+  max-width:none;
+  min-height:0;
+  margin:0;
+  padding:clamp(18px,4vh,34px) clamp(16px,4vw,26px) 12px;
+}
+
+.onboarding-plans .onboarding-eyebrow {
+  margin:0 0 12px;
+  font-size:10px;
+}
+
+.onboarding-plans h2 {
+  margin:0;
+  font-size:clamp(29px,7.5vw,38px);
+  line-height:1.08;
+}
+
+.onboarding-plans .onboarding-description {
+  max-width:420px;
+  margin:12px auto clamp(20px,4vh,32px);
+  font-size:clamp(13px,3.5vw,15px);
+}
+
+.onboarding-plan-grid {
+  width:100%;
+  max-width:760px;
+  margin:0 auto;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:clamp(10px,2.5vw,18px);
+}
+
+.onboarding-plan-card {
+  min-height:0;
+  padding:clamp(14px,3vh,22px) clamp(12px,3vw,20px);
+  border-radius:20px;
+  background:linear-gradient(145deg,#142219,#0c1710);
+  border-color:rgba(89,150,108,.16);
+  box-shadow:6px 6px 16px rgba(0,0,0,.30),-3px -3px 10px rgba(37,72,46,.06);
+}
+
+.onboarding-plan-card.is-premium {
+  border-color:rgba(190,151,79,.30);
+  background:linear-gradient(145deg,#1b1b13,#10170f);
+}
+
+.onboarding-plan-label {
+  margin-bottom:10px;
+  font-size:10px;
+}
+
+.onboarding-plan-price {
+  margin-bottom:12px;
+  font-size:clamp(17px,4.3vw,21px);
+}
+
+.onboarding-plan-card ul {
+  gap:clamp(7px,1.5vh,11px);
+  padding-left:14px;
+  font-size:clamp(10px,2.8vw,13px);
+  line-height:1.4;
+}
+
+.onboarding-plans .onboarding-footnote {
+  margin:14px 0 18px;
+  font-size:11px;
+  text-align:center;
+}
+
+.onboarding-plans .onboarding-primary {
+  width:100%;
+  max-width:520px;
+  min-height:56px;
+  align-self:center;
+  margin:0 auto;
+  border-radius:18px;
+  font-size:15px;
+}
+
+.onboarding-plans .onboarding-back {
+  margin:12px auto 0;
+  padding:10px 20px;
+  font-size:13px;
+}
+
+.onboarding-pagination {
+  width:100%;
+  flex:0 0 auto;
+  padding:10px 0 calc(14px + env(safe-area-inset-bottom));
+}
+
+@media(max-height:740px) {
+  .onboarding-plans {
+    padding-top:calc(10px + env(safe-area-inset-top));
+    padding-bottom:6px;
+  }
+  .onboarding-plans .onboarding-description {
+    margin-top:8px;
+    margin-bottom:14px;
+  }
+  .onboarding-plan-card {
+    padding:12px 10px;
+  }
+  .onboarding-plan-price {
+    margin-bottom:8px;
+  }
+  .onboarding-plan-card ul {
+    gap:6px;
+    font-size:10px;
+  }
+  .onboarding-plans .onboarding-footnote {
+    margin:10px 0 12px;
+  }
+  .onboarding-plans .onboarding-primary {
+    min-height:50px;
+  }
+  .onboarding-plans .onboarding-back {
+    margin-top:6px;
+    padding:7px 16px;
+  }
+  .onboarding-pagination {
+    padding-top:6px;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));
+  }
+}
+
+@media(max-width:360px) {
+  .onboarding-plans {
+    padding-left:12px;
+    padding-right:12px;
+  }
+  .onboarding-plan-grid {
+    gap:8px;
+  }
+  .onboarding-plan-card {
+    padding:11px 9px;
+  }
+  .onboarding-plan-card ul {
+    font-size:9px;
+  }
+}
