@@ -398,7 +398,7 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
 
     // [ADDED] Validate payment proof before accepting the payment report.
     const proofImage = String(req.body?.proofImage || "");
-    const proofMatch = proofImage.match(/^data:image\\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+    const proofMatch = proofImage.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
     if (!proofMatch || proofMatch[2].length > 7 * 1024 * 1024) {
       return res.status(400).json({
         ok: false,
