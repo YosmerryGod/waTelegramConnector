@@ -5888,3 +5888,79 @@ body.premium-page-active .premium-heading #premiumDurationTabs {
     align-self: stretch;
   }
 }
+
+
+/* [MODIFIED] Keep the compact duration choices on the same row as the Premium title. */
+body.premium-page-active .premium-heading {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 138px;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 5px;
+}
+body.premium-page-active .premium-heading > div {
+  display: contents;
+}
+body.premium-page-active .premium-heading h2 {
+  grid-column: 1;
+  grid-row: 1;
+  white-space: nowrap;
+  font-size: clamp(19px,5.5vw,25px);
+  letter-spacing: -1px;
+}
+body.premium-page-active .premium-subtitle {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin-top: 0;
+  font-size: 11px;
+}
+body.premium-page-active .premium-heading #premiumDurationTabs {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex: none;
+  width: 138px;
+  min-width: 0;
+  min-height: 31px;
+  height: 31px;
+  gap: 1px;
+  margin: 0;
+  padding: 2px;
+  border-radius: 999px;
+}
+body.premium-page-active .premium-heading .premium-duration-tab {
+  min-width: 0;
+  min-height: 25px;
+  height: 25px;
+  padding: 0 2px;
+  border-radius: 999px;
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  body.premium-page-active .premium-heading {
+    grid-template-columns: minmax(0,1fr) 138px;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  body.premium-page-active .premium-heading #premiumDurationTabs {
+    flex: none;
+    width: 138px;
+  }
+}
+@media (max-width: 360px) {
+  body.premium-page-active .premium-heading {
+    grid-template-columns: minmax(0,1fr) 126px;
+    column-gap: 5px;
+  }
+  body.premium-page-active .premium-heading h2 {
+    font-size: 19px;
+  }
+  body.premium-page-active .premium-heading #premiumDurationTabs {
+    width: 126px;
+  }
+  body.premium-page-active .premium-heading .premium-duration-tab {
+    font-size: 8px;
+  }
+}
