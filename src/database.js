@@ -674,6 +674,10 @@ const statements = {
         END
       )
     WHERE c.telegram_id = @telegram_id
+      AND (
+        (@session_id = @telegram_id AND instr(c.call_id, '::') = 0)
+        OR (@session_id != @telegram_id AND c.call_id LIKE @session_id || '::%')
+      )
       AND (@include_archived = 1 OR c.is_archived = 0)
     ORDER BY c.is_favorite DESC, c.last_message_at DESC, c.id DESC
     LIMIT @limit OFFSET @offset
@@ -1633,7 +1637,8 @@ export function listContacts(telegramId, limit = 1000, sessionId = telegramId) {
 // Catat event panggilan WhatsApp. Aman dipanggil berulang untuk call_id sama.
 export function recordCall(input) {
   const telegramId = String(input.telegramId ?? "");
-  const callId = String(input.callId ?? "");
+  const sessionId = String(input.sessionId || telegramId);
+  const callId = scopeSessionKey(telegramId, sessionId, input.callId);
 
   if (!/^\d+$/.test(telegramId) || !callId) {
     throw new Error("Telegram ID and call ID are required.");
@@ -1658,7 +1663,7 @@ export function recordCall(input) {
     status: input.status,
     is_video: input.isVideo ? 1 : 0,
     is_group: input.isGroup ? 1 : 0,
-    peer_jid: input.peerJid || null,
+    peer_jid: input.peerJid ? scopeSessionKey(telegramId, sessionId, input.peerJid) : null,
     phone_number: normalizePhoneNumber(input.phoneNumber),
     call_timestamp: Number.isFinite(timestamp) && timestamp > 0
       ? timestamp
@@ -1668,8 +1673,11 @@ export function recordCall(input) {
 }
 
 export function listCalls(telegramId, options = {}) {
+  const ownerId = String(telegramId);
+  const sessionId = String(options.sessionId || ownerId);
   return callStatements.list.all({
-    telegram_id: String(telegramId),
+    telegram_id: ownerId,
+    session_id: sessionId,
     include_archived: options.archived ? 1 : 0,
     limit: Math.min(200, Math.max(1, Number(options.limit) || 100)),
     offset: Math.max(0, Number(options.offset) || 0)
@@ -1677,21 +1685,21 @@ export function listCalls(telegramId, options = {}) {
 }
 
 // [ADDED] Update favorite state for one call-history record only.
-export function setCallFavorite(telegramId, callId, favorite) {
+export function setCallFavorite(telegramId, callId, favorite, sessionId = telegramId) {
   return db.prepare(`
     UPDATE calls
     SET is_favorite = ?, updated_at = ?
-    WHERE telegram_id = ? AND id = ?
-  `).run(favorite ? 1 : 0, Date.now(), String(telegramId), Number(callId)).changes > 0;
+    WHERE telegram_id = ? AND id = ? AND ((? = ? AND instr(call_id, '::') = 0) OR call_id LIKE ?)
+  `).run(favorite ? 1 : 0, Date.now(), String(telegramId), Number(callId), String(sessionId), String(telegramId), `${sessionId}::%`).changes > 0;
 }
 
 // [ADDED] Archive one call-history record only.
-export function setCallArchived(telegramId, callId, archived) {
+export function setCallArchived(telegramId, callId, archived, sessionId = telegramId) {
   return db.prepare(`
     UPDATE calls
     SET is_archived = ?, updated_at = ?
-    WHERE telegram_id = ? AND id = ?
-  `).run(archived ? 1 : 0, Date.now(), String(telegramId), Number(callId)).changes > 0;
+    WHERE telegram_id = ? AND id = ? AND ((? = ? AND instr(call_id, '::') = 0) OR call_id LIKE ?)
+  `).run(archived ? 1 : 0, Date.now(), String(telegramId), Number(callId), String(sessionId), String(telegramId), `${sessionId}::%`).changes > 0;
 }
 
 // ---------------------------------------------------------------------------
