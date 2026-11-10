@@ -2611,14 +2611,18 @@
       toggleNotificationPreference(button);
     });
 
-    // [MODIFIED] A paused session starts pairing from the same status button.
-    $("#accountWhatsAppState").addEventListener("click", () => {
+    // [MODIFIED] Pair the currently selected WhatsApp session.
+    $("#accountWhatsAppState").addEventListener("click", async () => {
       const button = $("#accountWhatsAppState");
       if (button.disabled) return;
       button.disabled = true;
       button.classList.add("is-connecting");
       button.innerHTML = "<i></i> Connecting…";
-      window.dispatchEvent(new Event("wagram:connect"));
+      try {
+        await api("/sessions/" + enc(state.activeSessionId) + "/connect", { method: "POST" });
+        await showWhatsAppSessionQr(state.activeSessionId);
+        await loadWhatsAppAccount();
+      } catch (error) { showToast(error.message); await loadWhatsAppAccount(); }
     });
 
     // [ADDED] Restore the profile status only after the pairing flow confirms success.
@@ -2632,7 +2636,7 @@
       const button = $("#disconnectWhatsAppButton");
       button.disabled = true;
       try {
-        await api("/connection/disconnect", { method: "POST", body: JSON.stringify({}) });
+        await api("/sessions/" + enc(state.activeSessionId) + "/disconnect", { method: "POST", body: JSON.stringify({}) });
         showToast("WhatsApp berhasil diputuskan.");
         await loadWhatsAppAccount();
       } catch (error) {
