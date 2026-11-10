@@ -1148,7 +1148,7 @@ export function saveWhatsAppMessage(input) {
       telegram_id: telegramId,
       whatsapp_chat_id: whatsappChatId,
       whatsapp_message_id: messageId,
-      sender_jid: input.senderJid || null,
+      sender_jid: input.senderJid ? scopeSessionKey(telegramId, input.sessionId || telegramId, input.senderJid) : null,
       sender_name: input.senderName || null,
       direction: input.direction,
       message_type: input.messageType || "text",
@@ -1273,7 +1273,7 @@ export function listChats(telegramId, options = {}) {
       ? !String(row.whatsapp_chat_id).includes("::")
       : String(row.whatsapp_chat_id).startsWith(`${sessionId}::`))
     .slice(offset, offset + limit)
-    .map((row) => ({ ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id) }));
+    .map((row) => ({ ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id), sender_jid: row.sender_jid ? unScopeSessionKey(ownerId, sessionId, row.sender_jid) : null }));
 }
 
 // Ambil satu chat milik pengguna yang ditentukan.
@@ -1736,7 +1736,7 @@ const mediaStatements = {
   `),
 
   get: db.prepare(`
-    SELECT id, direction, telegram_file_id, telegram_file_kind,
+    SELECT id, direction, whatsapp_chat_id, telegram_file_id, telegram_file_kind,
            media_storage_path, media_mimetype, media_file_name
     FROM messages
     WHERE telegram_id = ? AND id = ?
