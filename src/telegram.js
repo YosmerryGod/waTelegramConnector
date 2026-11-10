@@ -736,7 +736,7 @@ function resolveCallParties(call, socket) {
 // [ADDED] Save a call event to the Mini App call history.
 // Baileys sends several events per call (offer, accept, timeout, ...);
 // the database keeps one row per call and only moves it out of "ringing" once.
-function storeCallEvent({ call, socket, telegramId }) {
+function storeCallEvent({ call, socket, telegramId, sessionId = telegramId }) {
   const { isOutgoing, peerJid, phoneNumber } = resolveCallParties(
     call,
     socket
@@ -771,6 +771,7 @@ function storeCallEvent({ call, socket, telegramId }) {
 
   recordCall({
     telegramId,
+    sessionId,
     callId: call.id,
     direction: isOutgoing ? "outgoing" : "incoming",
     status,
@@ -822,7 +823,7 @@ async function buildCallMessage({ call, socket, telegramId }) {
   }
 
   // [ADDED] Show the saved contact name for calls too.
-  const callName = findContactName(telegramId, phoneNumber);
+  const callName = findContactName(telegramId, phoneNumber, sessionId);
 
   lines.push(
     `${callName ? `<b>${esc(callName)}</b> · ` : ""}` +
@@ -1250,7 +1251,8 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
         // [ADDED] A name saved in Contacts wins over the WhatsApp push name.
         const savedName = findContactName(
           id,
-          phoneNumber || (isGroup ? null : jidToPhone(remoteJid))
+          phoneNumber || (isGroup ? null : jidToPhone(remoteJid)),
+          sessionId
         );
         const name = savedName || message.pushName || who;
 
@@ -1293,6 +1295,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
         try {
           const saved = saveWhatsAppMessage({
             telegramId: id,
+            sessionId,
             whatsappChatId: remoteJid,
             messageId,
             chatType: isGroup ? "group" : "private",
@@ -1422,7 +1425,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           return;
         }
 
-        const changed = updateWhatsAppMessage(id, remoteJid, messageId, body);
+        const changed = updateWhatsAppMessage(id, remoteJid, messageId, body, sessionId);
 
         if (changed) {
           publishToMiniApp(id, {
@@ -1445,7 +1448,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           return;
         }
 
-        const changed = markWhatsAppMessageDeleted(id, remoteJid, messageId);
+        const changed = markWhatsAppMessageDeleted(id, remoteJid, messageId, sessionId);
 
         if (changed) {
           publishToMiniApp(id, {
@@ -1470,7 +1473,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
         // [ADDED] Keep a history of the call for the Mini App.
         try {
-          storeCallEvent({ call, socket, telegramId: id });
+          storeCallEvent({ call, socket, telegramId: id, sessionId });
 
           // [ADDED] Refresh call history after the database write.
           publishToMiniApp(id, {
