@@ -2090,16 +2090,35 @@
     } finally { button.disabled = false; }
   }
 
+  let whatsappQrPollTimer = null;
+
   async function showWhatsAppSessionQr(sessionId) {
-    try {
-      const data = await api("/sessions/" + enc(sessionId) + "/connection");
-      if (data.status === "connected") { showToast("WhatsApp sudah terhubung"); return; }
-      $("#whatsappSessionQrWrap").classList.remove("hidden");
-      $("#whatsappSessionQrImage").src = data.qr || "";
-      $("#whatsappSessionQrStatus").textContent = data.qr ? "Pindai QR melalui WhatsApp → Perangkat tertaut" : "QR sedang disiapkan. Tunggu beberapa detik.";
-      openWhatsAppSessions();
-      $("#whatsappSessionQrWrap").classList.remove("hidden");
-    } catch (error) { showToast(error.message); }
+    openWhatsAppSessions();
+    $("#whatsappSessionQrWrap").classList.remove("hidden");
+    const refreshQr = async () => {
+      try {
+        const data = await api("/sessions/" + enc(sessionId) + "/connection");
+        if (data.status === "connected") {
+          if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
+          whatsappQrPollTimer = null;
+          $("#whatsappSessionQrWrap").classList.add("hidden");
+          await loadWhatsAppAccount();
+          renderWhatsAppSessions();
+          showToast("WhatsApp berhasil terhubung");
+          return;
+        }
+        if (data.qr) {
+          const image = $("#whatsappSessionQrImage");
+          if (image.src !== data.qr) image.src = data.qr;
+          $("#whatsappSessionQrStatus").textContent = "Pindai QR melalui WhatsApp → Perangkat tertaut";
+        } else {
+          $("#whatsappSessionQrStatus").textContent = "QR sedang disiapkan. Tunggu beberapa detik.";
+        }
+      } catch (error) { $("#whatsappSessionQrStatus").textContent = error.message; }
+    };
+    if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
+    await refreshQr();
+    whatsappQrPollTimer = setInterval(refreshQr, 1800);
   }
 
   async function connectSelectedWhatsAppSession() {
