@@ -6477,3 +6477,10 @@ html[data-theme="dark"] .premium-payment-download {
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-qr { display:flex; flex-direction:column; align-items:center; gap:14px; }
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-qr img { width:100%; max-width:360px; border-radius:18px; background:#fff; }
 .whatsapp-pairing-cancel { width:100%; min-height:48px; margin-top:4px; }
+
+/* [ADDED] WAGRAM brand mark centered over the WhatsApp pairing QR. */
+.whatsapp-qr-brand-frame { position:relative; display:inline-flex; width:100%; max-width:360px; align-items:center; justify-content:center; overflow:hidden; border-radius:18px; background:#fff; }
+.whatsapp-qr-brand-frame > #whatsappSessionQrImage { display:block; width:100%; height:auto; border-radius:18px; }
+.whatsapp-qr-center-logo { position:absolute; z-index:2; left:50%; top:50%; display:grid; place-items:center; width:21%; aspect-ratio:1; padding:2.2%; transform:translate(-50%,-50%); border:3px solid #fff; border-radius:17px; background:#fff; box-shadow:0 1px 8px rgba(0,0,0,.16); }
+.whatsapp-qr-center-logo img { display:block; width:100%; height:100%; object-fit:contain; }
+.whatsapp-sessions-modal.is-pairing .whatsapp-session-qr img { width:100%; max-width:none; }
