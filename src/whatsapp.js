@@ -457,7 +457,8 @@ async function createSocket(id, ownerId, entry) {
       browser: ["WhatsApp Bridge", "Chrome", "1.0.0"],
       markOnlineOnConnect: false,
       syncFullHistory: false,
-      shouldSyncHistoryMessage: () => false,
+      // [MODIFIED] Keep Baileys' initial protocol sync enabled so saved sessions
+      // can load required LID mappings and avoid session instability.
       generateHighQualityLinkPreview: false,
       keepAliveIntervalMs: KEEPALIVE_MS,
       connectTimeoutMs: CONNECT_TIMEOUT_MS,
