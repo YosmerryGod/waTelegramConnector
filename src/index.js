@@ -12,6 +12,7 @@ import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import {
   getAllSessions,
   getAllWhatsAppAccounts, // [ADDED] Restore every account allowed by its membership.
+  updateWhatsAppAccountSession,
   cleanupForwardedMessages,
   closeDatabase,
   updateSession,
@@ -336,10 +337,51 @@ async function enforceFreeDailyPause() {
   }
 }
 
+// [ADDED] Pause accounts that exceed the owner's current tier limit.
+async function enforceTierSessionLimits() {
+  const grouped = new Map();
+  for (const account of getAllWhatsAppAccounts()) {
+    if (!grouped.has(account.telegram_id)) grouped.set(account.telegram_id, []);
+    grouped.get(account.telegram_id).push(account);
+  }
+
+  for (const [telegramId, accounts] of grouped) {
+    const membership = getMembership(telegramId);
+    const limit = membership?.sessions_limit || 1;
+    for (const account of accounts.slice(limit)) {
+      if (account.connection_status === "paused") continue;
+      try {
+        await disconnectWhatsApp(telegramId, {
+          sessionId: account.session_id
+        });
+        updateWhatsAppAccountSession(
+          telegramId,
+          account.session_id,
+          "paused"
+        );
+        publishToMiniApp(telegramId, {
+          type: "connection.status",
+          data: {
+            sessionId: account.session_id,
+            status: "paused",
+            phoneNumber: account.phone_number || null
+          }
+        });
+      } catch (error) {
+        logger.error(
+          { err: error, telegramId },
+          "Could not pause WhatsApp account above the current tier limit."
+        );
+      }
+    }
+  }
+}
+
 // [ADDED] Periodically remove expired message deduplication records.
 function startMaintenance() {
   freePauseTimer = setInterval(() => {
     void enforceFreeDailyPause();
+    void enforceTierSessionLimits();
   }, 10000);
   freePauseTimer.unref?.();
 
