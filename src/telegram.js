@@ -1433,7 +1433,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
         if (changed) {
           publishToMiniApp(id, {
             type: "message.edited",
-            data: { chatId: remoteJid, messageId }
+            data: { sessionId, chatId: remoteJid, messageId }
           });
         }
       } catch (error) {
@@ -1456,7 +1456,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
         if (changed) {
           publishToMiniApp(id, {
             type: "message.deleted",
-            data: { chatId: remoteJid, messageId }
+            data: { sessionId, chatId: remoteJid, messageId }
           });
         }
       } catch (error) {
