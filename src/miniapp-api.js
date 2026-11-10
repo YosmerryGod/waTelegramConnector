@@ -779,14 +779,14 @@ router.get("/profile/:jid", async (req, res) => {
       return res.status(400).json({ ok: false, error: "INVALID_WHATSAPP_JID" });
     }
 
-    if (!hasWhatsAppParticipant(req.telegramId, jid)) {
+    if (!hasWhatsAppParticipant(req.telegramId, jid, req.sessionId)) {
       return res.status(404).json({ ok: false, error: "PROFILE_NOT_FOUND" });
     }
 
     const chat = getChat(req.telegramId, jid, req.sessionId);
     // [ADDED] Resolve @lid to its real phone number through Baileys.
     const resolvedPhoneNumber = await getWhatsAppPhoneNumber(
-      req.telegramId,
+      req.sessionId,
       jid
     ).catch(() => null);
     const profilePhoneNumber = resolvedPhoneNumber || chat?.phone_number || null;
@@ -947,7 +947,7 @@ router.get("/chats/:chatId/messages", (req, res) => {
       });
     }
 
-    const chat = getChat(req.telegramId, chatId);
+    const chat = getChat(req.telegramId, chatId, req.sessionId);
 
     if (!chat) {
       return res.status(404).json({
@@ -1011,7 +1011,7 @@ router.post("/chats/:chatId/read", (req, res) => {
       });
     }
 
-    const chat = getChat(req.telegramId, chatId);
+    const chat = getChat(req.telegramId, chatId, req.sessionId);
 
     if (!chat) {
       return res.status(404).json({
@@ -1055,7 +1055,7 @@ router.put("/chats/:chatId/favorite", express.json(), (req, res) => {
       });
     }
 
-    if (!getChat(req.telegramId, chatId)) {
+    if (!getChat(req.telegramId, chatId, req.sessionId)) {
       return res.status(404).json({
         ok: false,
         error: "CHAT_NOT_FOUND"
@@ -1092,7 +1092,7 @@ router.put("/chats/:chatId/archive", express.json(), (req, res) => {
       });
     }
 
-    if (!getChat(req.telegramId, chatId)) {
+    if (!getChat(req.telegramId, chatId, req.sessionId)) {
       return res.status(404).json({
         ok: false,
         error: "CHAT_NOT_FOUND"
@@ -1165,7 +1165,8 @@ router.get("/search", (req, res) => {
       const messages = listMessages(
         req.telegramId,
         chat.whatsapp_chat_id,
-        MAX_MESSAGES
+        MAX_MESSAGES,
+        req.sessionId
       );
 
       for (const message of messages) {
@@ -1263,7 +1264,8 @@ router.put("/contacts/:id", (req, res) => {
     const contact = updateContact(
       req.telegramId,
       req.params.id,
-      readContactBody(req)
+      readContactBody(req),
+      req.sessionId
     );
 
     if (!contact) {
@@ -1369,7 +1371,7 @@ router.put("/calls/:id/archive", (req, res) => {
     if (!Number.isInteger(id) || id <= 0 || typeof req.body?.archived !== "boolean") {
       return res.status(400).json({ ok: false, error: "INVALID_CALL_UPDATE" });
     }
-    if (!setCallArchived(req.telegramId, id, req.body.archived)) {
+    if (!setCallArchived(req.telegramId, id, req.body.archived, req.sessionId)) {
       return res.status(404).json({ ok: false, error: "CALL_NOT_FOUND" });
     }
     res.json({ ok: true });
@@ -1407,7 +1409,7 @@ router.get("/messages/:id/media", async (req, res) => {
   try {
     const rowId = Number.parseInt(req.params.id, 10);
     const media = Number.isInteger(rowId)
-      ? getMessageMedia(req.telegramId, rowId)
+      ? getMessageMedia(req.telegramId, rowId, req.sessionId)
       : null;
 
     if (!media?.telegram_file_id && !media?.media_storage_path) {
