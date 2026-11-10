@@ -1254,15 +1254,22 @@ export function markWhatsAppMessageDeleted(telegramId, whatsappChatId, messageId
 
 // Ambil daftar chat milik satu pengguna Telegram.
 export function listChats(telegramId, options = {}) {
+  const ownerId = String(telegramId);
+  const sessionId = String(options.sessionId || ownerId);
   const limit = Math.min(100, Math.max(1, Number(options.limit) || 50));
   const offset = Math.max(0, Number(options.offset) || 0);
-
-  return statements.listChats.all({
-    telegram_id: String(telegramId),
+  const rows = statements.listChats.all({
+    telegram_id: ownerId,
     include_archived: options.includeArchived ? 1 : 0,
-    limit,
-    offset
+    limit: 100,
+    offset: 0
   });
+  return rows
+    .filter((row) => sessionId === ownerId
+      ? !String(row.whatsapp_chat_id).includes("::")
+      : String(row.whatsapp_chat_id).startsWith(`${sessionId}::`))
+    .slice(offset, offset + limit)
+    .map((row) => ({ ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id) }));
 }
 
 // Ambil satu chat milik pengguna yang ditentukan.
@@ -1284,51 +1291,42 @@ export function listMessages(telegramId, whatsappChatId, limit = 100, sessionId 
 }
 
 // Tandai pesan dibaca di Mini App saja.
-export function markChatReadInMiniApp(telegramId, whatsappChatId) {
-  if (!getChat(telegramId, whatsappChatId)) {
-    return 0;
-  }
-
+export function markChatReadInMiniApp(telegramId, whatsappChatId, sessionId = telegramId) {
+  if (!getChat(telegramId, whatsappChatId, sessionId)) return 0;
   return statements.markChatRead.run(
     Date.now(),
     String(telegramId),
-    String(whatsappChatId)
+    scopeSessionKey(telegramId, sessionId, whatsappChatId)
   ).changes;
 }
 
 // Tandai atau lepaskan favorit chat.
-export function setChatFavorite(telegramId, whatsappChatId, isFavorite) {
+export function setChatFavorite(telegramId, whatsappChatId, isFavorite, sessionId = telegramId) {
   return statements.setChatFavorite.run(
-    isFavorite ? 1 : 0,
-    Date.now(),
-    String(telegramId),
-    String(whatsappChatId)
+    isFavorite ? 1 : 0, Date.now(), String(telegramId),
+    scopeSessionKey(telegramId, sessionId, whatsappChatId)
   ).changes > 0;
 }
 
 // Arsipkan atau keluarkan chat dari arsip.
-export function setChatArchived(telegramId, whatsappChatId, isArchived) {
+export function setChatArchived(telegramId, whatsappChatId, isArchived, sessionId = telegramId) {
   return statements.setChatArchived.run(
-    isArchived ? 1 : 0,
-    Date.now(),
-    String(telegramId),
-    String(whatsappChatId)
+    isArchived ? 1 : 0, Date.now(), String(telegramId),
+    scopeSessionKey(telegramId, sessionId, whatsappChatId)
   ).changes > 0;
 }
 
 // Perbarui preferensi chat. Nilai null tidak mengubah nilai sebelumnya.
 export function updateChatPreferences(
-  telegramId,
-  whatsappChatId,
-  preferences = {}
+  telegramId, whatsappChatId, preferences = {}, sessionId = telegramId
 ) {
-  if (!getChat(telegramId, whatsappChatId)) {
+  if (!getChat(telegramId, whatsappChatId, sessionId)) {
     return false;
   }
 
   statements.upsertChatPreference.run({
     telegram_id: String(telegramId),
-    whatsapp_chat_id: String(whatsappChatId),
+    whatsapp_chat_id: scopeSessionKey(telegramId, sessionId, whatsappChatId),
     is_muted: preferences.isMuted == null
       ? null
       : (preferences.isMuted ? 1 : 0),
