@@ -1312,7 +1312,7 @@ router.post("/data/cleanup", (req, res) => {
       return res.status(400).json({ ok: false, error: "INVALID_CLEANUP_TYPE" });
     }
 
-    const deleted = cleanupUserData(req.telegramId, type);
+    const deleted = cleanupUserData(req.telegramId, type, req.sessionId);
     res.setHeader("Cache-Control", "no-store");
     res.json({ ok: true, type, deleted });
   } catch (error) {
