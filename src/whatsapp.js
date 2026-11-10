@@ -232,11 +232,11 @@ function isCallLogMessage(message) {
   );
 }
 
-function getAuthPath(telegramId) {
-  const id = String(telegramId);
+function getAuthPath(sessionId) {
+  const id = String(sessionId);
 
-  if (!/^\d+$/.test(id)) {
-    throw new Error("Invalid Telegram user ID.");
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+    throw new Error("Invalid WhatsApp session ID.");
   }
 
   return path.join(AUTH_DIR, id);
@@ -378,11 +378,12 @@ export async function getWhatsAppProfile(telegramId, whatsappJid) {
   };
 }
 
-export async function connectWhatsApp(telegramId, callbacks = {}) {
-  const id = String(telegramId);
+export async function connectWhatsApp(telegramId, callbacks = {}, options = {}) {
+  const ownerId = String(telegramId);
+  const id = String(options.sessionId || ownerId);
 
-  if (!/^\d+$/.test(id)) {
-    throw new Error("Invalid Telegram user ID.");
+  if (!/^\d+$/.test(ownerId) || !/^[a-zA-Z0-9_-]{1,128}$/.test(id)) {
+    throw new Error("Invalid Telegram or WhatsApp session ID.");
   }
 
   const existing = connections.get(id);
@@ -408,12 +409,14 @@ export async function connectWhatsApp(telegramId, callbacks = {}) {
     reconnectDelay: INITIAL_RECONNECT_DELAY,
     stopping: false,
     lidCache: new Map(),
-    callbacks
+    callbacks,
+    ownerId,
+    sessionId: id
   };
 
   connections.set(id, entry);
 
-  await createSocket(id, entry);
+  await createSocket(id, ownerId, entry);
 
   return {
     status: entry.status,
@@ -421,7 +424,7 @@ export async function connectWhatsApp(telegramId, callbacks = {}) {
   };
 }
 
-async function createSocket(id, entry) {
+async function createSocket(id, ownerId, entry) {
   if (entry.stopping || intentionalDisconnects.has(id)) {
     return;
   }
@@ -464,7 +467,7 @@ async function createSocket(id, entry) {
       // This supplies messageSecret for encrypted edits and preserves scoped retry behavior.
       getMessage: async (key) => {
         const encoded = getWhatsAppMessageContent(
-          id,
+          ownerId,
           key?.remoteJid,
           key?.id,
           key?.fromMe
@@ -478,7 +481,7 @@ async function createSocket(id, entry) {
           return proto.Message.decode(Buffer.from(encoded, "base64"));
         } catch (error) {
           logger.warn(
-            { err: error, telegramId: id, messageId: key?.id },
+            { err: error, telegramId: ownerId, messageId: key?.id },
             "Could not decode stored WhatsApp message content"
           );
           return undefined;
@@ -915,14 +918,15 @@ function scheduleReconnect(id, entry, delayOverride) {
       return;
     }
 
-    await createSocket(id, entry);
+    await createSocket(id, entry.ownerId, entry);
   }, delay);
 
   entry.reconnectTimer.unref?.();
 }
 
 export async function disconnectWhatsApp(telegramId, options = {}) {
-  const id = String(telegramId);
+  const ownerId = String(telegramId);
+  const id = String(options.sessionId || ownerId);
   const entry = connections.get(id);
 
   intentionalDisconnects.add(id);
@@ -978,7 +982,8 @@ export async function restoreWhatsAppSessions(
   callbacksFactory
 ) {
   for (const session of sessions || []) {
-    const id = String(session.telegram_id);
+    const ownerId = String(session.telegram_id);
+    const id = String(session.session_id || ownerId);
     const authPath = getAuthPath(id);
 
     if (
@@ -994,7 +999,11 @@ export async function restoreWhatsAppSessions(
     }
 
     try {
-      await connectWhatsApp(id, callbacksFactory(id));
+      await connectWhatsApp(
+        ownerId,
+        callbacksFactory(ownerId, id),
+        { sessionId: id }
+      );
     } catch (error) {
       logger.error(
         { err: error, telegramId: id },
