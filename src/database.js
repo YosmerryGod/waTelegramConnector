@@ -1528,7 +1528,11 @@ const callStatements = {
     FROM calls c
     LEFT JOIN contacts ct
       ON ct.telegram_id = c.telegram_id
-      AND ct.phone_number = c.phone_number
+      AND ct.phone_number = CASE
+        WHEN instr(c.call_id, '::') > 0
+          THEN substr(c.call_id, 1, instr(c.call_id, '::') - 1) || '::' || c.phone_number
+        ELSE c.phone_number
+      END
     WHERE c.telegram_id = @telegram_id
       AND (@include_archived = 1 OR c.is_archived = 0)
     ORDER BY c.call_timestamp DESC, c.id DESC
