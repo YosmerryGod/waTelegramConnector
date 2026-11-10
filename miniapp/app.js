@@ -287,7 +287,7 @@
     const headers = {
       "X-Telegram-Init-Data": tg?.initData || "",
       ...(options.body ? { "Content-Type": "application/json" } : {}),
-      ...(state.activeSessionId ? { "X-WAGRAM-Session-ID": state.activeSessionId } : {}),
+      ...(state.activeSessionId && path !== "/me" && path !== "/account" && path !== "/sessions" && !path.startsWith("/premium/") ? { "X-WAGRAM-Session-ID": state.activeSessionId } : {}),
       ...options.headers
     };
 
