@@ -22,6 +22,9 @@
     page: "chats",
     me: null,
     membership: null, // [ADDED] Server-authoritative role and membership state.
+    whatsappSessions: [],
+    whatsappSessionLimit: 1,
+    activeSessionId: null,
 
     chats: [],
     chatsLoaded: false,
@@ -284,6 +287,7 @@
     const headers = {
       "X-Telegram-Init-Data": tg?.initData || "",
       ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(state.activeSessionId ? { "X-WAGRAM-Session-ID": state.activeSessionId } : {}),
       ...options.headers
     };
 
@@ -599,13 +603,45 @@
   }
 
 
-  // [ADDED] Load WhatsApp connection details for the Profile card.
+  // [ADDED] Load WhatsApp sessions and restore the selected account.
+  async function loadWhatsAppSessions() {
+    const data = await api("/sessions");
+    state.whatsappSessions = data.sessions || [];
+    state.whatsappSessionLimit = Number(data.limit) || 1;
+    const saved = localStorage.getItem("wagram-active-whatsapp-session");
+    const selected = state.whatsappSessions.find((item) => item.session_id === saved) || state.whatsappSessions.find((item) => item.is_primary) || state.whatsappSessions[0];
+    state.activeSessionId = selected ? selected.session_id : null;
+    renderWhatsAppSessions();
+    return selected;
+  }
+
+  function renderWhatsAppSessions() {
+    const list = $("#whatsappSessionList");
+    if (!list) return;
+    list.innerHTML = (state.whatsappSessions || []).map((session, index) => {
+      const active = session.session_id === state.activeSessionId;
+      const status = session.status || session.connection_status || "disconnected";
+      const labels = { connected: "Terhubung", connecting: "Menghubungkan", qr: "Menunggu QR", paused: "Pause", disconnected: "Terputus", logged_out: "Keluar" };
+      const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
+      const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
+      return '<button class="whatsapp-session-item' + (active ? ' is-active' : '') + '" type="button" data-session-select="' + escapeHTML(session.session_id) + '">' + '<span class="whatsapp-session-avatar">' + icon("whatsapp") + '</span>' + '<span class="whatsapp-session-info"><strong>' + escapeHTML(label) + '</strong><small>' + escapeHTML(number) + '</small></span>' + '<span class="whatsapp-session-status status-' + escapeHTML(status) + '">' + escapeHTML(labels[status] || status) + '</span>' + (active ? '<span class="whatsapp-session-check">✓</span>' : '') + '</button>';
+    }).join("");
+    const canAdd = state.whatsappSessions.length < state.whatsappSessionLimit;
+    const add = $("#createWhatsAppSessionButton");
+    if (add) add.innerHTML = canAdd ? icon("plus") + " Tambah akun WhatsApp" : icon("crown") + " Upgrade untuk tambah akun";
+    $("#whatsappSessionLimitText").textContent = state.whatsappSessions.length + " dari " + state.whatsappSessionLimit + " session digunakan";
+    $("#addWhatsAppSessionButton")?.classList.toggle("is-session-locked", !canAdd);
+  }
+
+  // [ADDED] Load WhatsApp connection details for the selected Profile session.
   async function loadWhatsAppAccount() {
     const phone = $("#accountWhatsAppPhone");
     const stateLabel = $("#accountWhatsAppState");
     const disconnectButton = $("#disconnectWhatsAppButton");
     try {
-      const data = await api("/connection");
+      await loadWhatsAppSessions();
+      if (!state.activeSessionId) throw new Error("Session WhatsApp belum tersedia.");
+      const data = await api("/sessions/" + enc(state.activeSessionId) + "/connection");
       const connected = data.status === "connected";
       const paused = data.status === "paused";
       phone.textContent = data.phoneNumber ? `+${String(data.phoneNumber).replace(/^\+/, "")}` : "Nomor belum tersedia";
@@ -631,6 +667,7 @@
           ? '<i></i> Pause <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>'
           : '<i></i> Connect <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>';
       disconnectButton.disabled = !connected && !paused;
+      disconnectButton.dataset.sessionId = state.activeSessionId;
       renderFreePauseCountdown(); // [ADDED] Refresh countdown with connection status.
     } catch (error) {
       phone.textContent = "Status koneksi tidak tersedia";
