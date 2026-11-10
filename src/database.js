@@ -732,14 +732,14 @@ const statements = {
     LEFT JOIN contacts ct
       ON ct.telegram_id = m.telegram_id
       AND ct.phone_number = (
-        CASE WHEN instr(m.sender_jid, '::') > 0
-          THEN substr(m.sender_jid, 1, instr(m.sender_jid, '::') - 1) || '::'
+        CASE WHEN instr(m.whatsapp_chat_id, '::') > 0
+          THEN substr(m.whatsapp_chat_id, 1, instr(m.whatsapp_chat_id, '::') - 1) || '::'
           ELSE ''
         END
       ) || CASE
         WHEN m.sender_jid LIKE '%@s.whatsapp.net'
-          THEN substr(m.sender_jid, instr(m.sender_jid, '::') + 2, instr(m.sender_jid, '@') - instr(m.sender_jid, '::') - 2)
-        END
+          THEN substr(m.sender_jid, 1, instr(m.sender_jid, '@') - 1)
+      END
     WHERE m.telegram_id = ?
       AND m.whatsapp_chat_id = ?
     ORDER BY m.message_timestamp DESC, m.id DESC
