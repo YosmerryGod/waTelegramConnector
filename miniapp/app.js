@@ -630,7 +630,21 @@
     const add = $("#createWhatsAppSessionButton");
     if (add) add.innerHTML = canAdd ? icon("plus") + " Tambah akun WhatsApp" : icon("crown") + " Upgrade untuk tambah akun";
     $("#whatsappSessionLimitText").textContent = state.whatsappSessions.length + " dari " + state.whatsappSessionLimit + " session digunakan";
-    $("#addWhatsAppSessionButton")?.classList.toggle("is-session-locked", !canAdd);
+    const headerAdd = $("#addWhatsAppSessionButton");
+    if (headerAdd) {
+      headerAdd.classList.toggle("is-session-locked", !canAdd);
+      headerAdd.innerHTML = canAdd ? icon("plus") : icon("crown");
+      headerAdd.title = canAdd ? "Tambah session WhatsApp" : "Batas session tercapai · Upgrade Premium";
+    }
+    const selected = state.whatsappSessions.find((item) => item.session_id === state.activeSessionId);
+    const deleteButton = $("#whatsappSessionDeleteButton");
+    if (deleteButton) deleteButton.hidden = !selected || Boolean(selected.is_primary);
+    const selectedStatus = selected?.status || selected?.connection_status || "disconnected";
+    const connectButton = $("#whatsappSessionConnectButton");
+    if (connectButton) {
+      connectButton.hidden = selectedStatus === "connected";
+      connectButton.textContent = selectedStatus === "qr" ? "Tampilkan QR" : "Hubungkan session";
+    }
   }
 
   // [ADDED] Load WhatsApp connection details for the selected Profile session.
@@ -2053,8 +2067,7 @@
   async function createWhatsAppSession() {
     const button = $("#createWhatsAppSessionButton");
     if (state.whatsappSessions.length >= state.whatsappSessionLimit) {
-      closeWhatsAppSessions();
-      openPremiumSheet();
+      showToast("Batas session paket Anda sudah tercapai.");
       return;
     }
     button.disabled = true;
@@ -2134,7 +2147,15 @@
       if (event.target.closest("#closeWhatsAppSessions") || event.target.closest("#whatsappSessionBackdrop")) { closeWhatsAppSessions(); return; }
       const sessionItem = event.target.closest("[data-session-select]");
       if (sessionItem) { selectWhatsAppSession(sessionItem.dataset.sessionSelect); return; }
-      if (event.target.closest("#createWhatsAppSessionButton")) { createWhatsAppSession(); return; }
+      if (event.target.closest("#createWhatsAppSessionButton")) {
+        if (state.whatsappSessions.length >= state.whatsappSessionLimit) {
+          closeWhatsAppSessions();
+          openPremiumSheet();
+        } else {
+          createWhatsAppSession();
+        }
+        return;
+      }
       if (event.target.closest("#whatsappSessionConnectButton")) { connectSelectedWhatsAppSession(); return; }
       if (event.target.closest("#whatsappSessionDeleteButton")) { deleteSelectedWhatsAppSession(); return; }
 
