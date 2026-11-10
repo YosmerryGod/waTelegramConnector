@@ -2098,6 +2098,7 @@
     renderWhatsAppSessions();
     try {
       await loadWhatsAppAccount();
+      renderNotificationPreferences(); // [ADDED] Load this account's own notification preferences.
       await Promise.all([loadChats(), loadCalls(), loadContacts()]);
       state.callsLoaded = true;
       state.contactsLoaded = true;
@@ -2245,7 +2246,12 @@
       }
       const accountSettingsButton = event.target.closest("[data-account-settings]");
       if (accountSettingsButton) {
-        selectWhatsAppSession(accountSettingsButton.dataset.accountSettings);
+        selectWhatsAppSession(accountSettingsButton.dataset.accountSettings).then(() => {
+          const panel = $("#whatsappAccountControls");
+          panel.classList.remove("is-collapsed");
+          $("#whatsappControlsToggle").setAttribute("aria-expanded", "true");
+          renderNotificationPreferences();
+        });
         return;
       }
       const accountDisconnectButton = event.target.closest("[data-account-disconnect]");
