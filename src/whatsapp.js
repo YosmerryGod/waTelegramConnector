@@ -470,7 +470,8 @@ async function createSocket(id, ownerId, entry) {
           ownerId,
           key?.remoteJid,
           key?.id,
-          key?.fromMe
+          key?.fromMe,
+          entry.sessionId
         );
 
         if (!encoded) {
