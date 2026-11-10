@@ -1915,49 +1915,68 @@ export function findContactName(telegramId, phone, sessionId = telegramId) {
 // Tutup database saat aplikasi berhenti.
 
 
-// [ADDED] Account-scoped cleanup operations used by the Profile settings.
+// [ADDED] Session-scoped cleanup operations used by the Profile settings.
 const cleanupStatements = {
   media: db.prepare(`
     UPDATE messages
     SET telegram_file_id = NULL,
         telegram_file_kind = NULL,
+        media_storage_path = NULL,
         media_mimetype = NULL,
         media_file_name = NULL
-    WHERE telegram_id = ? AND telegram_file_id IS NOT NULL
+    WHERE telegram_id = @telegram_id
+      AND (
+        (@session_id = @telegram_id AND instr(whatsapp_chat_id, '::') = 0)
+        OR (@session_id != @telegram_id AND whatsapp_chat_id LIKE @session_id || '::%')
+      )
   `),
   clearChatPreviews: db.prepare(`
     UPDATE chats
     SET last_message_at = NULL,
         last_message_preview = NULL,
-        updated_at = ?
-    WHERE telegram_id = ?
+        updated_at = @now
+    WHERE telegram_id = @telegram_id
+      AND (
+        (@session_id = @telegram_id AND instr(whatsapp_chat_id, '::') = 0)
+        OR (@session_id != @telegram_id AND whatsapp_chat_id LIKE @session_id || '::%')
+      )
   `),
-  messages: db.prepare("DELETE FROM messages WHERE telegram_id = ?"),
-  calls: db.prepare("DELETE FROM calls WHERE telegram_id = ?"),
-  contacts: db.prepare("DELETE FROM contacts WHERE telegram_id = ?")
+  messages: db.prepare(`
+    DELETE FROM messages
+    WHERE telegram_id = @telegram_id
+      AND (
+        (@session_id = @telegram_id AND instr(whatsapp_chat_id, '::') = 0)
+        OR (@session_id != @telegram_id AND whatsapp_chat_id LIKE @session_id || '::%')
+      )
+  `),
+  calls: db.prepare(`
+    DELETE FROM calls
+    WHERE telegram_id = @telegram_id
+      AND (
+        (@session_id = @telegram_id AND instr(call_id, '::') = 0)
+        OR (@session_id != @telegram_id AND call_id LIKE @session_id || '::%')
+      )
+  `),
+  contacts: db.prepare(`
+    DELETE FROM contacts
+    WHERE telegram_id = @telegram_id
+      AND (
+        (@session_id = @telegram_id AND instr(phone_number, '::') = 0)
+        OR (@session_id != @telegram_id AND phone_number LIKE @session_id || '::%')
+      )
+  `)
 };
 
-const cleanupTransactions = {
-  media: db.transaction((telegramId) =>
-    cleanupStatements.media.run(String(telegramId)).changes
-  ),
-  messages: db.transaction((telegramId) => {
-    const id = String(telegramId);
-    cleanupStatements.clearChatPreviews.run(Date.now(), id);
-    return cleanupStatements.messages.run(id).changes;
-  }),
-  calls: db.transaction((telegramId) =>
-    cleanupStatements.calls.run(String(telegramId)).changes
-  ),
-  contacts: db.transaction((telegramId) =>
-    cleanupStatements.contacts.run(String(telegramId)).changes
-  )
-};
-
-export function cleanupUserData(telegramId, type) {
-  const cleanup = cleanupTransactions[type];
-  if (!cleanup) throw new Error("INVALID_CLEANUP_TYPE");
-  return cleanup(telegramId);
+export function cleanupUserData(telegramId, type, sessionId = telegramId) {
+  const statement = cleanupStatements[type];
+  if (!statement) throw new Error("INVALID_CLEANUP_TYPE");
+  const params = { telegram_id: String(telegramId), session_id: String(sessionId), now: Date.now() };
+  return db.transaction(() => {
+    if (type === "messages") {
+      cleanupStatements.clearChatPreviews.run(params);
+    }
+    return statement.run(params).changes;
+  })();
 }
 
 export function closeDatabase() {
