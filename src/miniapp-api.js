@@ -198,9 +198,16 @@ function requireMiniAppAuth(req, res, next) {
   }
 
   // The user ID always comes from verified Telegram initData.
+  const requestedSessionId = String(
+    req.query.sessionId || req.body?.sessionId ||
+    req.get("X-WAGRAM-Session-ID") || authenticated.id
+  );
+  if (!getWhatsAppAccount(authenticated.id, requestedSessionId)) {
+    return res.status(404).json({ ok: false, error: "WHATSAPP_SESSION_NOT_FOUND" });
+  }
   req.miniAppUser = authenticated.user;
   req.telegramId = authenticated.id;
-
+  req.sessionId = requestedSessionId;
   next();
 }
 
@@ -776,24 +783,25 @@ router.get("/profile/:jid", async (req, res) => {
       return res.status(404).json({ ok: false, error: "PROFILE_NOT_FOUND" });
     }
 
-    const chat = getChat(req.telegramId, jid);
+    const chat = getChat(req.telegramId, jid, req.sessionId);
     // [ADDED] Resolve @lid to its real phone number through Baileys.
     const resolvedPhoneNumber = await getWhatsAppPhoneNumber(
       req.telegramId,
       jid
     ).catch(() => null);
     const profilePhoneNumber = resolvedPhoneNumber || chat?.phone_number || null;
-    const cached = getWhatsAppProfileCache(req.telegramId, jid);
+    const cached = getWhatsAppProfileCache(req.telegramId, jid, req.sessionId);
     const cacheTtlMs = 30 * 60 * 1000;
     const cacheFresh = cached && Date.now() - cached.fetched_at < cacheTtlMs;
 
     if (!cacheFresh) {
       try {
-        const remote = await getWhatsAppProfile(req.telegramId, jid);
+        const remote = await getWhatsAppProfile(req.sessionId, jid);
         const saved = saveWhatsAppProfileCache({
           telegramId: req.telegramId,
+          sessionId: req.sessionId,
           whatsappJid: jid,
-          displayName: chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid),
+          displayName: chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid, req.sessionId),
           aboutText: remote.aboutText,
           pictureUrl: remote.pictureUrl,
           statusSetAt: remote.statusSetAt
@@ -865,7 +873,8 @@ router.get("/chats", (req, res) => {
     const chats = listChats(req.telegramId, {
       limit,
       offset,
-      includeArchived: archived === true
+      includeArchived: archived === true,
+      sessionId: req.sessionId
     });
 
     const filteredChats = archived === true
@@ -904,7 +913,7 @@ router.get("/chats/:chatId", (req, res) => {
       });
     }
 
-    const chat = getChat(req.telegramId, chatId);
+    const chat = getChat(req.telegramId, chatId, req.sessionId);
 
     if (!chat) {
       return res.status(404).json({
@@ -967,7 +976,8 @@ router.get("/chats/:chatId/messages", (req, res) => {
     const messages = listMessages(
       req.telegramId,
       chatId,
-      limit
+      limit,
+      req.sessionId
     ).reverse().map((message) => toPublicMessage(message, membership));
 
     res.json({
@@ -1012,7 +1022,8 @@ router.post("/chats/:chatId/read", (req, res) => {
 
     const updated = markChatReadInMiniApp(
       req.telegramId,
-      chatId
+      chatId,
+      req.sessionId
     );
 
     res.json({
@@ -1051,7 +1062,7 @@ router.put("/chats/:chatId/favorite", express.json(), (req, res) => {
       });
     }
 
-    setChatFavorite(req.telegramId, chatId, favorite);
+    setChatFavorite(req.telegramId, chatId, favorite, req.sessionId);
 
     res.json({
       ok: true,
@@ -1088,7 +1099,7 @@ router.put("/chats/:chatId/archive", express.json(), (req, res) => {
       });
     }
 
-    setChatArchived(req.telegramId, chatId, archived);
+    setChatArchived(req.telegramId, chatId, archived, req.sessionId);
 
     res.json({
       ok: true,
@@ -1127,7 +1138,8 @@ router.get("/search", (req, res) => {
     const chats = listChats(req.telegramId, {
       limit: MAX_LIMIT,
       offset: 0,
-      includeArchived: true
+      includeArchived: true,
+      sessionId: req.sessionId
     });
 
     const matchedChats = chats.filter((chat) => {
@@ -1217,7 +1229,7 @@ router.get("/contacts", (req, res) => {
   try {
     res.json({
       ok: true,
-      contacts: listContacts(req.telegramId)
+      contacts: listContacts(req.telegramId, 1000, req.sessionId)
     });
   } catch (error) {
     sendServerError(res, error, "Could not list contacts");
@@ -1231,7 +1243,8 @@ router.post("/contacts", (req, res) => {
   try {
     const { created, contact } = saveContact(
       req.telegramId,
-      readContactBody(req)
+      readContactBody(req),
+      req.sessionId
     );
 
     res.status(created ? 201 : 200).json({
@@ -1272,7 +1285,7 @@ router.put("/contacts/:id", (req, res) => {
 // DELETE /api/miniapp/contacts/:id
 router.delete("/contacts/:id", (req, res) => {
   try {
-    if (!deleteContact(req.telegramId, req.params.id)) {
+    if (!deleteContact(req.telegramId, req.params.id, req.sessionId)) {
       return res.status(404).json({
         ok: false,
         error: "CONTACT_NOT_FOUND"
@@ -1318,7 +1331,7 @@ router.get("/calls", (req, res) => {
       Number.parseInt(req.query.offset, 10) || 0
     );
 
-    const calls = listCalls(req.telegramId, { limit, offset, archived: req.query.archived === "true" });
+    const calls = listCalls(req.telegramId, { limit, offset, archived: req.query.archived === "true", sessionId: req.sessionId });
 
     res.json({
       ok: true,
@@ -1341,7 +1354,7 @@ router.put("/calls/:id/favorite", (req, res) => {
     if (!Number.isInteger(id) || id <= 0 || typeof req.body?.favorite !== "boolean") {
       return res.status(400).json({ ok: false, error: "INVALID_CALL_UPDATE" });
     }
-    if (!setCallFavorite(req.telegramId, id, req.body.favorite)) {
+    if (!setCallFavorite(req.telegramId, id, req.body.favorite, req.sessionId)) {
       return res.status(404).json({ ok: false, error: "CALL_NOT_FOUND" });
     }
     res.json({ ok: true });
