@@ -584,9 +584,10 @@ router.get("/sessions/:sessionId/connection", async (req, res) => {
       displayName: profile.displayName,
       pictureUrl: profile.pictureUrl,
       qr: qr ? await QRCode.toDataURL(qr, {
-        width: 320,
+        width: 480,
         margin: 2,
-        errorCorrectionLevel: "M",
+        // [MODIFIED] High error correction improves QR readability with the centered WAGRAM logo.
+        errorCorrectionLevel: "H",
         color: { dark: "#101820", light: "#FFFFFF" }
       }) : null
     });
