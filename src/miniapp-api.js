@@ -813,7 +813,7 @@ router.get("/profile/:jid", async (req, res) => {
           profile: {
             jid,
             phoneNumber: profilePhoneNumber,
-            displayName: saved.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid) || jid,
+            displayName: saved.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid, req.sessionId) || jid,
             about: saved.about_text,
             pictureUrl: saved.picture_url,
             statusSetAt: saved.status_set_at,
@@ -842,7 +842,7 @@ router.get("/profile/:jid", async (req, res) => {
       profile: {
         jid,
         phoneNumber: chat?.phone_number || null,
-        displayName: profile.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid) || jid,
+        displayName: profile.display_name || chat?.display_name || getWhatsAppParticipantName(req.telegramId, jid, req.sessionId) || jid,
         about: profile.about_text || null,
         pictureUrl: profile.picture_url || null,
         statusSetAt: profile.status_set_at || null,
