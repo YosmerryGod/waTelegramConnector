@@ -1005,6 +1005,7 @@ async function forwardMedia({ chatId, socket, message, info, header, text }) {
 export function createWhatsAppCallbacks(telegramId, options = {}) {
   const id = String(telegramId);
   const sessionId = String(options.sessionId || id);
+  const stateKey = sessionId;
   const isAdditionalSession = sessionId !== id;
   const silentStartup = options.silentStartup === true;
 
@@ -1091,9 +1092,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
       // Manual /disconnect or shutdown: no timers, no reconnect notices.
       if (status === "disconnected" && info.intentional) {
-        clearDisconnectTimer(id);
-        reconnecting.delete(id);
-        notifiedDown.delete(id);
+        clearDisconnectTimer(stateKey);
+        reconnecting.delete(stateKey);
+        notifiedDown.delete(stateKey);
         return;
       }
 
@@ -1101,11 +1102,11 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
       if (status === "disconnected") {
         reconnecting.add(id);
 
-        if (!disconnectTimers.has(id)) {
+        if (!disconnectTimers.has(stateKey)) {
           const timer = setTimeout(async () => {
-            disconnectTimers.delete(id);
+            disconnectTimers.delete(stateKey);
 
-            if (!reconnecting.has(id)) {
+            if (!reconnecting.has(stateKey)) {
               return;
             }
 
@@ -1118,27 +1119,27 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           }, DISCONNECT_NOTICE_DELAY_MS);
 
           timer.unref?.();
-          disconnectTimers.set(id, timer);
+          disconnectTimers.set(stateKey, timer);
         }
 
         return;
       }
 
       // Reconnect attempts are silent.
-      if (status === "connecting" && reconnecting.has(id)) {
+      if (status === "connecting" && reconnecting.has(stateKey)) {
         return;
       }
 
       if (status === "connected") {
-        const wasNotified = notifiedDown.has(id);
-        const wasReconnecting = reconnecting.has(id);
-        const wasPairing = pairing.has(id);
+        const wasNotified = notifiedDown.has(stateKey);
+        const wasReconnecting = reconnecting.has(stateKey);
+        const wasPairing = pairing.has(stateKey);
 
-        pairing.delete(id);
+        pairing.delete(stateKey);
 
-        clearDisconnectTimer(id);
-        reconnecting.delete(id);
-        notifiedDown.delete(id);
+        clearDisconnectTimer(stateKey);
+        reconnecting.delete(stateKey);
+        notifiedDown.delete(stateKey);
 
         if (wasNotified) {
           await notify(
@@ -1163,9 +1164,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
       }
 
       if (["qr", "logged_out", "replaced"].includes(status)) {
-        clearDisconnectTimer(id);
-        reconnecting.delete(id);
-        notifiedDown.delete(id);
+        clearDisconnectTimer(stateKey);
+        reconnecting.delete(stateKey);
+        notifiedDown.delete(stateKey);
       }
 
       const messages = {
