@@ -680,8 +680,8 @@ const statements = {
       )
     WHERE c.telegram_id = @telegram_id
       AND (
-        (@session_id = @telegram_id AND instr(c.call_id, '::') = 0)
-        OR (@session_id != @telegram_id AND c.call_id LIKE @session_id || '::%')
+        (@session_id = @telegram_id AND instr(c.whatsapp_chat_id, '::') = 0)
+        OR (@session_id != @telegram_id AND c.whatsapp_chat_id LIKE @session_id || '::%')
       )
       AND (@include_archived = 1 OR c.is_archived = 0)
     ORDER BY c.is_favorite DESC, c.last_message_at DESC, c.id DESC
@@ -1272,18 +1272,16 @@ export function listChats(telegramId, options = {}) {
   const sessionId = String(options.sessionId || ownerId);
   const limit = Math.min(100, Math.max(1, Number(options.limit) || 50));
   const offset = Math.max(0, Number(options.offset) || 0);
-  const rows = statements.listChats.all({
+  return statements.listChats.all({
     telegram_id: ownerId,
+    session_id: sessionId,
     include_archived: options.includeArchived ? 1 : 0,
-    limit: 100,
-    offset: 0
-  });
-  return rows
-    .filter((row) => sessionId === ownerId
-      ? !String(row.whatsapp_chat_id).includes("::")
-      : String(row.whatsapp_chat_id).startsWith(`${sessionId}::`))
-    .slice(offset, offset + limit)
-    .map((row) => ({ ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id), sender_jid: row.sender_jid ? unScopeSessionKey(ownerId, sessionId, row.sender_jid) : null }));
+    limit,
+    offset
+  }).map((row) => ({
+    ...row,
+    whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id)
+  }));
 }
 
 // Ambil satu chat milik pengguna yang ditentukan.
@@ -1534,6 +1532,10 @@ const callStatements = {
         ELSE c.phone_number
       END
     WHERE c.telegram_id = @telegram_id
+      AND (
+        (@session_id = @telegram_id AND instr(c.call_id, '::') = 0)
+        OR (@session_id != @telegram_id AND c.call_id LIKE @session_id || '::%')
+      )
       AND (@include_archived = 1 OR c.is_archived = 0)
     ORDER BY c.call_timestamp DESC, c.id DESC
     LIMIT @limit OFFSET @offset
