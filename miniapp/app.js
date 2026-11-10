@@ -635,6 +635,8 @@
     if (accountRows) {
       // [MODIFIED] Hide newly-created secondary sessions until WhatsApp pairing succeeds.
       accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => {
+        if (session.session_id === state.activeSessionId) return false;
+        if (session.is_primary) return false;
         const status = session.status || session.connection_status || "disconnected";
         return Boolean(session.phone_number) || status === "connected" || status === "paused";
       }).map((session, index) => {
@@ -644,10 +646,9 @@
         const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
         const active = session.session_id === state.activeSessionId;
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
-          '<button class="whatsapp-account-select" type="button" data-account-select="' + escapeHTML(session.session_id) + '" aria-label="Beralih ke ' + escapeHTML(label) + '">' +
-          '<span class="whatsapp-account-avatar">' + icon("whatsapp") + (active ? '<span class="whatsapp-account-active-check" aria-label="Session aktif">✓</span>' : '') + '</span><span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
+          '<button class="whatsapp-account-select" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '">' +
+          '<span class="whatsapp-account-avatar">' + icon("whatsapp") + '</span><span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
           '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
-          '<button class="whatsapp-account-settings" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '">' + icon("settings") + '</button>' +
           '<button class="whatsapp-account-disconnect" type="button" data-account-disconnect="' + escapeHTML(session.session_id) + '"' + (status !== "connected" && status !== "paused" ? ' disabled' : '') + '>Disconnect</button>' +
           '</div>';
       }).join("");
@@ -2091,26 +2092,23 @@
       pendingWhatsAppSessionId = null;
       if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
       whatsappQrPollTimer = null;
+      // [MODIFIED] Delete only the unpaired account; the previously active account remains selected.
       api("/sessions/" + enc(cancelledSessionId), {
         method: "DELETE",
         headers: { "X-WAGRAM-Session-ID": cancelledSessionId }
-      }).then(() => loadWhatsAppSessions()).catch(() => {});
+      }).then(async () => {
+        await loadWhatsAppSessions();
+        await loadWhatsAppAccount();
+        renderWhatsAppSessions();
+        renderNotificationPreferences();
+      }).catch(() => {});
     }
   }
 
   async function selectWhatsAppSession(sessionId) {
     if (!state.whatsappSessions.some((item) => item.session_id === sessionId)) return;
-    if (sessionId === state.activeSessionId) return;
     state.activeSessionId = sessionId;
     localStorage.setItem("wagram-active-whatsapp-session", sessionId);
-    // [MODIFIED] Close any open chat so content from the previous account cannot remain visible.
-    closeConversationUI();
-    state.chatsLoaded = false;
-    state.callsLoaded = false;
-    state.contactsLoaded = false;
-    state.chats = [];
-    state.calls = [];
-    state.contacts = [];
     renderWhatsAppSessions();
     try {
       await loadWhatsAppAccount();
@@ -2134,14 +2132,10 @@
       const created = await api("/sessions", { method: "POST", body: JSON.stringify({}) });
       const sessionId = created.session && created.session.session_id;
       if (!sessionId) throw new Error("Server tidak mengembalikan session baru.");
+      // [MODIFIED] Keep the current connected account active while the new account is only pairing.
       pendingWhatsAppSessionId = sessionId;
-      state.activeSessionId = sessionId;
-      localStorage.setItem("wagram-active-whatsapp-session", sessionId);
       await api("/sessions/" + enc(sessionId) + "/connect", { method: "POST" });
       await loadWhatsAppSessions();
-      state.activeSessionId = sessionId;
-      localStorage.setItem("wagram-active-whatsapp-session", sessionId);
-      await loadWhatsAppAccount();
       await showWhatsAppSessionQr(sessionId);
       renderWhatsAppSessions();
     } catch (error) {
@@ -2171,13 +2165,16 @@
       try {
         const data = await api("/sessions/" + enc(sessionId) + "/connection");
         if (data.status === "connected") {
-          // [ADDED] Pairing is complete; closing the QR view must no longer delete this account.
+          // [MODIFIED] Activate the new account only after pairing has actually succeeded.
           if (pendingWhatsAppSessionId === sessionId) pendingWhatsAppSessionId = null;
+          state.activeSessionId = sessionId;
+          localStorage.setItem("wagram-active-whatsapp-session", sessionId);
           if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
           whatsappQrPollTimer = null;
           $("#whatsappSessionQrWrap").classList.add("hidden");
           await loadWhatsAppSessions();
           await loadWhatsAppAccount();
+          renderNotificationPreferences();
           renderWhatsAppSessions();
           closeWhatsAppSessions();
           showToast("WhatsApp berhasil terhubung");
@@ -2264,11 +2261,6 @@
         } else {
           createWhatsAppSession();
         }
-        return;
-      }
-      const accountSelectButton = event.target.closest("[data-account-select]");
-      if (accountSelectButton) {
-        selectWhatsAppSession(accountSelectButton.dataset.accountSelect);
         return;
       }
       const accountSettingsButton = event.target.closest("[data-account-settings]");
@@ -3552,25 +3544,19 @@
     initTelegram();
     bindEvents();
 
-    // [MODIFIED] Do not let slow API requests keep the WAGRAM splash on screen indefinitely.
+    // [ADDED] Keep the WAGRAM splash visible until the first account, WhatsApp
+    // connection, and chat requests have all completed (successfully or with an error).
     const loadingScreen = $("#appLoadingScreen");
-    let loadingScreenDismissed = false;
-    const dismissLoadingScreen = () => {
-      if (loadingScreenDismissed) return;
-      loadingScreenDismissed = true;
-      requestAnimationFrame(() => {
-        loadingScreen?.classList.add("is-hidden");
-        window.setTimeout(() => loadingScreen?.remove(), 380);
-        initOnboarding();
+    // [MODIFIED] Resolve the authenticated membership through loadMe() before the first chat render.
+    // This prevents Premium groups from being rendered as locked while /account is still loading.
+    loadMe().finally(() => {
+      loadChats().finally(() => {
+        requestAnimationFrame(() => {
+          loadingScreen?.classList.add("is-hidden");
+          window.setTimeout(() => loadingScreen?.remove(), 380);
+          initOnboarding(); // [ADDED] Show onboarding after the initial app load settles.
+        });
       });
-    };
-    // [ADDED] Show the app shell after a short maximum wait; data continues loading in background.
-    const loadingFailsafe = window.setTimeout(dismissLoadingScreen, 3500);
-    loadMe().then(() => loadChats()).catch((error) => {
-      console.error("Initial WAGRAM load failed:", error);
-    }).finally(() => {
-      window.clearTimeout(loadingFailsafe);
-      dismissLoadingScreen();
     });
 
     // [ADDED] Load call history in the background so new incoming calls can badge the tab.
