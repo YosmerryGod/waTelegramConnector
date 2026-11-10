@@ -358,20 +358,7 @@
             <svg class="i"><use href="#i-plus"/></svg>
           </button>
         </div>
-        <div class="whatsapp-account-row">
-          <div class="whatsapp-account-avatar" id="accountWhatsAppAvatar">
-            <img id="accountWhatsAppPhoto" class="hidden" alt="Foto profil WhatsApp">
-            <svg class="i"><use href="#i-whatsapp"/></svg>
-          </div>
-          <div class="whatsapp-account-copy">
-            <strong id="accountWhatsAppName">WhatsApp</strong>
-            <span id="accountWhatsAppPhone">Memeriksa koneksi…</span>
-          </div>
-          <button class="whatsapp-connection-state" id="accountWhatsAppState" type="button" disabled><i></i> Memeriksa status <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off" title="Menuju pause otomatis pukul 14.00 WITA">00.00</span></button>
-          <button class="whatsapp-controls-toggle" id="whatsappControlsToggle" type="button" aria-expanded="false" aria-label="Buka pengaturan akun WhatsApp">
-            <svg class="i"><use href="#i-back"/></svg>
-          </button>
-        </div>
+        <div id="whatsappAccountRows" class="whatsapp-account-rows" aria-live="polite"></div>
       <div class="whatsapp-account-controls is-collapsed" id="whatsappAccountControls">
       <!-- [MODIFIED] Notification settings are now inside the WhatsApp connection card. -->
       <div class="embedded-notification-section is-collapsed">
@@ -681,7 +668,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261110-whatsapp-sessions-v1"></script>
+  <script src="app.js?v=20261110-multi-whatsapp-accounts-v2"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
