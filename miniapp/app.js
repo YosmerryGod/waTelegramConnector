@@ -3557,19 +3557,25 @@
     initTelegram();
     bindEvents();
 
-    // [ADDED] Keep the WAGRAM splash visible until the first account, WhatsApp
-    // connection, and chat requests have all completed (successfully or with an error).
+    // [MODIFIED] Do not let slow API requests keep the WAGRAM splash on screen indefinitely.
     const loadingScreen = $("#appLoadingScreen");
-    // [MODIFIED] Resolve the authenticated membership through loadMe() before the first chat render.
-    // This prevents Premium groups from being rendered as locked while /account is still loading.
-    loadMe().finally(() => {
-      loadChats().finally(() => {
-        requestAnimationFrame(() => {
-          loadingScreen?.classList.add("is-hidden");
-          window.setTimeout(() => loadingScreen?.remove(), 380);
-          initOnboarding(); // [ADDED] Show onboarding after the initial app load settles.
-        });
+    let loadingScreenDismissed = false;
+    const dismissLoadingScreen = () => {
+      if (loadingScreenDismissed) return;
+      loadingScreenDismissed = true;
+      requestAnimationFrame(() => {
+        loadingScreen?.classList.add("is-hidden");
+        window.setTimeout(() => loadingScreen?.remove(), 380);
+        initOnboarding();
       });
+    };
+    // [ADDED] Show the app shell after a short maximum wait; data continues loading in background.
+    const loadingFailsafe = window.setTimeout(dismissLoadingScreen, 3500);
+    loadMe().then(() => loadChats()).catch((error) => {
+      console.error("Initial WAGRAM load failed:", error);
+    }).finally(() => {
+      window.clearTimeout(loadingFailsafe);
+      dismissLoadingScreen();
     });
 
     // [ADDED] Load call history in the background so new incoming calls can badge the tab.
