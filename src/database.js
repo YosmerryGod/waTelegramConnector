@@ -667,7 +667,12 @@ const statements = {
     LEFT JOIN contacts ct
       ON ct.telegram_id = c.telegram_id
       AND c.chat_type = 'private'
-      AND ct.phone_number = COALESCE(
+      AND ct.phone_number = (
+        CASE WHEN instr(c.whatsapp_chat_id, '::') > 0
+          THEN substr(c.whatsapp_chat_id, 1, instr(c.whatsapp_chat_id, '::') - 1) || '::'
+          ELSE ''
+        END
+      ) || COALESCE(
         c.phone_number,
         CASE WHEN c.whatsapp_chat_id LIKE '%@s.whatsapp.net'
           THEN substr(c.whatsapp_chat_id, 1, instr(c.whatsapp_chat_id, '@') - 1)
@@ -706,7 +711,12 @@ const statements = {
     LEFT JOIN contacts ct
       ON ct.telegram_id = c.telegram_id
       AND c.chat_type = 'private'
-      AND ct.phone_number = COALESCE(
+      AND ct.phone_number = (
+        CASE WHEN instr(c.whatsapp_chat_id, '::') > 0
+          THEN substr(c.whatsapp_chat_id, 1, instr(c.whatsapp_chat_id, '::') - 1) || '::'
+          ELSE ''
+        END
+      ) || COALESCE(
         c.phone_number,
         CASE WHEN c.whatsapp_chat_id LIKE '%@s.whatsapp.net'
           THEN substr(c.whatsapp_chat_id, 1, instr(c.whatsapp_chat_id, '@') - 1)
