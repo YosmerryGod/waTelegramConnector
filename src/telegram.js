@@ -18,6 +18,7 @@ import {
   getAllSessions, // [ADDED] Find every active WhatsApp session for the admin pause command.
   setFreePauseDate, // [ADDED] Prevent the daily scheduler from pausing the same user twice.
   updateSession,
+  updateWhatsAppAccountSession, // [ADDED] Persist independent WhatsApp account status.
   markSessionDisconnected,
   reserveForwardedMessage,
   saveWhatsAppMessage, // [ADDED] Persist messages for the Mini App.
@@ -1002,18 +1003,20 @@ async function forwardMedia({ chatId, socket, message, info, header, text }) {
 // [MODIFIED] Startup restoration can update Mini App status without Telegram spam.
 export function createWhatsAppCallbacks(telegramId, options = {}) {
   const id = String(telegramId);
+  const sessionId = String(options.sessionId || id);
+  const isAdditionalSession = sessionId !== id;
   const silentStartup = options.silentStartup === true;
 
   return {
     onQr: async (qr) => {
       const now = Date.now();
-      const lastSent = lastQrSentAt.get(id) || 0;
+      const lastSent = lastQrSentAt.get(sessionId) || 0;
 
       if (now - lastSent < QR_COOLDOWN_MS) {
         return;
       }
 
-      lastQrSentAt.set(id, now);
+      lastQrSentAt.set(sessionId, now);
 
       try {
         const imageBuffer = await QRCode.toBuffer(qr, {
@@ -1044,16 +1047,26 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
     onStatus: async (status, phoneNumber, info = {}) => {
       try {
         // "replaced" is stored as disconnected in the database.
-        updateSession(
-          id,
-          status === "replaced" ? "disconnected" : status,
-          phoneNumber || null
-        );
+        if (isAdditionalSession) {
+          updateWhatsAppAccountSession(
+            id,
+            sessionId,
+            status === "replaced" ? "disconnected" : status,
+            phoneNumber || null
+          );
+        } else {
+          updateSession(
+            id,
+            status === "replaced" ? "disconnected" : status,
+            phoneNumber || null
+          );
+        }
 
         // [ADDED] Broadcast connection state after persisting it.
         publishToMiniApp(id, {
           type: "connection.status",
           data: {
+            sessionId,
             status: status === "replaced" ? "disconnected" : status,
             phoneNumber: phoneNumber || null
           }
@@ -1481,7 +1494,11 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
     onLoggedOut: async () => {
       try {
-        updateSession(id, "logged_out");
+        if (isAdditionalSession) {
+          updateWhatsAppAccountSession(id, sessionId, "logged_out");
+        } else {
+          updateSession(id, "logged_out");
+        }
       } catch (error) {
         console.error("Failed to update logout state:", error.message);
       }
