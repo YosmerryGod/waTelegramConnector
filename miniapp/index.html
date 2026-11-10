@@ -28,6 +28,16 @@
       <img class="loading-brand-logo" src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM">
     </div>
   </div>
+  <!-- [ADDED] Independent failsafe: dismiss splash even if the main app script or API bootstrap is delayed. -->
+  <script>
+    window.setTimeout(function () {
+      var splash = document.getElementById("appLoadingScreen");
+      if (splash) {
+        splash.classList.add("is-hidden");
+        window.setTimeout(function () { splash.remove(); }, 380);
+      }
+    }, 1800);
+  </script>
 
   <!-- Ikon (SVG sprite) -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -668,7 +678,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261110-loading-failsafe-v1"></script>
+  <script src="app.js?v=20261110-loading-failsafe-v2"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
