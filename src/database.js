@@ -1975,10 +1975,10 @@ const cleanupStatements = {
 export function cleanupUserData(telegramId, type, sessionId = telegramId) {
   const statement = cleanupStatements[type];
   if (!statement) throw new Error("INVALID_CLEANUP_TYPE");
-  const params = { telegram_id: String(telegramId), session_id: String(sessionId), now: Date.now() };
+  const params = { telegram_id: String(telegramId), session_id: String(sessionId) };
   return db.transaction(() => {
     if (type === "messages") {
-      cleanupStatements.clearChatPreviews.run(params);
+      cleanupStatements.clearChatPreviews.run({ ...params, now: Date.now() });
     }
     return statement.run(params).changes;
   })();
