@@ -630,6 +630,23 @@
       const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
       return '<button class="whatsapp-session-item' + (active ? ' is-active' : '') + '" type="button" data-session-select="' + escapeHTML(session.session_id) + '">' + '<span class="whatsapp-session-avatar">' + icon("whatsapp") + '</span>' + '<span class="whatsapp-session-info"><strong>' + escapeHTML(label) + '</strong><small>' + escapeHTML(number) + '</small></span>' + '<span class="whatsapp-session-status status-' + escapeHTML(status) + '">' + escapeHTML(labels[status] || status) + '</span>' + (active ? '<span class="whatsapp-session-check">✓</span>' : '') + '</button>';
     }).join("");
+    // [ADDED] Keep all linked accounts visible in one Profile card, each with its own actions.
+    const accountRows = $("#whatsappAccountRows");
+    if (accountRows) {
+      accountRows.innerHTML = (state.whatsappSessions || []).map((session, index) => {
+        const status = session.status || session.connection_status || "disconnected";
+        const labels = { connected: "Connected", connecting: "Connecting", qr: "Menunggu QR", paused: "Pause", disconnected: "Connect", logged_out: "Disconnected" };
+        const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
+        const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
+        const active = session.session_id === state.activeSessionId;
+        return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
+          '<button class="whatsapp-account-select" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '">' +
+          '<span class="whatsapp-account-avatar">' + icon("whatsapp") + '</span><span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
+          '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
+          '<button class="whatsapp-account-disconnect" type="button" data-account-disconnect="' + escapeHTML(session.session_id) + '"' + (status !== "connected" && status !== "paused" ? ' disabled' : '') + '>Disconnect</button>' +
+          '</div>';
+      }).join("");
+    }
     const canAdd = state.whatsappSessions.length < state.whatsappSessionLimit;
     const add = $("#createWhatsAppSessionButton");
     if (add) add.innerHTML = canAdd ? icon("plus") + " Tambah akun WhatsApp" : icon("crown") + " Upgrade untuk tambah akun";
@@ -638,7 +655,7 @@
     if (headerAdd) {
       headerAdd.classList.toggle("is-session-locked", !canAdd);
       // [MODIFIED] Keep the plus icon visible; show the crown as a small locked-capacity badge.
-      headerAdd.innerHTML = icon("plus");
+      headerAdd.innerHTML = '<span aria-hidden="true">+</span>';
       headerAdd.title = canAdd ? "Tambah session WhatsApp" : "Batas session tercapai · Upgrade Premium";
     }
     const selected = state.whatsappSessions.find((item) => item.session_id === state.activeSessionId);
@@ -732,15 +749,17 @@
   }
 
   function renderNotificationPreferences() {
-    let saved = {};
+    let allSaved = {};
     try {
-      saved = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || "{}");
+      allSaved = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || "{}");
     } catch {
-      saved = {};
+      allSaved = {};
     }
+    const saved = allSaved[state.activeSessionId] || {};
     const premium = isPremiumMembership();
     document.querySelectorAll("[data-notification]").forEach((button) => {
       const key = button.dataset.notification;
+      button.dataset.sessionId = state.activeSessionId || "";
       const locked = !premium && isPremiumNotification(key);
       const enabled = !locked && (
         typeof saved[key] === "boolean" ? saved[key] : DEFAULT_NOTIFICATION_PREFS[key]
@@ -772,15 +791,19 @@
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_NOTIFICATION_PREFS, key)) return;
     if (!isPremiumMembership() && isPremiumNotification(key)) return;
     const enabled = button.getAttribute("aria-checked") !== "true";
-    let saved = {};
+    let allSaved = {};
     try {
-      saved = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || "{}");
+      allSaved = JSON.parse(localStorage.getItem(NOTIFICATION_PREFS_KEY) || "{}");
     } catch {
-      saved = {};
+      allSaved = {};
     }
+    const sessionId = button.dataset.sessionId || state.activeSessionId;
+    if (!sessionId) return;
+    const saved = allSaved[sessionId] || {};
     saved[key] = enabled;
+    allSaved[sessionId] = saved;
     try {
-      localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(saved));
+      localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(allSaved));
     } catch {
       showToast("Pengaturan tidak dapat disimpan di perangkat ini.");
     }
@@ -2136,6 +2159,25 @@
     } catch (error) { showToast(error.message); }
   }
 
+  // [ADDED] Disconnect only the account whose own Profile row was selected.
+  async function disconnectWhatsAppSession(sessionId) {
+    const session = state.whatsappSessions.find((item) => item.session_id === sessionId);
+    if (!session) return;
+    if (!(await confirmAction("Putuskan koneksi " + (session.label || "WhatsApp") + "?"))) return;
+    try {
+      await api("/sessions/" + enc(sessionId) + "/disconnect", {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "X-WAGRAM-Session-ID": sessionId }
+      });
+      showToast("Akun WhatsApp berhasil diputuskan.");
+      await loadWhatsAppSessions();
+      if (state.activeSessionId === sessionId) await loadWhatsAppAccount();
+    } catch (error) {
+      showToast(error.message);
+    }
+  }
+
   async function deleteSelectedWhatsAppSession() {
     const session = state.whatsappSessions.find((item) => item.session_id === state.activeSessionId);
     if (!session || session.is_primary) { showToast("Session utama tidak dapat dihapus."); return; }
@@ -2167,7 +2209,25 @@
       }
 
       const addSessionButton = event.target.closest("#addWhatsAppSessionButton");
-      if (addSessionButton) { event.preventDefault(); openWhatsAppSessions(); return; }
+      if (addSessionButton) {
+        event.preventDefault();
+        if (state.whatsappSessions.length >= state.whatsappSessionLimit) {
+          openPremiumSheet();
+        } else {
+          createWhatsAppSession();
+        }
+        return;
+      }
+      const accountSettingsButton = event.target.closest("[data-account-settings]");
+      if (accountSettingsButton) {
+        selectWhatsAppSession(accountSettingsButton.dataset.accountSettings);
+        return;
+      }
+      const accountDisconnectButton = event.target.closest("[data-account-disconnect]");
+      if (accountDisconnectButton) {
+        disconnectWhatsAppSession(accountDisconnectButton.dataset.accountDisconnect);
+        return;
+      }
       if (event.target.closest("#closeWhatsAppSessions") || event.target.closest("#whatsappSessionBackdrop")) { closeWhatsAppSessions(); return; }
       const sessionItem = event.target.closest("[data-session-select]");
       if (sessionItem) { selectWhatsAppSession(sessionItem.dataset.sessionSelect); return; }
@@ -2599,9 +2659,11 @@
           return;
         }
 
+        const cleanupSessionId = state.activeSessionId;
         const result = await api("/data/cleanup", {
           method: "POST",
-          body: JSON.stringify({ type })
+          body: JSON.stringify({ type }),
+          headers: cleanupSessionId ? { "X-WAGRAM-Session-ID": cleanupSessionId } : {}
         });
 
         clearMediaCache();
