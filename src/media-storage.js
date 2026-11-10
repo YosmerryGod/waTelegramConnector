@@ -28,6 +28,7 @@ function safeExtension(mimetype, fileName) {
 
 export async function saveWhatsAppMedia({
   telegramId,
+  sessionId = telegramId,
   messageId,
   buffer,
   mimetype,
@@ -39,7 +40,11 @@ export async function saveWhatsAppMedia({
     throw new Error("Invalid WhatsApp media payload.");
   }
 
-  const ownerDirectory = path.join(MEDIA_ROOT, owner);
+  const accountId = String(sessionId || owner);
+  const sessionDirectory = accountId === owner
+    ? owner
+    : crypto.createHash("sha256").update(accountId).digest("hex").slice(0, 32);
+  const ownerDirectory = path.join(MEDIA_ROOT, owner, sessionDirectory);
   await fs.mkdir(ownerDirectory, { recursive: true, mode: 0o700 });
 
   const safeId = crypto
