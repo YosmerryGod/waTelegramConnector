@@ -6436,3 +6436,5 @@ html[data-theme="dark"] .premium-payment-download {
 .whatsapp-session-footer{display:flex;gap:9px;margin-top:14px}
 .whatsapp-session-footer button{flex:1;min-height:40px}
 .whatsapp-sessions-open{overflow:hidden}
+
+.whatsapp-session-footer #whatsappSessionDeleteButton{border:1px solid color-mix(in srgb,var(--danger) 42%,transparent);background:var(--danger-soft);color:var(--danger);border-radius:12px;font-weight:800;font-size:11px}
