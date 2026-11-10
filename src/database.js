@@ -407,6 +407,22 @@ if (!callColumns.includes("is_archived")) {
   db.exec("ALTER TABLE calls ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0");
 }
 
+// [ADDED] Keep legacy primary-session keys intact while namespacing extra accounts.
+function scopeSessionKey(telegramId, sessionId, value) {
+  const ownerId = String(telegramId);
+  const accountId = String(sessionId || ownerId);
+  const rawValue = String(value ?? "");
+  return accountId === ownerId ? rawValue : `${accountId}::${rawValue}`;
+}
+
+function unScopeSessionKey(telegramId, sessionId, value) {
+  const ownerId = String(telegramId);
+  const accountId = String(sessionId || ownerId);
+  const prefix = accountId === ownerId ? "" : `${accountId}::`;
+  const rawValue = String(value ?? "");
+  return prefix && rawValue.startsWith(prefix) ? rawValue.slice(prefix.length) : rawValue;
+}
+
 const statements = {
   upsertUser: db.prepare(`
     INSERT INTO telegram_users (
@@ -1084,7 +1100,8 @@ export function cleanupForwardedMessages(
 // Simpan pesan WhatsApp beserta metadata chat.
 export function saveWhatsAppMessage(input) {
   const telegramId = String(input.telegramId ?? "");
-  const whatsappChatId = String(input.whatsappChatId ?? "");
+  const sessionId = String(input.sessionId || telegramId);
+  const whatsappChatId = scopeSessionKey(telegramId, sessionId, input.whatsappChatId);
   const messageId = String(input.messageId ?? "");
 
   if (!/^\d+$/.test(telegramId)) {
@@ -1154,9 +1171,9 @@ export function saveWhatsAppMessage(input) {
 }
 
 // [ADDED] Update an existing WhatsApp message after an authenticated edit event.
-export function updateWhatsAppMessage(telegramId, whatsappChatId, messageId, body) {
+export function updateWhatsAppMessage(telegramId, whatsappChatId, messageId, body, sessionId = telegramId) {
   const ownerId = String(telegramId ?? "");
-  const chatId = String(whatsappChatId ?? "");
+  const chatId = scopeSessionKey(ownerId, sessionId, whatsappChatId);
   const waMessageId = String(messageId ?? "");
   const editedBody = body == null ? null : String(body);
 
@@ -1199,9 +1216,9 @@ export function updateWhatsAppMessage(telegramId, whatsappChatId, messageId, bod
 }
 
 // [ADDED] Retrieve stored protobuf content for Baileys, scoped to the exact chat and sender direction.
-export function getWhatsAppMessageContent(telegramId, whatsappChatId, messageId, fromMe) {
+export function getWhatsAppMessageContent(telegramId, whatsappChatId, messageId, fromMe, sessionId = telegramId) {
   const ownerId = String(telegramId ?? "");
-  const chatId = String(whatsappChatId ?? "");
+  const chatId = scopeSessionKey(ownerId, sessionId, whatsappChatId);
   const waMessageId = String(messageId ?? "");
 
   if (!/^\d+$/.test(ownerId) || !chatId || !waMessageId) {
@@ -1219,9 +1236,9 @@ export function getWhatsAppMessageContent(telegramId, whatsappChatId, messageId,
 }
 
 // [ADDED] Persist a WhatsApp revoke event for the owning Telegram account.
-export function markWhatsAppMessageDeleted(telegramId, whatsappChatId, messageId) {
+export function markWhatsAppMessageDeleted(telegramId, whatsappChatId, messageId, sessionId = telegramId) {
   const ownerId = String(telegramId ?? "");
-  const chatId = String(whatsappChatId ?? "");
+  const chatId = scopeSessionKey(ownerId, sessionId, whatsappChatId);
   const waMessageId = String(messageId ?? "");
 
   if (!/^\d+$/.test(ownerId) || !chatId || !waMessageId) {
@@ -1249,26 +1266,21 @@ export function listChats(telegramId, options = {}) {
 }
 
 // Ambil satu chat milik pengguna yang ditentukan.
-export function getChat(telegramId, whatsappChatId) {
-  return statements.getChat.get(
-    String(telegramId),
-    String(whatsappChatId)
-  ) || null;
+export function getChat(telegramId, whatsappChatId, sessionId = telegramId) {
+  const ownerId = String(telegramId);
+  const scopedChatId = scopeSessionKey(ownerId, sessionId, whatsappChatId);
+  const row = statements.getChat.get(ownerId, scopedChatId) || null;
+  return row ? { ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id) } : null;
 }
 
 // Ambil pesan dari satu chat, dimulai dari yang terbaru.
-export function listMessages(telegramId, whatsappChatId, limit = 100) {
-  if (!getChat(telegramId, whatsappChatId)) {
-    return [];
-  }
-
+export function listMessages(telegramId, whatsappChatId, limit = 100, sessionId = telegramId) {
+  const ownerId = String(telegramId);
+  const scopedChatId = scopeSessionKey(ownerId, sessionId, whatsappChatId);
+  if (!getChat(ownerId, whatsappChatId, sessionId)) return [];
   const safeLimit = Math.min(200, Math.max(1, Number(limit) || 100));
-
-  return statements.listMessages.all(
-    String(telegramId),
-    String(whatsappChatId),
-    safeLimit
-  );
+  return statements.listMessages.all(ownerId, scopedChatId, safeLimit)
+    .map((row) => ({ ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id) }));
 }
 
 // Tandai pesan dibaca di Mini App saja.
