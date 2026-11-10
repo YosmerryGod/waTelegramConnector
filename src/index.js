@@ -197,7 +197,7 @@ function hasSavedAuth(sessionId) {
       fs.readdirSync(authPath).length > 0;
   } catch (error) {
     logger.warn(
-      { err: error, telegramId },
+      { err: error, sessionId: String(sessionId) },
       "Could not inspect saved WhatsApp credentials"
     );
 
