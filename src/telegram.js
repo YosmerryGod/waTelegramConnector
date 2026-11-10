@@ -1100,7 +1100,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
       // Transient drop: reconnect silently, warn only if it lasts.
       if (status === "disconnected") {
-        reconnecting.add(id);
+        reconnecting.add(stateKey);
 
         if (!disconnectTimers.has(stateKey)) {
           const timer = setTimeout(async () => {
@@ -1110,7 +1110,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
               return;
             }
 
-            notifiedDown.add(id);
+            notifiedDown.add(stateKey);
 
             await notify(
               "⚠️ <b>WhatsApp Connection Lost</b>\n\nWAGRAM is trying to reconnect automatically. Open WAGRAM to check your connection.",
@@ -1160,7 +1160,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
       // qr, logged_out, replaced: always reset reconnect state.
       if (status === "qr") {
-        pairing.add(id);
+        pairing.add(stateKey);
       }
 
       if (["qr", "logged_out", "replaced"].includes(status)) {
