@@ -3267,6 +3267,7 @@
   }
 
   function scheduleRealtimeRefresh(event) {
+    if (event.data?.sessionId && state.activeSessionId && event.data.sessionId !== state.activeSessionId) return;
     if (
       event.type === "message.created" ||
       event.type === "message.deleted" ||
