@@ -637,7 +637,8 @@
     const headerAdd = $("#addWhatsAppSessionButton");
     if (headerAdd) {
       headerAdd.classList.toggle("is-session-locked", !canAdd);
-      headerAdd.innerHTML = canAdd ? icon("plus") : icon("crown");
+      // [MODIFIED] Keep the plus icon visible; show the crown as a small locked-capacity badge.
+      headerAdd.innerHTML = icon("plus");
       headerAdd.title = canAdd ? "Tambah session WhatsApp" : "Batas session tercapai · Upgrade Premium";
     }
     const selected = state.whatsappSessions.find((item) => item.session_id === state.activeSessionId);
