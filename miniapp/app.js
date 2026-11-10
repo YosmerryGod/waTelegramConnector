@@ -2078,11 +2078,13 @@
     renderWhatsAppSessions();
     $("#whatsappSessionQrWrap").classList.add("hidden");
     $("#whatsappSessionsModal").classList.remove("hidden");
+    $("#whatsappSessionsModal").classList.remove("is-pairing");
     document.body.classList.add("whatsapp-sessions-open");
   }
 
   function closeWhatsAppSessions() {
     $("#whatsappSessionsModal").classList.add("hidden");
+    $("#whatsappSessionsModal").classList.remove("is-pairing");
     document.body.classList.remove("whatsapp-sessions-open");
     // [ADDED] Remove an abandoned pending session so a cancelled QR does not consume a slot.
     if (pendingWhatsAppSessionId) {
@@ -2152,6 +2154,10 @@
 
   async function showWhatsAppSessionQr(sessionId) {
     openWhatsAppSessions();
+    // [MODIFIED] Show a focused QR popup instead of the account manager list.
+    $("#whatsappSessionsModal").classList.add("is-pairing");
+    $("#whatsappSessionsTitle").textContent = "Tambah WhatsApp";
+    $("#closeWhatsAppSessions").setAttribute("aria-label", "Cancel pairing");
     $("#whatsappSessionQrWrap").classList.remove("hidden");
     const refreshQr = async () => {
       try {
@@ -2162,8 +2168,10 @@
           if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
           whatsappQrPollTimer = null;
           $("#whatsappSessionQrWrap").classList.add("hidden");
+          await loadWhatsAppSessions();
           await loadWhatsAppAccount();
           renderWhatsAppSessions();
+          closeWhatsAppSessions();
           showToast("WhatsApp berhasil terhubung");
           return;
         }
@@ -2265,7 +2273,7 @@
         disconnectWhatsAppSession(accountDisconnectButton.dataset.accountDisconnect);
         return;
       }
-      if (event.target.closest("#closeWhatsAppSessions") || event.target.closest("#whatsappSessionBackdrop")) { closeWhatsAppSessions(); return; }
+      if (event.target.closest("#closeWhatsAppSessions") || event.target.closest("#whatsappSessionBackdrop") || event.target.closest("#cancelWhatsAppPairingButton")) { closeWhatsAppSessions(); return; }
       const sessionItem = event.target.closest("[data-session-select]");
       if (sessionItem) { selectWhatsAppSession(sessionItem.dataset.sessionSelect); return; }
       if (event.target.closest("#createWhatsAppSessionButton")) {
