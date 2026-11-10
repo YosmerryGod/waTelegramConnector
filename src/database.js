@@ -1081,9 +1081,9 @@ export function deleteSession(telegramId) {
   return statements.deleteSession.run(String(telegramId)).changes > 0;
 }
 
-export function reserveForwardedMessage(messageId, telegramId) {
+export function reserveForwardedMessage(messageId, telegramId, sessionId = telegramId) {
   return statements.insertForwardedMessage.run(
-    String(messageId),
+    scopeSessionKey(telegramId, sessionId, messageId),
     String(telegramId),
     Date.now()
   ).changes > 0;
