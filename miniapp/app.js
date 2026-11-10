@@ -635,8 +635,6 @@
     if (accountRows) {
       // [MODIFIED] Hide newly-created secondary sessions until WhatsApp pairing succeeds.
       accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => {
-        if (session.session_id === state.activeSessionId) return false;
-        if (session.is_primary) return false;
         const status = session.status || session.connection_status || "disconnected";
         return Boolean(session.phone_number) || status === "connected" || status === "paused";
       }).map((session, index) => {
@@ -647,7 +645,7 @@
         const active = session.session_id === state.activeSessionId;
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
           '<button class="whatsapp-account-select" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '">' +
-          '<span class="whatsapp-account-avatar">' + icon("whatsapp") + '</span><span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
+          '<span class="whatsapp-account-avatar">' + icon("whatsapp") + (active ? '<span class="whatsapp-account-active-check" aria-label="Session aktif">✓</span>' : '') + '</span><span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
           '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
           '<button class="whatsapp-account-disconnect" type="button" data-account-disconnect="' + escapeHTML(session.session_id) + '"' + (status !== "connected" && status !== "paused" ? ' disabled' : '') + '>Disconnect</button>' +
           '</div>';
@@ -2107,8 +2105,17 @@
 
   async function selectWhatsAppSession(sessionId) {
     if (!state.whatsappSessions.some((item) => item.session_id === sessionId)) return;
+    if (sessionId === state.activeSessionId) return;
     state.activeSessionId = sessionId;
     localStorage.setItem("wagram-active-whatsapp-session", sessionId);
+    // [MODIFIED] Close any open chat so content from the previous account cannot remain visible.
+    closeConversationUI();
+    state.chatsLoaded = false;
+    state.callsLoaded = false;
+    state.contactsLoaded = false;
+    state.chats = [];
+    state.calls = [];
+    state.contacts = [];
     renderWhatsAppSessions();
     try {
       await loadWhatsAppAccount();
