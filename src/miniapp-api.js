@@ -585,6 +585,19 @@ router.post("/sessions/:sessionId/connect", async (req, res) => {
     const session = getWhatsAppAccount(req.telegramId, req.params.sessionId);
     if (!session) return res.status(404).json({ ok: false, error: "SESSION_NOT_FOUND" });
 
+    // [ADDED] Re-check the current tier at connect time, including after plan expiry.
+    const membership = getMembership(req.telegramId);
+    const ownedSessions = getWhatsAppAccounts(req.telegramId);
+    const sessionIndex = ownedSessions.findIndex((item) => item.session_id === session.session_id);
+    if (!membership || sessionIndex < 0 || sessionIndex >= membership.sessions_limit) {
+      return res.status(403).json({
+        ok: false,
+        error: "SESSION_LIMIT_REACHED",
+        limit: membership?.sessions_limit || 1,
+        plan: membership?.plan || "free"
+      });
+    }
+
     await connectWhatsApp(
       req.telegramId,
       createWhatsAppCallbacks(req.telegramId, { sessionId: session.session_id }),
