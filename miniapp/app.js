@@ -633,7 +633,13 @@
     // [ADDED] Keep all linked accounts visible in one Profile card, each with its own actions.
     const accountRows = $("#whatsappAccountRows");
     if (accountRows) {
-      accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => session.session_id !== state.activeSessionId).map((session, index) => {
+      // [MODIFIED] Hide newly-created secondary sessions until WhatsApp pairing succeeds.
+      accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => {
+        if (session.session_id === state.activeSessionId) return false;
+        if (session.is_primary) return false;
+        const status = session.status || session.connection_status || "disconnected";
+        return Boolean(session.phone_number) || status === "connected" || status === "paused";
+      }).map((session, index) => {
         const status = session.status || session.connection_status || "disconnected";
         const labels = { connected: "Connected", connecting: "Connecting", qr: "Menunggu QR", paused: "Pause", disconnected: "Connect", logged_out: "Disconnected" };
         const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
