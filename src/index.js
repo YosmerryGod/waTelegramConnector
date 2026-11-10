@@ -11,6 +11,7 @@ import { bot, createWhatsAppCallbacks } from "./telegram.js";
 
 import {
   getAllSessions,
+  getAllWhatsAppAccounts, // [ADDED] Restore every account allowed by its membership.
   cleanupForwardedMessages,
   closeDatabase,
   updateSession,
@@ -183,8 +184,8 @@ app.use((error, _req, res, _next) => {
 });
 
 // [ADDED] Check whether a user has a persisted WhatsApp auth directory.
-function hasSavedAuth(telegramId) {
-  const authPath = path.join(AUTH_DIR, String(telegramId));
+function hasSavedAuth(sessionId) {
+  const authPath = path.join(AUTH_DIR, String(sessionId));
 
   if (!fs.existsSync(authPath)) {
     return false;
@@ -205,10 +206,10 @@ function hasSavedAuth(telegramId) {
 
 // [ADDED] Restore valid sessions for active Telegram users.
 async function restoreSessions() {
-  const sessions = getAllSessions().filter((session) => {
+  const sessions = getAllWhatsAppAccounts().filter((session) => {
     const membership = getMembership(session.telegram_id);
     return session.is_active === 1 &&
-      hasSavedAuth(session.telegram_id) &&
+      hasSavedAuth(session.session_id) &&
       !(membership?.plan === "free" && session.connection_status === "paused");
   });
 
@@ -225,7 +226,10 @@ async function restoreSessions() {
   await restoreWhatsAppSessions(
     sessions,
     // [MODIFIED] Restore sessions quietly so PM2/server restarts do not spam Telegram.
-    (telegramId) => createWhatsAppCallbacks(telegramId, { silentStartup: true })
+    (telegramId, sessionId) => createWhatsAppCallbacks(telegramId, {
+      silentStartup: true,
+      sessionId
+    })
   );
 }
 
