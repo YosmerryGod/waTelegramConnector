@@ -3954,24 +3954,8 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
 .whatsapp-add-session-button {
   position: relative;
 }
-.whatsapp-add-session-button::after {
-  content: "👑";
-  position: absolute;
-  top: -9px;
-  right: -7px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 21px;
-  height: 21px;
-  border: 2px solid var(--surface);
-  border-radius: 50%;
-  background: #f59e0b;
-  font-size: 11px;
-  line-height: 1;
-  transform: rotate(22deg);
-  pointer-events: none;
-}
+.whatsapp-add-session-button.is-session-locked { opacity:.85; }
+
 
 /* [MODIFIED] Premium-only notification switches look darker and carry a tilted crown. */
 .notification-option.is-premium-locked {
@@ -6419,3 +6403,36 @@ html[data-theme="dark"] .premium-payment-download {
 .premium-proof-cancel{background:var(--surface,#18231b);color:var(--text,#edf7ef);border:1px solid var(--border,rgba(120,160,130,.2))!important}
 .premium-proof-confirm{background:var(--accent,#08a94f);color:#fff}
 .premium-proof-confirm:disabled,.premium-proof-cancel:disabled{opacity:.45}
+
+
+/* [ADDED] WhatsApp session manager popup, matching WAGRAM neumorphic surfaces. */
+.whatsapp-sessions-modal{position:fixed;inset:0;z-index:230;display:flex;align-items:flex-end;justify-content:center;padding:16px;background:rgba(0,0,0,.62);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+.whatsapp-sessions-modal.hidden{display:none!important}
+.whatsapp-sessions-backdrop{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
+.whatsapp-sessions-panel{position:relative;width:min(100%,480px);max-height:min(86dvh,760px);overflow-y:auto;padding:22px 18px max(20px,env(safe-area-inset-bottom));border:1px solid var(--border,rgba(255,255,255,.12));border-radius:26px;background:var(--surface);color:var(--text);box-shadow:0 24px 80px rgba(0,0,0,.38);animation:whatsappSessionEnter .22s ease-out}
+@keyframes whatsappSessionEnter{from{transform:translateY(24px);opacity:.65}to{transform:translateY(0);opacity:1}}
+.whatsapp-sessions-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+.whatsapp-sessions-header h2{margin:3px 0 4px;font-size:21px;font-weight:800}
+.whatsapp-sessions-header p{margin:0;color:var(--muted);font-size:12px}
+.whatsapp-sessions-eyebrow{font-size:9px;letter-spacing:1.5px;font-weight:800;color:#25c96a}
+.whatsapp-session-list{display:grid;gap:9px}
+.whatsapp-session-item{width:100%;display:flex;align-items:center;gap:11px;padding:12px;border:1px solid var(--divider);border-radius:16px;background:var(--surface-2);color:var(--text);text-align:left;box-shadow:3px 3px 8px rgba(0,0,0,.09),-2px -2px 7px rgba(255,255,255,.025)}
+.whatsapp-session-item.is-active{border-color:rgba(37,211,102,.55);background:color-mix(in srgb,#25d366 8%,var(--surface-2))}
+.whatsapp-session-avatar{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:13px;background:rgba(37,211,102,.12);color:#25d366}
+.whatsapp-session-avatar .i{width:20px;height:20px}
+.whatsapp-session-info{min-width:0;flex:1;display:grid;gap:4px}
+.whatsapp-session-info strong{font-size:13px}
+.whatsapp-session-info small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.whatsapp-session-status{font-size:10px;font-weight:700;color:var(--muted)}
+.whatsapp-session-status.status-connected{color:#25c96a}
+.whatsapp-session-status.status-qr,.whatsapp-session-status.status-connecting{color:#d99b31}
+.whatsapp-session-check{color:#25c96a;font-weight:900}
+.whatsapp-session-add-action{width:100%;min-height:46px;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:13px;border:1px dashed rgba(37,211,102,.5);border-radius:14px;background:rgba(37,211,102,.08);color:#25c96a;font-weight:800;font-size:12px}
+.whatsapp-session-add-action:disabled{border-color:var(--divider);background:var(--surface-2);color:var(--muted)}
+.whatsapp-session-add-action .i{width:17px;height:17px}
+.whatsapp-session-qr{display:grid;justify-items:center;gap:8px;margin-top:15px;padding:14px;border-radius:16px;background:#fff;color:#17221b}
+.whatsapp-session-qr img{width:min(100%,240px);aspect-ratio:1;object-fit:contain}
+.whatsapp-session-qr p{margin:0;color:#34443a;font-size:11px;text-align:center}
+.whatsapp-session-footer{display:flex;gap:9px;margin-top:14px}
+.whatsapp-session-footer button{flex:1;min-height:40px}
+.whatsapp-sessions-open{overflow:hidden}
