@@ -633,7 +633,7 @@
     // [ADDED] Keep all linked accounts visible in one Profile card, each with its own actions.
     const accountRows = $("#whatsappAccountRows");
     if (accountRows) {
-      accountRows.innerHTML = (state.whatsappSessions || []).map((session, index) => {
+      accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => session.session_id !== state.activeSessionId).map((session, index) => {
         const status = session.status || session.connection_status || "disconnected";
         const labels = { connected: "Connected", connecting: "Connecting", qr: "Menunggu QR", paused: "Pause", disconnected: "Connect", logged_out: "Disconnected" };
         const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
@@ -2065,6 +2065,9 @@
      [ADDED] WhatsApp session manager actions
      --------------------------------------------------------- */
 
+  // [ADDED] A newly-created session remains pending until WhatsApp completes pairing.
+  let pendingWhatsAppSessionId = null;
+
   function openWhatsAppSessions() {
     renderWhatsAppSessions();
     $("#whatsappSessionQrWrap").classList.add("hidden");
@@ -2075,6 +2078,17 @@
   function closeWhatsAppSessions() {
     $("#whatsappSessionsModal").classList.add("hidden");
     document.body.classList.remove("whatsapp-sessions-open");
+    // [ADDED] Remove an abandoned pending session so a cancelled QR does not consume a slot.
+    if (pendingWhatsAppSessionId) {
+      const cancelledSessionId = pendingWhatsAppSessionId;
+      pendingWhatsAppSessionId = null;
+      if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
+      whatsappQrPollTimer = null;
+      api("/sessions/" + enc(cancelledSessionId), {
+        method: "DELETE",
+        headers: { "X-WAGRAM-Session-ID": cancelledSessionId }
+      }).then(() => loadWhatsAppSessions()).catch(() => {});
+    }
   }
 
   async function selectWhatsAppSession(sessionId) {
@@ -2103,6 +2117,7 @@
       const created = await api("/sessions", { method: "POST", body: JSON.stringify({}) });
       const sessionId = created.session && created.session.session_id;
       if (!sessionId) throw new Error("Server tidak mengembalikan session baru.");
+      pendingWhatsAppSessionId = sessionId;
       state.activeSessionId = sessionId;
       localStorage.setItem("wagram-active-whatsapp-session", sessionId);
       await api("/sessions/" + enc(sessionId) + "/connect", { method: "POST" });
@@ -2113,6 +2128,14 @@
       await showWhatsAppSessionQr(sessionId);
       renderWhatsAppSessions();
     } catch (error) {
+      if (pendingWhatsAppSessionId) {
+        const failedSessionId = pendingWhatsAppSessionId;
+        pendingWhatsAppSessionId = null;
+        await api("/sessions/" + enc(failedSessionId), {
+          method: "DELETE",
+          headers: { "X-WAGRAM-Session-ID": failedSessionId }
+        }).catch(() => {});
+      }
       showToast(error.message);
       await loadWhatsAppSessions().catch(() => {});
     } finally { button.disabled = false; }
@@ -2127,6 +2150,8 @@
       try {
         const data = await api("/sessions/" + enc(sessionId) + "/connection");
         if (data.status === "connected") {
+          // [ADDED] Pairing is complete; closing the QR view must no longer delete this account.
+          if (pendingWhatsAppSessionId === sessionId) pendingWhatsAppSessionId = null;
           if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
           whatsappQrPollTimer = null;
           $("#whatsappSessionQrWrap").classList.add("hidden");
