@@ -510,6 +510,8 @@ router.get("/account", (req, res) => {
 router.get("/sessions", (req, res) => {
   try {
     const membership = getMembership(req.telegramId);
+    // [MODIFIED] Remove abandoned secondary sessions that never completed pairing.
+    // These records have no phone number and no live QR/connection, so they must not consume a Premium slot.
     const sessions = getWhatsAppAccounts(req.telegramId).map((session) => {
       const live = getWhatsAppStatus(session.session_id);
       return {
@@ -519,6 +521,12 @@ router.get("/sessions", (req, res) => {
           : live.status,
         phone_number: live.phoneNumber || session.phone_number || null
       };
+    }).filter((session) => {
+      const abandoned = !session.is_primary &&
+        !session.phone_number &&
+        session.status === "disconnected";
+      if (abandoned) deleteWhatsAppAccount(req.telegramId, session.session_id);
+      return !abandoned;
     });
 
     res.setHeader("Cache-Control", "no-store");
