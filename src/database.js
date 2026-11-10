@@ -1304,7 +1304,7 @@ export function listMessages(telegramId, whatsappChatId, limit = 100, sessionId 
   if (!getChat(ownerId, whatsappChatId, sessionId)) return [];
   const safeLimit = Math.min(200, Math.max(1, Number(limit) || 100));
   return statements.listMessages.all(ownerId, scopedChatId, safeLimit)
-    .map((row) => ({ ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id) }));
+    .map((row) => ({ ...row, whatsapp_chat_id: unScopeSessionKey(ownerId, sessionId, row.whatsapp_chat_id), sender_jid: row.sender_jid ? unScopeSessionKey(ownerId, sessionId, row.sender_jid) : null }));
 }
 
 // Tandai pesan dibaca di Mini App saja.
