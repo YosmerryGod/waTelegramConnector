@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261110-account-switcher-v1">
+  <link rel="stylesheet" href="style.css?v=20261110-wagram-qr-brand-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -28,16 +28,6 @@
       <img class="loading-brand-logo" src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM">
     </div>
   </div>
-  <!-- [ADDED] Independent failsafe: dismiss splash even if the main app script or API bootstrap is delayed. -->
-  <script>
-    window.setTimeout(function () {
-      var splash = document.getElementById("appLoadingScreen");
-      if (splash) {
-        splash.classList.add("is-hidden");
-        window.setTimeout(function () { splash.remove(); }, 380);
-      }
-    }, 1800);
-  </script>
 
   <!-- Ikon (SVG sprite) -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -368,6 +358,20 @@
             <svg class="i"><use href="#i-plus"/></svg>
           </button>
         </div>
+        <div class="whatsapp-account-row">
+          <div class="whatsapp-account-avatar" id="accountWhatsAppAvatar">
+            <img id="accountWhatsAppPhoto" class="hidden" alt="Foto profil WhatsApp">
+            <svg class="i"><use href="#i-whatsapp"/></svg>
+          </div>
+          <div class="whatsapp-account-copy">
+            <strong id="accountWhatsAppName">WhatsApp</strong>
+            <span id="accountWhatsAppPhone">Memeriksa koneksi…</span>
+          </div>
+          <button class="whatsapp-connection-state" id="accountWhatsAppState" type="button" disabled><i></i> Memeriksa status <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off" title="Menuju pause otomatis pukul 14.00 WITA">00.00</span></button>
+          <button class="whatsapp-controls-toggle" id="whatsappControlsToggle" type="button" aria-expanded="false" aria-label="Buka pengaturan akun WhatsApp">
+            <svg class="i"><use href="#i-back"/></svg>
+          </button>
+        </div>
         <div id="whatsappAccountRows" class="whatsapp-account-rows" aria-live="polite"></div>
       <div class="whatsapp-account-controls is-collapsed" id="whatsappAccountControls">
       <!-- [MODIFIED] Notification settings are now inside the WhatsApp connection card. -->
@@ -678,7 +682,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261110-loading-failsafe-v2"></script>
+  <script src="app.js?v=20261110-wagram-qr-brand-v1"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
