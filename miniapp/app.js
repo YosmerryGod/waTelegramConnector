@@ -2020,6 +2020,101 @@
   }
 
   /* ---------------------------------------------------------
+     [ADDED] WhatsApp session manager actions
+     --------------------------------------------------------- */
+
+  function openWhatsAppSessions() {
+    renderWhatsAppSessions();
+    $("#whatsappSessionQrWrap").classList.add("hidden");
+    $("#whatsappSessionsModal").classList.remove("hidden");
+    document.body.classList.add("whatsapp-sessions-open");
+  }
+
+  function closeWhatsAppSessions() {
+    $("#whatsappSessionsModal").classList.add("hidden");
+    document.body.classList.remove("whatsapp-sessions-open");
+  }
+
+  async function selectWhatsAppSession(sessionId) {
+    if (!state.whatsappSessions.some((item) => item.session_id === sessionId)) return;
+    state.activeSessionId = sessionId;
+    localStorage.setItem("wagram-active-whatsapp-session", sessionId);
+    renderWhatsAppSessions();
+    try {
+      await loadWhatsAppAccount();
+      await Promise.all([loadChats(), loadCalls(), loadContacts()]);
+      state.callsLoaded = true;
+      state.contactsLoaded = true;
+      closeWhatsAppSessions();
+      showToast("Session WhatsApp diganti");
+    } catch (error) { showToast(error.message); }
+  }
+
+  async function createWhatsAppSession() {
+    const button = $("#createWhatsAppSessionButton");
+    if (state.whatsappSessions.length >= state.whatsappSessionLimit) {
+      closeWhatsAppSessions();
+      openPremiumSheet();
+      return;
+    }
+    button.disabled = true;
+    try {
+      const created = await api("/sessions", { method: "POST", body: JSON.stringify({}) });
+      const sessionId = created.session && created.session.session_id;
+      if (!sessionId) throw new Error("Server tidak mengembalikan session baru.");
+      state.activeSessionId = sessionId;
+      localStorage.setItem("wagram-active-whatsapp-session", sessionId);
+      await api("/sessions/" + enc(sessionId) + "/connect", { method: "POST" });
+      await loadWhatsAppSessions();
+      state.activeSessionId = sessionId;
+      localStorage.setItem("wagram-active-whatsapp-session", sessionId);
+      await loadWhatsAppAccount();
+      await showWhatsAppSessionQr(sessionId);
+      renderWhatsAppSessions();
+    } catch (error) {
+      showToast(error.message);
+      await loadWhatsAppSessions().catch(() => {});
+    } finally { button.disabled = false; }
+  }
+
+  async function showWhatsAppSessionQr(sessionId) {
+    try {
+      const data = await api("/sessions/" + enc(sessionId) + "/connection");
+      if (data.status === "connected") { showToast("WhatsApp sudah terhubung"); return; }
+      $("#whatsappSessionQrWrap").classList.remove("hidden");
+      $("#whatsappSessionQrImage").src = data.qr || "";
+      $("#whatsappSessionQrStatus").textContent = data.qr ? "Pindai QR melalui WhatsApp → Perangkat tertaut" : "QR sedang disiapkan. Tunggu beberapa detik.";
+      openWhatsAppSessions();
+      $("#whatsappSessionQrWrap").classList.remove("hidden");
+    } catch (error) { showToast(error.message); }
+  }
+
+  async function connectSelectedWhatsAppSession() {
+    const id = state.activeSessionId;
+    if (!id) return;
+    try {
+      await api("/sessions/" + enc(id) + "/connect", { method: "POST" });
+      await showWhatsAppSessionQr(id);
+      await loadWhatsAppAccount();
+    } catch (error) { showToast(error.message); }
+  }
+
+  async function deleteSelectedWhatsAppSession() {
+    const session = state.whatsappSessions.find((item) => item.session_id === state.activeSessionId);
+    if (!session || session.is_primary) { showToast("Session utama tidak dapat dihapus."); return; }
+    if (!(await confirmAction("Hapus session WhatsApp ini?"))) return;
+    try {
+      await api("/sessions/" + enc(session.session_id), { method: "DELETE" });
+      const primary = state.whatsappSessions.find((item) => item.is_primary);
+      state.activeSessionId = primary ? primary.session_id : null;
+      if (state.activeSessionId) localStorage.setItem("wagram-active-whatsapp-session", state.activeSessionId);
+      await loadWhatsAppAccount();
+      await Promise.all([loadChats(), loadCalls(), loadContacts()]);
+      showToast("Session dihapus");
+    } catch (error) { showToast(error.message); }
+  }
+
+  /* ---------------------------------------------------------
      Event
      --------------------------------------------------------- */
 
@@ -2035,16 +2130,13 @@
       }
 
       const addSessionButton = event.target.closest("#addWhatsAppSessionButton");
-      if (addSessionButton) {
-        event.preventDefault();
-        // [MODIFIED] Free users are directed to the Premium upgrade sheet when adding a WhatsApp session.
-        if (!isPremiumMembership()) {
-          openPremiumSheet();
-          return;
-        }
-        showToast("Tambah session WhatsApp akan tersedia pada pembaruan berikutnya.");
-        return;
-      }
+      if (addSessionButton) { event.preventDefault(); openWhatsAppSessions(); return; }
+      if (event.target.closest("#closeWhatsAppSessions") || event.target.closest("#whatsappSessionBackdrop")) { closeWhatsAppSessions(); return; }
+      const sessionItem = event.target.closest("[data-session-select]");
+      if (sessionItem) { selectWhatsAppSession(sessionItem.dataset.sessionSelect); return; }
+      if (event.target.closest("#createWhatsAppSessionButton")) { createWhatsAppSession(); return; }
+      if (event.target.closest("#whatsappSessionConnectButton")) { connectSelectedWhatsAppSession(); return; }
+      if (event.target.closest("#whatsappSessionDeleteButton")) { deleteSelectedWhatsAppSession(); return; }
 
       const upgradeButton = event.target.closest("#upgradePremiumButton");
       if (!upgradeButton) return;
