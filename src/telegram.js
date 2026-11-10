@@ -1233,7 +1233,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
         }
 
         // Prevent duplicate forwards.
-        const reserved = reserveForwardedMessage(messageId, id);
+        const reserved = reserveForwardedMessage(messageId, id, sessionId);
 
         if (!reserved) {
           return;
@@ -1359,6 +1359,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                 ) {
                   const storagePath = await saveWhatsAppMedia({
                     telegramId: id,
+                    sessionId,
                     messageId,
                     buffer,
                     mimetype: info.mimetype,
@@ -1367,6 +1368,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
                   const attached = attachLocalMedia({
                     telegramId: id,
+                    sessionId,
                     whatsappChatId: remoteJid,
                     messageId,
                     storagePath,
