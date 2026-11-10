@@ -779,6 +779,14 @@ export function registerUser(user) {
 
     statements.ensureSession.run(telegramId, now, now);
 
+    // [ADDED] Ensure every Telegram account has its legacy primary WhatsApp account.
+    db.prepare(`
+      INSERT OR IGNORE INTO whatsapp_accounts (
+        session_id, telegram_id, connection_status, is_primary, created_at, updated_at
+      )
+      VALUES (?, ?, 'disconnected', 1, ?, ?)
+    `).run(telegramId, telegramId, now, now);
+
     // [ADDED] Keep configured administrators promoted when they register via /start.
     if (configuredAdminIds.includes(telegramId)) {
       db.prepare(`
