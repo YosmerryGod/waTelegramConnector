@@ -1322,6 +1322,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             publishToMiniApp(id, {
               type: "message.created",
               data: {
+                sessionId,
                 chatId: remoteJid,
                 messageId,
                 direction: isOutgoing ? "outgoing" : "incoming",
@@ -1379,7 +1380,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                   if (attached) {
                     publishToMiniApp(id, {
                       type: "media.ready",
-                      data: { chatId: remoteJid, messageId }
+                      data: { sessionId, chatId: remoteJid, messageId }
                     });
                   }
                 }
@@ -1480,7 +1481,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           // [ADDED] Refresh call history after the database write.
           publishToMiniApp(id, {
             type: "calls.updated",
-            data: { callId: call.id }
+            data: { sessionId, callId: call.id }
           });
         } catch (error) {
           console.error("Failed to store call history:", error.message);
