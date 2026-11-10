@@ -17,6 +17,11 @@ import {
   getUser,
   getMembership,
   getSession,
+  getWhatsAppAccounts,
+  getWhatsAppAccount,
+  createWhatsAppAccount,
+  updateWhatsAppAccountSession,
+  deleteWhatsAppAccount,
   setFreePauseDate,
   listChats,
   getChat,
@@ -491,6 +496,143 @@ router.get("/account", (req, res) => {
     res.json({ ok: true, account: membership });
   } catch (error) {
     sendServerError(res, error, "Could not load account membership");
+  }
+});
+
+// [ADDED] List and manage WhatsApp accounts with server-enforced tier limits.
+router.get("/sessions", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    const sessions = getWhatsAppAccounts(req.telegramId).map((session) => {
+      const live = getWhatsAppStatus(session.session_id);
+      return {
+        ...session,
+        status: live.status === "disconnected" && session.connection_status === "paused"
+          ? "paused"
+          : live.status,
+        phone_number: live.phoneNumber || session.phone_number || null
+      };
+    });
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      ok: true,
+      sessions,
+      limit: membership?.sessions_limit || 1,
+      count: sessions.length,
+      plan: membership?.plan || "free"
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not list WhatsApp sessions");
+  }
+});
+
+router.post("/sessions", express.json(), (req, res) => {
+  try {
+    const label = typeof req.body?.label === "string" ? req.body.label.trim() : null;
+    const session = createWhatsAppAccount(req.telegramId, label);
+    res.status(201).json({ ok: true, session });
+  } catch (error) {
+    if (error.message === "SESSION_LIMIT_REACHED") {
+      const membership = getMembership(req.telegramId);
+      return res.status(403).json({
+        ok: false,
+        error: "SESSION_LIMIT_REACHED",
+        limit: membership?.sessions_limit || 1,
+        plan: membership?.plan || "free"
+      });
+    }
+    sendServerError(res, error, "Could not create WhatsApp session");
+  }
+});
+
+router.get("/sessions/:sessionId/connection", async (req, res) => {
+  try {
+    const session = getWhatsAppAccount(req.telegramId, req.params.sessionId);
+    if (!session) return res.status(404).json({ ok: false, error: "SESSION_NOT_FOUND" });
+
+    const connection = getWhatsAppStatus(session.session_id);
+    const status = connection.status === "disconnected" && session.connection_status === "paused"
+      ? "paused"
+      : connection.status;
+    const profile = status === "connected"
+      ? await getWhatsAppAccountProfile(session.session_id)
+      : { displayName: null, pictureUrl: null };
+    const qr = connection.status === "qr" ? getWhatsAppQr(session.session_id) : null;
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json({
+      ok: true,
+      sessionId: session.session_id,
+      status,
+      phoneNumber: connection.phoneNumber || session.phone_number || null,
+      displayName: profile.displayName,
+      pictureUrl: profile.pictureUrl,
+      qr: qr ? await QRCode.toDataURL(qr, {
+        width: 320,
+        margin: 2,
+        errorCorrectionLevel: "M",
+        color: { dark: "#101820", light: "#FFFFFF" }
+      }) : null
+    });
+  } catch (error) {
+    sendServerError(res, error, "Could not get WhatsApp session connection");
+  }
+});
+
+router.post("/sessions/:sessionId/connect", async (req, res) => {
+  try {
+    const session = getWhatsAppAccount(req.telegramId, req.params.sessionId);
+    if (!session) return res.status(404).json({ ok: false, error: "SESSION_NOT_FOUND" });
+
+    await connectWhatsApp(
+      req.telegramId,
+      createWhatsAppCallbacks(req.telegramId, { sessionId: session.session_id }),
+      { sessionId: session.session_id }
+    );
+
+    const live = getWhatsAppStatus(session.session_id);
+    res.status(202).json({ ok: true, sessionId: session.session_id, ...live });
+  } catch (error) {
+    sendServerError(res, error, "Could not start WhatsApp session pairing");
+  }
+});
+
+router.post("/sessions/:sessionId/disconnect", async (req, res) => {
+  try {
+    const session = getWhatsAppAccount(req.telegramId, req.params.sessionId);
+    if (!session) return res.status(404).json({ ok: false, error: "SESSION_NOT_FOUND" });
+
+    await disconnectWhatsApp(req.telegramId, {
+      sessionId: session.session_id,
+      logout: true,
+      clearAuth: true
+    });
+    updateWhatsAppAccountSession(req.telegramId, session.session_id, "disconnected");
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ok: true, status: "disconnected", sessionId: session.session_id });
+  } catch (error) {
+    sendServerError(res, error, "Could not disconnect WhatsApp session");
+  }
+});
+
+router.delete("/sessions/:sessionId", async (req, res) => {
+  try {
+    const session = getWhatsAppAccount(req.telegramId, req.params.sessionId);
+    if (!session) return res.status(404).json({ ok: false, error: "SESSION_NOT_FOUND" });
+    if (session.is_primary) {
+      return res.status(400).json({ ok: false, error: "PRIMARY_SESSION_CANNOT_BE_DELETED" });
+    }
+
+    await disconnectWhatsApp(req.telegramId, {
+      sessionId: session.session_id,
+      logout: true,
+      clearAuth: true
+    });
+    deleteWhatsAppAccount(req.telegramId, session.session_id);
+    res.json({ ok: true, deleted: true });
+  } catch (error) {
+    sendServerError(res, error, "Could not delete WhatsApp session");
   }
 });
 
