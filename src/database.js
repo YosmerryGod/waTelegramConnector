@@ -888,11 +888,14 @@ export function setUserActive(telegramId, isActive) {
 // [ADDED] Return all WhatsApp accounts owned by one authenticated Telegram user.
 export function getWhatsAppAccounts(telegramId) {
   return db.prepare(`
-    SELECT session_id, telegram_id, label, phone_number,
-           connection_status, is_primary, created_at, updated_at
-    FROM whatsapp_accounts
-    WHERE telegram_id = ?
-    ORDER BY is_primary DESC, created_at ASC
+    SELECT a.session_id, a.telegram_id, a.label, a.phone_number,
+           CASE WHEN a.is_primary = 1 THEN COALESCE(s.connection_status, a.connection_status)
+                ELSE a.connection_status END AS connection_status,
+           a.is_primary, a.created_at, a.updated_at
+    FROM whatsapp_accounts a
+    LEFT JOIN whatsapp_sessions s ON s.telegram_id = a.telegram_id
+    WHERE a.telegram_id = ?
+    ORDER BY a.is_primary DESC, a.created_at ASC
   `).all(String(telegramId));
 }
 
@@ -900,9 +903,13 @@ export function getWhatsAppAccounts(telegramId) {
 // [ADDED] Startup restoration list, including all accounts for active Telegram users.
 export function getAllWhatsAppAccounts() {
   return db.prepare(`
-    SELECT a.*, u.is_active
+    SELECT a.session_id, a.telegram_id, a.label, a.phone_number,
+           CASE WHEN a.is_primary = 1 THEN COALESCE(s.connection_status, a.connection_status)
+                ELSE a.connection_status END AS connection_status,
+           a.is_primary, a.created_at, a.updated_at, u.is_active
     FROM whatsapp_accounts a
     INNER JOIN telegram_users u ON u.telegram_id = a.telegram_id
+    LEFT JOIN whatsapp_sessions s ON s.telegram_id = a.telegram_id
     WHERE u.is_active = 1
     ORDER BY a.created_at ASC
   `).all();
@@ -910,10 +917,13 @@ export function getAllWhatsAppAccounts() {
 
 export function getWhatsAppAccount(telegramId, sessionId) {
   return db.prepare(`
-    SELECT session_id, telegram_id, label, phone_number,
-           connection_status, is_primary, created_at, updated_at
-    FROM whatsapp_accounts
-    WHERE telegram_id = ? AND session_id = ?
+    SELECT a.session_id, a.telegram_id, a.label, a.phone_number,
+           CASE WHEN a.is_primary = 1 THEN COALESCE(s.connection_status, a.connection_status)
+                ELSE a.connection_status END AS connection_status,
+           a.is_primary, a.created_at, a.updated_at
+    FROM whatsapp_accounts a
+    LEFT JOIN whatsapp_sessions s ON s.telegram_id = a.telegram_id
+    WHERE a.telegram_id = ? AND a.session_id = ?
     LIMIT 1
   `).get(String(telegramId), String(sessionId)) || null;
 }
