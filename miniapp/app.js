@@ -644,9 +644,10 @@
         const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
         const active = session.session_id === state.activeSessionId;
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
-          '<button class="whatsapp-account-select" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '">' +
+          '<button class="whatsapp-account-select" type="button" data-account-select="' + escapeHTML(session.session_id) + '" aria-label="Beralih ke ' + escapeHTML(label) + '">' +
           '<span class="whatsapp-account-avatar">' + icon("whatsapp") + (active ? '<span class="whatsapp-account-active-check" aria-label="Session aktif">✓</span>' : '') + '</span><span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
           '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
+          '<button class="whatsapp-account-settings" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '">' + icon("settings") + '</button>' +
           '<button class="whatsapp-account-disconnect" type="button" data-account-disconnect="' + escapeHTML(session.session_id) + '"' + (status !== "connected" && status !== "paused" ? ' disabled' : '') + '>Disconnect</button>' +
           '</div>';
       }).join("");
@@ -2268,6 +2269,11 @@
         } else {
           createWhatsAppSession();
         }
+        return;
+      }
+      const accountSelectButton = event.target.closest("[data-account-select]");
+      if (accountSelectButton) {
+        selectWhatsAppSession(accountSelectButton.dataset.accountSelect);
         return;
       }
       const accountSettingsButton = event.target.closest("[data-account-settings]");
