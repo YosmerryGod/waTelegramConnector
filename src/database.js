@@ -1,6 +1,7 @@
 import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import Database from "better-sqlite3";
 
 const databasePath = path.resolve(
@@ -199,6 +200,36 @@ const whatsappSessionColumns = db
 if (!whatsappSessionColumns.includes("free_pause_date")) {
   db.exec("ALTER TABLE whatsapp_sessions ADD COLUMN free_pause_date TEXT");
 }
+
+// [ADDED] Independent WhatsApp accounts per Telegram user, with legacy-session migration.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS whatsapp_accounts (
+    session_id TEXT PRIMARY KEY,
+    telegram_id TEXT NOT NULL,
+    label TEXT,
+    phone_number TEXT,
+    connection_status TEXT NOT NULL DEFAULT 'disconnected'
+      CHECK (connection_status IN ('disconnected', 'connecting', 'connected', 'qr', 'logged_out', 'paused')),
+    is_primary INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (telegram_id)
+      REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_accounts_owner
+    ON whatsapp_accounts(telegram_id, created_at ASC);
+`);
+
+db.exec(`
+  INSERT OR IGNORE INTO whatsapp_accounts (
+    session_id, telegram_id, phone_number, connection_status,
+    is_primary, created_at, updated_at
+  )
+  SELECT telegram_id, telegram_id, phone_number, connection_status,
+         1, created_at, updated_at
+  FROM whatsapp_sessions;
+`);
 
 // [ADDED] Persist the administrator's Free-tier pause mode across restarts.
 db.exec(`
@@ -846,6 +877,79 @@ export function setUserActive(telegramId, isActive) {
   ).changes > 0;
 }
 
+// [ADDED] Return all WhatsApp accounts owned by one authenticated Telegram user.
+export function getWhatsAppAccounts(telegramId) {
+  return db.prepare(`
+    SELECT session_id, telegram_id, label, phone_number,
+           connection_status, is_primary, created_at, updated_at
+    FROM whatsapp_accounts
+    WHERE telegram_id = ?
+    ORDER BY is_primary DESC, created_at ASC
+  `).all(String(telegramId));
+}
+
+// [ADDED] Look up a WhatsApp account while enforcing owner isolation.
+export function getWhatsAppAccount(telegramId, sessionId) {
+  return db.prepare(`
+    SELECT session_id, telegram_id, label, phone_number,
+           connection_status, is_primary, created_at, updated_at
+    FROM whatsapp_accounts
+    WHERE telegram_id = ? AND session_id = ?
+    LIMIT 1
+  `).get(String(telegramId), String(sessionId)) || null;
+}
+
+// [ADDED] Create an account only when the current membership has remaining capacity.
+export function createWhatsAppAccount(telegramId, label = null) {
+  const ownerId = String(telegramId);
+  const membership = getMembership(ownerId);
+  if (!membership) throw new Error("USER_NOT_FOUND");
+  const now = Date.now();
+  const sessionId = crypto.randomUUID();
+  return db.transaction(() => {
+    const count = db.prepare(
+      "SELECT COUNT(*) AS count FROM whatsapp_accounts WHERE telegram_id = ?"
+    ).get(ownerId).count;
+    if (count >= membership.sessions_limit) {
+      throw new Error("SESSION_LIMIT_REACHED");
+    }
+    db.prepare(`
+      INSERT INTO whatsapp_accounts (
+        session_id, telegram_id, label, connection_status,
+        is_primary, created_at, updated_at
+      ) VALUES (?, ?, ?, 'disconnected', 0, ?, ?)
+    `).run(sessionId, ownerId, label ? String(label).trim().slice(0, 60) : null, now, now);
+    return getWhatsAppAccount(ownerId, sessionId);
+  })();
+}
+
+// [ADDED] Persist status updates for a non-primary WhatsApp account.
+export function updateWhatsAppAccountSession(telegramId, sessionId, status, phoneNumber = null) {
+  const allowedStatuses = new Set([
+    "disconnected", "connecting", "connected", "qr", "logged_out", "paused"
+  ]);
+  if (!allowedStatuses.has(status)) {
+    throw new Error(`Invalid WhatsApp connection status: ${status}`);
+  }
+  const now = Date.now();
+  const result = db.prepare(`
+    UPDATE whatsapp_accounts
+    SET connection_status = ?,
+        phone_number = COALESCE(?, phone_number),
+        updated_at = ?
+    WHERE telegram_id = ? AND session_id = ?
+  `).run(status, phoneNumber, now, String(telegramId), String(sessionId));
+  if (result.changes === 0) return null;
+  return getWhatsAppAccount(telegramId, sessionId);
+}
+
+// [ADDED] Remove only a non-primary account after its socket has been stopped.
+export function deleteWhatsAppAccount(telegramId, sessionId) {
+  return db.prepare(`
+    DELETE FROM whatsapp_accounts
+    WHERE telegram_id = ? AND session_id = ? AND is_primary = 0
+  `).run(String(telegramId), String(sessionId)).changes > 0;
+}
 export function getSession(telegramId) {
   return statements.getSession.get(String(telegramId)) || null;
 }
