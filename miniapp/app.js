@@ -2092,10 +2092,16 @@
       pendingWhatsAppSessionId = null;
       if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
       whatsappQrPollTimer = null;
+      // [MODIFIED] Delete only the unpaired account; the previously active account remains selected.
       api("/sessions/" + enc(cancelledSessionId), {
         method: "DELETE",
         headers: { "X-WAGRAM-Session-ID": cancelledSessionId }
-      }).then(() => loadWhatsAppSessions()).catch(() => {});
+      }).then(async () => {
+        await loadWhatsAppSessions();
+        await loadWhatsAppAccount();
+        renderWhatsAppSessions();
+        renderNotificationPreferences();
+      }).catch(() => {});
     }
   }
 
@@ -2126,14 +2132,10 @@
       const created = await api("/sessions", { method: "POST", body: JSON.stringify({}) });
       const sessionId = created.session && created.session.session_id;
       if (!sessionId) throw new Error("Server tidak mengembalikan session baru.");
+      // [MODIFIED] Keep the current connected account active while the new account is only pairing.
       pendingWhatsAppSessionId = sessionId;
-      state.activeSessionId = sessionId;
-      localStorage.setItem("wagram-active-whatsapp-session", sessionId);
       await api("/sessions/" + enc(sessionId) + "/connect", { method: "POST" });
       await loadWhatsAppSessions();
-      state.activeSessionId = sessionId;
-      localStorage.setItem("wagram-active-whatsapp-session", sessionId);
-      await loadWhatsAppAccount();
       await showWhatsAppSessionQr(sessionId);
       renderWhatsAppSessions();
     } catch (error) {
@@ -2163,13 +2165,16 @@
       try {
         const data = await api("/sessions/" + enc(sessionId) + "/connection");
         if (data.status === "connected") {
-          // [ADDED] Pairing is complete; closing the QR view must no longer delete this account.
+          // [MODIFIED] Activate the new account only after pairing has actually succeeded.
           if (pendingWhatsAppSessionId === sessionId) pendingWhatsAppSessionId = null;
+          state.activeSessionId = sessionId;
+          localStorage.setItem("wagram-active-whatsapp-session", sessionId);
           if (whatsappQrPollTimer) clearInterval(whatsappQrPollTimer);
           whatsappQrPollTimer = null;
           $("#whatsappSessionQrWrap").classList.add("hidden");
           await loadWhatsAppSessions();
           await loadWhatsAppAccount();
+          renderNotificationPreferences();
           renderWhatsAppSessions();
           closeWhatsAppSessions();
           showToast("WhatsApp berhasil terhubung");
