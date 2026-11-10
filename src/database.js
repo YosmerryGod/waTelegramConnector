@@ -897,6 +897,17 @@ export function getWhatsAppAccounts(telegramId) {
 }
 
 // [ADDED] Look up a WhatsApp account while enforcing owner isolation.
+// [ADDED] Startup restoration list, including all accounts for active Telegram users.
+export function getAllWhatsAppAccounts() {
+  return db.prepare(`
+    SELECT a.*, u.is_active
+    FROM whatsapp_accounts a
+    INNER JOIN telegram_users u ON u.telegram_id = a.telegram_id
+    WHERE u.is_active = 1
+    ORDER BY a.created_at ASC
+  `).all();
+}
+
 export function getWhatsAppAccount(telegramId, sessionId) {
   return db.prepare(`
     SELECT session_id, telegram_id, label, phone_number,
