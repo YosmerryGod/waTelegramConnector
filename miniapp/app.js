@@ -607,7 +607,11 @@
   async function loadWhatsAppSessions() {
     const data = await api("/sessions");
     state.whatsappSessions = data.sessions || [];
-    state.whatsappSessionLimit = Number(data.limit) || 1;
+    // [MODIFIED] Prefer the API limit, then the already-loaded membership limit.
+    state.whatsappSessionLimit = Math.max(
+      1,
+      Number(data.limit ?? state.membership?.sessions_limit ?? 1) || 1
+    );
     const saved = localStorage.getItem("wagram-active-whatsapp-session");
     const selected = state.whatsappSessions.find((item) => item.session_id === saved) || state.whatsappSessions.find((item) => item.is_primary) || state.whatsappSessions[0];
     state.activeSessionId = selected ? selected.session_id : null;
