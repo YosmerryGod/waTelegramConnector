@@ -1563,7 +1563,7 @@ export function saveContact(telegramId, { name, phone }, sessionId = telegramId)
 
     return {
       created: !existing,
-      contact: contactStatements.getByPhone.get(id, cleanPhone)
+      contact: (() => { const row = contactStatements.getByPhone.get(id, cleanPhone); return row ? { ...row, phone_number: unScopeSessionKey(id, sessionId, row.phone_number) } : null; })()
     };
   })();
 }
@@ -1576,7 +1576,9 @@ export function updateContact(telegramId, contactId, { name, phone }, sessionId 
   const cleanName = validated.cleanName;
   const cleanPhone = scopeSessionKey(id, sessionId, validated.cleanPhone);
 
-  if (!Number.isInteger(rowId) || !contactStatements.getById.get(id, rowId)) {
+  const existingContact = Number.isInteger(rowId) ? contactStatements.getById.get(id, rowId) : null;
+  const sessionPrefix = id === String(sessionId) ? "" : `${sessionId}::`;
+  if (!existingContact || (sessionPrefix ? !String(existingContact.phone_number).startsWith(sessionPrefix) : String(existingContact.phone_number).includes("::"))) {
     return null;
   }
 
@@ -1597,7 +1599,8 @@ export function updateContact(telegramId, contactId, { name, phone }, sessionId 
     now: Date.now()
   });
 
-  return contactStatements.getById.get(id, rowId);
+  const updatedContact = contactStatements.getById.get(id, rowId);
+  return updatedContact ? { ...updatedContact, phone_number: unScopeSessionKey(id, sessionId, updatedContact.phone_number) } : null;
 }
 
 export function deleteContact(telegramId, contactId, sessionId = telegramId) {
@@ -1681,7 +1684,11 @@ export function listCalls(telegramId, options = {}) {
     include_archived: options.archived ? 1 : 0,
     limit: Math.min(200, Math.max(1, Number(options.limit) || 100)),
     offset: Math.max(0, Number(options.offset) || 0)
-  });
+  }).map((row) => ({
+    ...row,
+    call_id: unScopeSessionKey(ownerId, sessionId, row.call_id),
+    peer_jid: row.peer_jid ? unScopeSessionKey(ownerId, sessionId, row.peer_jid) : null
+  }));
 }
 
 // [ADDED] Update favorite state for one call-history record only.
@@ -1739,6 +1746,7 @@ const mediaStatements = {
 // Remember which Telegram file holds the media of a WhatsApp message.
 export function attachTelegramFile({
   telegramId,
+  sessionId = telegramId,
   whatsappChatId,
   messageId,
   fileId,
@@ -1750,7 +1758,7 @@ export function attachTelegramFile({
 
   return mediaStatements.attach.run({
     telegram_id: String(telegramId),
-    chat_id: String(whatsappChatId),
+    chat_id: scopeSessionKey(telegramId, sessionId, whatsappChatId),
     message_id: String(messageId),
     file_id: String(fileId),
     kind: kind || null
@@ -1760,6 +1768,7 @@ export function attachTelegramFile({
 // [ADDED] Attach a locally stored WhatsApp media file to its message row.
 export function attachLocalMedia({
   telegramId,
+  sessionId = telegramId,
   whatsappChatId,
   messageId,
   storagePath,
@@ -1770,7 +1779,7 @@ export function attachLocalMedia({
 
   return mediaStatements.attachLocal.run({
     telegram_id: String(telegramId),
-    chat_id: String(whatsappChatId),
+    chat_id: scopeSessionKey(telegramId, sessionId, whatsappChatId),
     message_id: String(messageId),
     storage_path: String(storagePath),
     mimetype: mimetype || null,
@@ -1779,16 +1788,22 @@ export function attachLocalMedia({
 }
 
 // Only returns media that belongs to this Telegram user.
-export function getMessageMedia(telegramId, messageRowId) {
-  return mediaStatements.get.get(String(telegramId), Number(messageRowId)) || null;
+export function getMessageMedia(telegramId, messageRowId, sessionId = telegramId) {
+  const row = mediaStatements.get.get(String(telegramId), Number(messageRowId)) || null;
+  if (!row) return null;
+  const chatId = String(row.whatsapp_chat_id || "");
+  const belongsToSession = String(sessionId) === String(telegramId)
+    ? !chatId.includes("::")
+    : chatId.startsWith(`${sessionId}::`);
+  return belongsToSession ? row : null;
 }
 
 // [ADDED] Read and update cached WhatsApp profile data.
-export function getWhatsAppProfileCache(telegramId, whatsappJid) {
+export function getWhatsAppProfileCache(telegramId, whatsappJid, sessionId = telegramId) {
   return db.prepare(`
     SELECT * FROM whatsapp_profile_cache
     WHERE telegram_id = ? AND whatsapp_jid = ?
-  `).get(String(telegramId), String(whatsappJid)) || null;
+  `).get(String(telegramId), scopeSessionKey(telegramId, sessionId, whatsappJid)) || null;
 }
 
 export function saveWhatsAppProfileCache({
@@ -1797,7 +1812,8 @@ export function saveWhatsAppProfileCache({
   displayName,
   aboutText,
   pictureUrl,
-  statusSetAt
+  statusSetAt,
+  sessionId = telegramId
 }) {
   const now = Date.now();
 
@@ -1815,7 +1831,7 @@ export function saveWhatsAppProfileCache({
       fetched_at = excluded.fetched_at
   `).run(
     String(telegramId),
-    String(whatsappJid),
+    scopeSessionKey(telegramId, sessionId, whatsappJid),
     displayName || null,
     aboutText || null,
     pictureUrl || null,
@@ -1823,11 +1839,11 @@ export function saveWhatsAppProfileCache({
     now
   );
 
-  return getWhatsAppProfileCache(telegramId, whatsappJid);
+  return getWhatsAppProfileCache(telegramId, whatsappJid, sessionId);
 }
 
 // [ADDED] Resolve the latest sender name from messages owned by this Telegram account.
-export function getWhatsAppParticipantName(telegramId, whatsappJid) {
+export function getWhatsAppParticipantName(telegramId, whatsappJid, sessionId = telegramId) {
   const row = db.prepare(`
     SELECT sender_name
     FROM messages
@@ -1837,15 +1853,15 @@ export function getWhatsAppParticipantName(telegramId, whatsappJid) {
       AND sender_name != ''
     ORDER BY message_timestamp DESC, id DESC
     LIMIT 1
-  `).get(String(telegramId), String(whatsappJid));
+  `).get(String(telegramId), scopeSessionKey(telegramId, sessionId, whatsappJid));
 
   return row?.sender_name || null;
 }
 
 // [ADDED] Confirm a JID belongs to a chat or participant visible to this account.
-export function hasWhatsAppParticipant(telegramId, whatsappJid) {
+export function hasWhatsAppParticipant(telegramId, whatsappJid, sessionId = telegramId) {
   const id = String(telegramId);
-  const jid = String(whatsappJid);
+  const jid = scopeSessionKey(id, sessionId, whatsappJid);
 
   const chat = db.prepare(`
     SELECT 1 FROM chats
