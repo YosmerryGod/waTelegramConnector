@@ -1523,9 +1523,11 @@ const callStatements = {
 };
 
 // Simpan kontak baru. Jika nomor sudah ada, nama diperbarui.
-export function saveContact(telegramId, { name, phone }) {
+export function saveContact(telegramId, { name, phone }, sessionId = telegramId) {
   const id = String(telegramId);
-  const { cleanName, cleanPhone } = validateContactInput({ name, phone });
+  const validated = validateContactInput({ name, phone });
+  const cleanName = validated.cleanName;
+  const cleanPhone = scopeSessionKey(id, sessionId, validated.cleanPhone);
 
   return db.transaction(() => {
     const existing = contactStatements.getByPhone.get(id, cleanPhone);
@@ -1563,10 +1565,12 @@ export function saveContact(telegramId, { name, phone }) {
 }
 
 // Ubah nama/nomor kontak. Mengembalikan null jika kontak tidak ditemukan.
-export function updateContact(telegramId, contactId, { name, phone }) {
+export function updateContact(telegramId, contactId, { name, phone }, sessionId = telegramId) {
   const id = String(telegramId);
   const rowId = Number.parseInt(contactId, 10);
-  const { cleanName, cleanPhone } = validateContactInput({ name, phone });
+  const validated = validateContactInput({ name, phone });
+  const cleanName = validated.cleanName;
+  const cleanPhone = scopeSessionKey(id, sessionId, validated.cleanPhone);
 
   if (!Number.isInteger(rowId) || !contactStatements.getById.get(id, rowId)) {
     return null;
@@ -1592,18 +1596,19 @@ export function updateContact(telegramId, contactId, { name, phone }) {
   return contactStatements.getById.get(id, rowId);
 }
 
-export function deleteContact(telegramId, contactId) {
+export function deleteContact(telegramId, contactId, sessionId = telegramId) {
+  const ownerId = String(telegramId);
   const rowId = Number.parseInt(contactId, 10);
-
-  if (!Number.isInteger(rowId)) {
-    return false;
-  }
-
-  return contactStatements.remove.run(String(telegramId), rowId).changes > 0;
+  if (!Number.isInteger(rowId)) return false;
+  const row = contactStatements.getById.get(ownerId, rowId);
+  const prefix = ownerId === String(sessionId) ? "" : `${sessionId}::`;
+  if (!row || (prefix ? !String(row.phone_number).startsWith(prefix) : String(row.phone_number).includes("::"))) return false;
+  return contactStatements.remove.run(ownerId, rowId).changes > 0;
 }
 
-export function deleteContactByPhone(telegramId, phone) {
-  const cleanPhone = normalizePhoneNumber(phone);
+export function deleteContactByPhone(telegramId, phone, sessionId = telegramId) {
+  const normalizedPhone = normalizePhoneNumber(phone);
+  const cleanPhone = normalizedPhone ? scopeSessionKey(telegramId, sessionId, normalizedPhone) : null;
 
   if (!cleanPhone) {
     return false;
@@ -1615,10 +1620,14 @@ export function deleteContactByPhone(telegramId, phone) {
   ).changes > 0;
 }
 
-export function listContacts(telegramId, limit = 1000) {
+export function listContacts(telegramId, limit = 1000, sessionId = telegramId) {
   const safeLimit = Math.min(2000, Math.max(1, Number(limit) || 1000));
-
-  return contactStatements.list.all(String(telegramId), safeLimit);
+  const ownerId = String(telegramId);
+  const prefix = ownerId === String(sessionId) ? "" : `${sessionId}::`;
+  return contactStatements.list.all(ownerId, 2000)
+    .filter((row) => prefix ? String(row.phone_number).startsWith(prefix) : !String(row.phone_number).includes("::"))
+    .slice(0, safeLimit)
+    .map((row) => ({ ...row, phone_number: unScopeSessionKey(ownerId, sessionId, row.phone_number) }));
 }
 
 // Catat event panggilan WhatsApp. Aman dipanggil berulang untuk call_id sama.
@@ -1851,14 +1860,14 @@ export function hasWhatsAppParticipant(telegramId, whatsappJid) {
 }
 
 // Saved contact name for a phone number (null if not saved).
-export function findContactName(telegramId, phone) {
+export function findContactName(telegramId, phone, sessionId = telegramId) {
   const cleanPhone = normalizePhoneNumber(phone);
 
   if (!cleanPhone) {
     return null;
   }
 
-  const row = contactStatements.getByPhone.get(String(telegramId), cleanPhone);
+  const row = contactStatements.getByPhone.get(String(telegramId), scopeSessionKey(telegramId, sessionId, cleanPhone));
 
   return row ? row.name : null;
 }
