@@ -209,6 +209,7 @@ export async function learnAICustomerServiceHistory(telegramId, sessionId) {
 
     let learned = 0;
     for (const chat of chats) {
+      assertEnabled(owner.telegramId, owner.sessionId);
       const messages = listMessages(
         owner.telegramId,
         chat.whatsapp_chat_id,
@@ -243,11 +244,14 @@ export async function learnAICustomerServiceHistory(telegramId, sessionId) {
 
     return { learned, chatsScanned: chats.length };
   } catch (error) {
-    db.prepare(`
-      UPDATE ai_customer_service_settings
-      SET learning_status = 'error', last_error = ?, updated_at = ?
-      WHERE telegram_id = ? AND session_id = ?
-    `).run(String(error.message || "LEARNING_FAILED").slice(0, 300), Date.now(), owner.telegramId, owner.sessionId);
+    const current = getSettings(owner.telegramId, owner.sessionId);
+    if (current?.enabled) {
+      db.prepare(`
+        UPDATE ai_customer_service_settings
+        SET learning_status = 'error', last_error = ?, updated_at = ?
+        WHERE telegram_id = ? AND session_id = ?
+      `).run(String(error.message || "LEARNING_FAILED").slice(0, 300), Date.now(), owner.telegramId, owner.sessionId);
+    }
     throw error;
   }
 }
