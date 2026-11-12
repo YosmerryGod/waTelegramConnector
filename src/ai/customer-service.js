@@ -11,7 +11,7 @@ import {
 } from "../database.js";
 
 const OLLAMA_URL = String(process.env.OLLAMA_URL || "http://127.0.0.1:11434").replace(/\/$/, "");
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen2.5:1.5b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen3:4b";
 const OLLAMA_TIMEOUT_MS = Math.max(10000, Number(process.env.OLLAMA_TIMEOUT_MS || 90000));
 const MAX_HISTORY_MESSAGES = 24;
 const MAX_EXAMPLES = 8;
