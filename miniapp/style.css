@@ -6935,3 +6935,101 @@ body.in-chat #topbar {
 #chatList {
   padding-top: 0;
 }
+
+
+/* [MODIFIED] Make the pinned WAGRAM AI row identical in width, height, radius and spacing to regular chat rows. */
+#wagramAiPinnedRow.wagram-ai-chat-row {
+  display: block;
+  width: auto;
+  margin: 0 10px 7px !important;
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  background: transparent;
+}
+#wagramAiPinnedRow .chat-row-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 72px;
+  margin: 0;
+  padding: 12px;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(145deg,var(--surface),var(--surface-2));
+  box-shadow: var(--shadow);
+}
+#wagramAiPinnedRow .chat-avatar-wrap {
+  display: inline-flex;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+}
+#wagramAiPinnedRow .wagram-ai-avatar {
+  display: grid;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  margin: 0;
+  overflow: hidden;
+  place-items: center;
+  border: 2px solid rgba(255,255,255,.06);
+  border-radius: 50%;
+  background: var(--surface-2);
+  box-shadow: 3px 3px 8px rgba(0,0,0,.25);
+}
+#wagramAiPinnedRow .wagram-ai-avatar .avatar-photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#wagramAiPinnedRow .item-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#wagramAiPinnedRow .item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 8px;
+}
+#wagramAiPinnedRow .item-title,
+#wagramAiPinnedRow .item-sub,
+#wagramAiPinnedRow .item-time {
+  line-height: 1.35;
+}
+#wagramAiPinnedRow .item-title { font-size: 14px; }
+#wagramAiPinnedRow .item-sub {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#wagramAiPinnedRow .item-time {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+#wagramAiPinnedRow .wagram-ai-lock-indicator {
+  flex: 0 0 26px;
+  margin: 0;
+}
+#chatList {
+  padding: 0 10px 12px !important;
+  gap: 7px !important;
+}
+#chatList > .chat-swipe-row {
+  margin: 0;
+}
+@media (max-width: 380px) {
+  #wagramAiPinnedRow .chat-row-content { padding: 10px; gap: 10px; }
+  #wagramAiPinnedRow .item-sub { max-width: 54vw; }
+}
