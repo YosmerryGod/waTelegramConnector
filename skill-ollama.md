@@ -515,7 +515,6 @@ Sebelum rilis perubahan prompt/model/tools, jalankan test set minimal 20–50 ka
 - [x] Ollama terpasang dan API lokal dapat diakses.
 - [x] Model `qwen2.5:1.5b` berhasil diuji.
 - [x] Endpoint AI Business tersedia.
-- [ ] Migrasikan percakapan ke format `/api/chat` setelah regression test.
 - [x] Perbaiki gaya respons pemilik agar natural, kontekstual, dan tidak berulang.
 - [x] Tingkatkan relevansi contoh chat Customer Service dan masukkan fakta bisnis terpilih ke prompt draft.
 - [ ] Migrasikan percakapan ke format `/api/chat` setelah regression test.
