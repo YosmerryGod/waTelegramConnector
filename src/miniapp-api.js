@@ -15,8 +15,8 @@ import {
   setAICustomerServiceEnabled,
   learnAICustomerServiceHistory,
   createAICustomerServiceSuggestion,
-  createAIBusinessReply, // [ADDED] WAGRAM AI Business chat powered by local Ollama.
-  checkOllamaHealth
+  createAIBusinessReply, // [MODIFIED] WAGRAM AI Business chat powered by Gemini.
+  checkGeminiHealth
 } from "./ai/customer-service.js";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
@@ -1628,12 +1628,12 @@ router.post("/ai/learn", async (req, res) => {
 
 router.get("/ai/health", async (_req, res) => {
   try {
-    return res.json({ ok: true, ollama: await checkOllamaHealth() });
+    return res.json({ ok: true, gemini: await checkGeminiHealth() });
   } catch {
     return res.status(503).json({
       ok: false,
-      error: "OLLAMA_UNAVAILABLE",
-      message: "Layanan AI lokal belum tersedia."
+      error: "GEMINI_UNAVAILABLE",
+      message: "Layanan Gemini belum tersedia."
     });
   }
 });
@@ -1778,7 +1778,7 @@ router.post("/ai-business/chat", async (req, res) => {
       error: error.message || "AI_BUSINESS_FAILED",
       message: status === 403
         ? "WAGRAM AI Business membutuhkan Premium 30 hari yang masih aktif."
-        : "WAGRAM AI belum dapat menjawab. Periksa layanan Ollama di VPS."
+        : "WAGRAM AI belum dapat menjawab. Periksa konfigurasi Gemini API di VPS."
     });
   }
 });
