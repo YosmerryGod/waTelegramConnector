@@ -6484,3 +6484,28 @@ html[data-theme="dark"] .premium-payment-download {
 .whatsapp-qr-center-logo { position:absolute; z-index:2; left:50%; top:50%; display:grid; place-items:center; width:21%; aspect-ratio:1; padding:2.2%; transform:translate(-50%,-50%); border:3px solid #fff; border-radius:17px; background:#fff; box-shadow:0 1px 8px rgba(0,0,0,.16); }
 .whatsapp-qr-center-logo img { display:block; width:100%; height:100%; object-fit:contain; }
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-qr img { width:100%; max-width:none; }
+
+
+/* [ADDED] WAGRAM AI uses the same compact avatar and row dimensions as WhatsApp chats. */
+.wagram-ai-chat-row {
+  margin-bottom: 10px;
+}
+.wagram-ai-chat-row .chat-row-content {
+  width: 100%;
+}
+.wagram-ai-avatar {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--surface-2, #10251a);
+  border: 1px solid var(--border, rgba(255,255,255,.08));
+}
+.wagram-ai-avatar .avatar-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.wagram-ai-chat-row .item-time {
+  font-size: 11px;
+  white-space: nowrap;
+}
