@@ -568,13 +568,15 @@ async function generateGroundedAIBusinessAnswer({
     'Keluarkan JSON valid: {"answer":"jawaban untuk pemilik","facts":["fakta persis yang digunakan dari DATA"]}.'
   ].filter(Boolean).join("\n\n");
 
-  const call = async () => {
+  const call = async (retry = false) => {
     const response = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: OLLAMA_MODEL,
-        prompt: systemRules,
+        prompt: retry
+          ? systemRules + "\n\nVALIDASI: Jawaban sebelumnya tidak lolos pemeriksaan fakta. Susun ulang jawaban hanya dari DATA, kosongkan facts jika tidak ada fakta yang mendukung, dan jangan menebak."
+          : systemRules,
         format: "json",
         stream: false,
         keep_alive: "30m",
@@ -605,7 +607,7 @@ async function generateGroundedAIBusinessAnswer({
   };
 
   if (!isValid(generated)) {
-    generated = await call();
+    generated = await call(true);
   }
   if (!isValid(generated)) return fallbackMessage;
   return String(generated.answer).trim().slice(0, 2000);
