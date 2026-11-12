@@ -6850,3 +6850,30 @@ body.in-chat #topbar {
 .ai-business-rules .ai-business-save-button {
   width: 100%;
 }
+
+
+/* [ADDED] Lock marker for WAGRAM AI when the account is not Premium C. */
+.wagram-ai-chat-row {
+  position: relative;
+  margin: 8px 0 10px;
+}
+.wagram-ai-chat-row .chat-row-content {
+  width: 100%;
+}
+.wagram-ai-lock-indicator {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  margin-left: 8px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 13px;
+}
+.wagram-ai-lock-indicator.hidden { display: none !important; }
+.wagram-ai-chat-row.is-premium-locked .wagram-ai-chat-row .item-sub {
+  color: var(--muted);
+}
