@@ -163,6 +163,60 @@ function assertEnabled(telegramId, sessionId) {
   return settings;
 }
 
+// [ADDED] Lightweight Ollama path for greetings: short prompt/output and keep the model warm briefly.
+async function ollamaGenerateGreeting(message, history = []) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.min(OLLAMA_TIMEOUT_MS, 30000));
+  timer.unref?.();
+
+  try {
+    const recent = Array.isArray(history)
+      ? history.slice(-4).map((item) => ({
+          role: item?.role === "assistant" ? "assistant" : "user",
+          content: String(item?.content || "").trim().slice(0, 180)
+        })).filter((item) => item.content)
+      : [];
+    const prompt = [
+      "Kamu WAGRAM AI, asisten bisnis yang ramah dan natural.",
+      "Balas sapaan pengguna dengan satu kalimat sangat pendek, maksimal 12 kata.",
+      "Gunakan tepat 1 atau 2 emoji yang sesuai.",
+      "Jangan memperkenalkan daftar kemampuan, jangan memberi penjelasan panjang.",
+      "Perhatikan riwayat agar balasan tidak mengulang kalimat yang sama.",
+      "Variasikan jawaban secara alami. Jangan menyalin contoh secara kaku.",
+      "Jika sapaan berulang, balas seperti percakapan yang sedang berlangsung.",
+      "Hanya keluarkan teks balasan, tanpa label atau tanda kutip.",
+      "Riwayat percakapan:",
+      ...recent.map((item) => `${item.role === "assistant" ? "WAGRAM AI" : "Pemilik"}: ${item.content}`),
+      `Sapaan terbaru: ${message}`,
+      "Balasan WAGRAM AI:"
+    ].join("\\n");
+
+    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+        keep_alive: "5m",
+        options: {
+          temperature: 0.75,
+          num_ctx: 768,
+          num_predict: 40
+        }
+      }),
+      signal: controller.signal
+    });
+    if (!response.ok) throw new Error(`OLLAMA_HTTP_${response.status}`);
+    const payload = await response.json();
+    const reply = String(payload?.response || "").trim().replace(/^["']|["']$/g, "");
+    if (!reply) throw new Error("OLLAMA_EMPTY_GREETING");
+    return reply.slice(0, 220);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function ollamaGenerate(prompt) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT_MS);
@@ -419,19 +473,12 @@ export async function createAIBusinessReply(telegramId, message, businessSetting
 
   const cleanText = (value, max = 500) => String(value ?? "").trim().slice(0, max);
 
-  // [ADDED] Answer simple greetings directly so a short "hello" never triggers a long capability dump.
+  // [MODIFIED] Detect a greeting, but let Ollama generate a contextual, varied reply.
   const greeting = cleanText(message, 4000).toLowerCase().replace(/[!.,?]+$/g, "").trim();
-  if (/^(hi|hai|halo|hello|hei|hey|assalamualaikum|selamat pagi|selamat siang|selamat sore|selamat malam)( wagram ai)?$/.test(greeting)) {
-    const greetedBefore = Array.isArray(history) && history.some((item) =>
-      item?.role === "assistant" && /halo! saya wagram ai|halo lagi! silakan/i.test(String(item?.content || ""))
-    );
-    return {
-      reply: greetedBefore
-        ? "Hai lagi! 😊 Mau bahas apa?"
-        : "Halo! 👋 Ada yang bisa saya bantu?",
-      model: OLLAMA_MODEL,
-      createdAt: Date.now()
-    };
+  const isGreeting = /^(hi|hai|halo|hello|hei|hey|assalamualaikum|selamat pagi|selamat siang|selamat sore|selamat malam)( wagram ai)?$/.test(greeting);
+  if (isGreeting) {
+    const reply = await ollamaGenerateGreeting(message, history);
+    return { reply, model: OLLAMA_MODEL, createdAt: Date.now() };
   }
   const settings = {
     manager: {
