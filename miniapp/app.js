@@ -2430,6 +2430,11 @@
     $("#backButton").addEventListener("click", () => setPage("chats"));
     // [ADDED] Return from the WAGRAM AI page to the chat list.
     $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
+    // [ADDED] Restore this session's WAGRAM AI conversation when opening the page.
+    $("#openAIBusinessButton")?.addEventListener("click", renderAIBusinessHistory);
+    $("#wagramAiPinnedRow")?.addEventListener("click", () => {
+      if (isAIBusinessEligible()) renderAIBusinessHistory();
+    });
 
     // [MODIFIED] Open the centered AI Business settings menu.
     $("#aiBusinessSettingsButton")?.addEventListener("click", openAIBusinessSettings);
@@ -2613,31 +2618,113 @@
     closeAIBusinessSettings();
   }
 
-  // [ADDED] The composer displays sent messages while the AI Business service is being connected.
-    $("#aiBusinessComposer")?.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const input = $("#aiBusinessInput");
-      const value = input.value.trim();
-      if (!value) return;
+  // [ADDED] Keep WAGRAM AI conversation history locally per WhatsApp session.
+  const AI_BUSINESS_HISTORY_KEY = "wagram-ai-business-history-v1";
 
-      const intro = $("#aiBusinessIntro");
-      if (intro) intro.classList.add("hidden");
+  function getAIBusinessHistory() {
+    try {
+      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_HISTORY_KEY) || "{}");
+      const history = all[String(state.activeSessionId || "default")];
+      return Array.isArray(history) ? history.slice(-30) : [];
+    } catch {
+      return [];
+    }
+  }
 
-      const messages = $("#aiBusinessMessages");
-      const timestamp = timeOnly(Date.now());
+  function saveAIBusinessHistory(history) {
+    try {
+      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_HISTORY_KEY) || "{}");
+      all[String(state.activeSessionId || "default")] = history.slice(-30);
+      localStorage.setItem(AI_BUSINESS_HISTORY_KEY, JSON.stringify(all));
+    } catch {
+      showToast("Riwayat percakapan tidak dapat disimpan di perangkat ini.");
+    }
+  }
+
+  function renderAIBusinessHistory() {
+    const messages = $("#aiBusinessMessages");
+    if (!messages) return;
+    const history = getAIBusinessHistory();
+    const intro = $("#aiBusinessIntro");
+    if (intro) intro.classList.toggle("hidden", history.length > 0);
+    messages.innerHTML = history.map((item) => `
+      <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
+        <div class="message-text">${escapeHTML(item.content)}</div>
+        <div class="message-time">${escapeHTML(item.time || "")}</div>
+      </div>`).join("");
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function sendAIBusinessMessage(value) {
+    const input = $("#aiBusinessInput");
+    const form = $("#aiBusinessComposer");
+    const button = $("#sendAIBusinessMessageButton");
+    const messages = $("#aiBusinessMessages");
+    const intro = $("#aiBusinessIntro");
+    const text = String(value || "").trim();
+    if (!text || form?.dataset.sending === "true") return;
+
+    if (intro) intro.classList.add("hidden");
+    const history = getAIBusinessHistory();
+    const timestamp = timeOnly(Date.now());
+    history.push({ role: "user", content: text, time: timestamp });
+    saveAIBusinessHistory(history);
+    renderAIBusinessHistory();
+
+    form.dataset.sending = "true";
+    if (button) button.disabled = true;
+    if (input) input.value = "";
+    const typingId = `ai-business-typing-${Date.now()}`;
+    messages.insertAdjacentHTML("beforeend", `
+      <div class="message ai-business-reply" id="${typingId}">
+        <div class="message-text">WAGRAM AI sedang berpikir…</div>
+      </div>`);
+    messages.scrollTop = messages.scrollHeight;
+
+    try {
+      const result = await api("/ai-business/chat", {
+        method: "POST",
+        body: JSON.stringify({
+          message: text,
+          businessSettings: getAIBusinessSettings(),
+          history: history.slice(0, -1).map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
+        })
+      });
+      const reply = String(result.reply || "").trim();
+      if (!reply) throw new Error("WAGRAM AI mengirim jawaban kosong.");
+      const updated = getAIBusinessHistory();
+      updated.push({ role: "assistant", content: reply, time: timeOnly(Date.now()) });
+      saveAIBusinessHistory(updated);
+      renderAIBusinessHistory();
+    } catch (error) {
+      document.getElementById(typingId)?.remove();
       messages.insertAdjacentHTML("beforeend", `
-        <div class="message outgoing">
-          <div class="message-text">${escapeHTML(value)}</div>
-          <div class="message-time">${escapeHTML(timestamp)}</div>
-        </div>
-        <div class="message ai-business-not-connected">
-          <div class="message-text">Pesan diterima. Layanan AI Business belum terhubung, jadi saya belum bisa memproses atau membalas pesan ini.</div>
-          <div class="message-time">${escapeHTML(timestamp)}</div>
+        <div class="message ai-business-reply ai-business-error">
+          <div class="message-text">${escapeHTML(error.message || "WAGRAM AI belum dapat menjawab.")}</div>
+          <div class="message-time">${escapeHTML(timeOnly(Date.now()))}</div>
         </div>`);
-      input.value = "";
       messages.scrollTop = messages.scrollHeight;
-      input.focus();
-    });
+    } finally {
+      form.dataset.sending = "false";
+      if (button) button.disabled = false;
+      input?.focus();
+    }
+  }
+
+  // [MODIFIED] Send the owner's message to the authenticated WAGRAM AI Business API.
+  $("#aiBusinessComposer")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendAIBusinessMessage($("#aiBusinessInput")?.value || "");
+  });
+
+  // [ADDED] Quick prompts use the same real Ollama request path as typed messages.
+  $("#aiBusinessIntro")?.addEventListener("click", (event) => {
+    const suggestion = event.target.closest("[data-ai-prompt]");
+    if (!suggestion) return;
+    const input = $("#aiBusinessInput");
+    if (input) input.value = suggestion.dataset.aiPrompt || "";
+    sendAIBusinessMessage(input?.value || "");
+  });
 
     // Tema
     $("#themeButton").addEventListener("click", () => {
