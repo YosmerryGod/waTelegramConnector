@@ -7205,3 +7205,77 @@ body.in-chat #topbar {
 .ai-business-trace-content ul {
   padding-left: 18px;
 }
+
+
+/* [ADDED] Image-only QRIS upload and preview in WAGRAM AI business settings. */
+.ai-business-qris-upload {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+.ai-business-qris-preview-wrap {
+  display: grid;
+  width: 100%;
+  min-height: 190px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+}
+.ai-business-qris-preview {
+  display: block;
+  width: min(100%, 300px);
+  max-height: 300px;
+  object-fit: contain;
+  padding: 10px;
+}
+.ai-business-qris-placeholder {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 28px 12px;
+  color: var(--muted);
+  text-align: center;
+}
+.ai-business-qris-placeholder svg,
+.ai-business-qris-file-label svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-business-qris-placeholder strong { color: var(--text); font-size: 12px; }
+.ai-business-qris-placeholder span,
+.ai-business-qris-upload > small { color: var(--muted); font-size: 10px; }
+.ai-business-qris-file-label {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ai-business-qris-file-label svg { width: 17px; height: 17px; }
+.ai-business-qris-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
