@@ -7045,3 +7045,47 @@ body.in-chat #topbar {
   line-height: 1.2;
   text-align: right;
 }
+
+
+/* [ADDED] WAGRAM AI overflow menu beside the settings button. */
+.ai-business-conversation-header {
+  position: relative;
+}
+.ai-business-conversation-header #aiBusinessMoreButton {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+}
+.ai-business-more-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% - 4px);
+  right: 10px;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 24%);
+}
+.ai-business-more-menu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--danger);
+  font: inherit;
+  text-align: left;
+}
+.ai-business-more-menu button:active {
+  background: var(--surface-2);
+}
+.ai-business-more-menu .i {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+}
