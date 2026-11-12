@@ -2483,6 +2483,7 @@
 
     // [ADDED] AI Business settings are stored per active WhatsApp session on this device.
   const AI_BUSINESS_SETTINGS_KEY = "wagram-ai-business-settings-v1";
+  let aiBusinessSettingsSyncedSession = null;
 
   function getAIBusinessSettings() {
     try {
@@ -2525,6 +2526,7 @@
         aiFallbackMessage: response.profile.fallbackConfig?.notAvailable || ""
       };
       localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
+      aiBusinessSettingsSyncedSession = sessionKey;
       return all[sessionKey];
     }
     const legacySettings = all[sessionKey] || { manager: {}, outlets: [], payment: {}, products: [], aiRules: "" };
@@ -2532,6 +2534,7 @@
       method: "PUT",
       body: JSON.stringify({ settings: legacySettings })
     });
+    aiBusinessSettingsSyncedSession = sessionKey;
     return legacySettings;
   }
 
@@ -2743,6 +2746,15 @@
     const intro = $("#aiBusinessIntro");
     const text = String(value || "").trim();
     if (!text || form?.dataset.sending === "true") return;
+
+    if (aiBusinessSettingsSyncedSession !== String(state.activeSessionId || "default")) {
+      try {
+        await syncAIBusinessSettingsFromServer();
+      } catch (error) {
+        showToast(error.message || "Data bisnis belum berhasil dimuat dari server.");
+        return;
+      }
+    }
 
     if (intro) intro.classList.add("hidden");
     const history = getAIBusinessHistory();
