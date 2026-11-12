@@ -2040,7 +2040,10 @@ export function saveAIBusinessProfile(telegramId, sessionId = telegramId, profil
   const now = Date.now();
   const current = getAIBusinessProfile(ownerId, scopedSessionId);
   const settings = profile.settings && typeof profile.settings === "object" ? profile.settings : current?.settings || {};
-  const promptTemplate = typeof profile.promptTemplate === "string" ? profile.promptTemplate : current?.promptTemplate || "Kamu asisten {{nama_bisnis}}. Jawab hanya berdasarkan blok DATA. Maksimal 3 kalimat, santai dan sopan. Jika DATA kosong atau tidak memuat jawaban, jelaskan bahwa informasi belum tersedia. Jangan menebak atau memberi contoh. Jangan sebut item yang tidak ada di DATA.";
+  const defaultPromptTemplate = "Kamu asisten {{nama_bisnis}}. Jawab hanya berdasarkan blok DATA. Maksimal {{max_kalimat}} kalimat, santai dan sopan. Jika DATA kosong atau tidak memuat jawaban, katakan: {{pesan_tidak_tersedia}}. Jangan menebak atau memberi contoh. Jangan sebut item yang tidak ada di DATA.";
+  const promptTemplate = typeof profile.promptTemplate === "string" && profile.promptTemplate.trim()
+    ? profile.promptTemplate
+    : current?.promptTemplate || defaultPromptTemplate;
   const intentConfig = Array.isArray(profile.intentConfig) && profile.intentConfig.length
     ? profile.intentConfig
     : current?.intentConfig?.length ? current.intentConfig : [
@@ -2054,7 +2057,7 @@ export function saveAIBusinessProfile(telegramId, sessionId = telegramId, profil
         { name: "business_hours", examples: ["jam buka outlet", "kapan outlet buka"] },
         { name: "general", examples: ["pertanyaan lain tentang usaha"] }
       ];
-  const fallbackConfig = profile.fallbackConfig && typeof profile.fallbackConfig === "object"
+  const fallbackConfig = profile.fallbackConfig && typeof profile.fallbackConfig === "object" && String(profile.fallbackConfig.notAvailable || "").trim()
     ? profile.fallbackConfig
     : current?.fallbackConfig || { notAvailable: "Informasi tersebut belum tersedia dalam data usaha yang tercatat." };
   db.prepare(`
