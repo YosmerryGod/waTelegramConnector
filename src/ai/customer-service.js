@@ -180,6 +180,7 @@ async function ollamaGenerateGreeting(message, history = []) {
       : [];
     const prompt = [
       "Kamu WAGRAM AI, asisten bisnis yang ramah dan natural.",
+      "WAJIB selalu menjawab dalam Bahasa Indonesia, meskipun pengguna menyapa dengan bahasa Inggris.",
       "Balas sapaan pengguna dengan satu kalimat sangat pendek, maksimal 12 kata.",
       "Gunakan tepat 1 atau 2 emoji yang sesuai.",
       "Jangan memperkenalkan daftar kemampuan, jangan memberi penjelasan panjang.",
@@ -802,6 +803,31 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
   });
   const asksAvailability = /\b(masih ada|tersedia|ada gak|ada kah|ada tidak|stok|ready|habis|kosong)\b/i.test(normalizedMessage);
   const asksPrice = /\b(harga|berapa|rupiah|rp)\b/i.test(normalizedMessage);
+
+  // [ADDED] Resolve outlet-count questions directly from the authenticated business profile.
+  const asksOutletCount = /\\b(berapa|jumlah|banyak|total)\\b/i.test(normalizedMessage)
+    && /\\b(outlet|cabang|gerai)\\b/i.test(normalizedMessage);
+  if (asksOutletCount) {
+    intent = "outlets";
+    const outletNames = settings.outlets.map((outlet) => outlet.name).filter(Boolean);
+    const count = outletNames.length;
+    const reply = count > 0
+      ? "Saat ini ada " + count + " outlet yang tercatat: " + outletNames.join(", ") + "."
+      : "Belum ada outlet yang tercatat di pengaturan usaha.";
+    return {
+      reply,
+      intent,
+      model: OLLAMA_MODEL,
+      createdAt: Date.now(),
+      trace: {
+        recognition: "Pemilik menanyakan jumlah outlet atau cabang usaha.",
+        action: "Membaca daftar outlet dari profil usaha milik akun Telegram dan sesi WhatsApp aktif, lalu menghitung outlet yang tercatat.",
+        dataUsed: count > 0 ? outletNames.map((name) => "Outlet: " + name) : ["Daftar outlet kosong pada profil usaha yang dibaca."],
+        status: count > 0 ? count + " outlet ditemukan." : "Tidak ada outlet yang ditemukan pada profil usaha dan sesi aktif.",
+        expectedAnswer: reply
+      }
+    };
+  }
 
   if (matchedProduct && asksAvailability) {
     intent = "product_stock";
