@@ -2766,11 +2766,32 @@
     const history = getAIBusinessHistory();
     const intro = $("#aiBusinessIntro");
     if (intro) intro.classList.toggle("hidden", history.length > 0);
-    messages.innerHTML = history.map((item) => `
-      <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
-        <div class="message-text">${escapeHTML(item.content)}</div>
-        <div class="message-time">${escapeHTML(item.time || "")}</div>
-      </div>`).join("");
+    messages.innerHTML = history.map((item) => {
+      const trace = item.role === "assistant" && item.trace && typeof item.trace === "object"
+        ? `
+          <details class="ai-business-trace">
+            <summary>Lihat proses pemeriksaan AI</summary>
+            <div class="ai-business-trace-content">
+              <strong>Mengenali pertanyaan</strong>
+              <p>${escapeHTML(item.trace.recognition || "Tidak tersedia")}</p>
+              <strong>Tindakan</strong>
+              <p>${escapeHTML(item.trace.action || "Tidak tersedia")}</p>
+              <strong>Data yang digunakan</strong>
+              <ul>${(Array.isArray(item.trace.dataUsed) ? item.trace.dataUsed : []).map((value) => `<li>${escapeHTML(value)}</li>`).join("")}</ul>
+              <strong>Status pemeriksaan</strong>
+              <p>${escapeHTML(item.trace.status || "Tidak tersedia")}</p>
+              <strong>Jawaban seharusnya</strong>
+              <p>${escapeHTML(item.trace.expectedAnswer || item.content)}</p>
+            </div>
+          </details>`
+        : "";
+      return `
+        <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
+          <div class="message-text">${escapeHTML(item.content)}</div>
+          ${trace}
+          <div class="message-time">${escapeHTML(item.time || "")}</div>
+        </div>`;
+    }).join("");
     messages.scrollTop = messages.scrollHeight;
   }
 
@@ -2820,7 +2841,7 @@
       const reply = String(result.reply || "").trim();
       if (!reply) throw new Error("WAGRAM AI mengirim jawaban kosong.");
       const updated = getAIBusinessHistory();
-      updated.push({ role: "assistant", content: reply, time: timeOnly(Date.now()) });
+      updated.push({ role: "assistant", content: reply, time: timeOnly(Date.now()), trace: result.trace || null });
       saveAIBusinessHistory(updated);
       renderAIBusinessHistory();
     } catch (error) {
