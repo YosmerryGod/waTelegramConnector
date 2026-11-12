@@ -240,6 +240,36 @@ db.exec(`
   );
 `);
 
+// [ADDED] Persistent, owner/session-scoped WAGRAM AI business configuration and feedback examples.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_business_profiles (
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    settings_json TEXT NOT NULL DEFAULT '{}',
+    prompt_template TEXT NOT NULL DEFAULT '',
+    intent_config_json TEXT NOT NULL DEFAULT '[]',
+    fallback_config_json TEXT NOT NULL DEFAULT '{}',
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (telegram_id, session_id),
+    FOREIGN KEY (telegram_id) REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS ai_business_examples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    question TEXT NOT NULL,
+    data_json TEXT NOT NULL DEFAULT '{}',
+    ideal_answer TEXT NOT NULL,
+    intent TEXT,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (telegram_id) REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ai_business_examples_owner
+    ON ai_business_examples(telegram_id, session_id, created_at DESC);
+`);
+
 // [ADDED] Keep Premium payment order schema in a separate SQLite statement.
 db.exec(`
   CREATE TABLE IF NOT EXISTS premium_payment_orders (
@@ -1982,6 +2012,87 @@ export function cleanupUserData(telegramId, type, sessionId = telegramId) {
     }
     return statement.run(params).changes;
   })();
+}
+
+// [ADDED] Read and persist WAGRAM AI business configuration per authenticated owner and WhatsApp session.
+export function getAIBusinessProfile(telegramId, sessionId = telegramId) {
+  const row = db.prepare(`
+    SELECT settings_json, prompt_template, intent_config_json, fallback_config_json, updated_at
+    FROM ai_business_profiles
+    WHERE telegram_id = ? AND session_id = ?
+  `).get(String(telegramId), String(sessionId || telegramId));
+  if (!row) return null;
+  const parse = (value, fallback) => {
+    try { return JSON.parse(value); } catch { return fallback; }
+  };
+  return {
+    settings: parse(row.settings_json, {}),
+    promptTemplate: row.prompt_template,
+    intentConfig: parse(row.intent_config_json, []),
+    fallbackConfig: parse(row.fallback_config_json, {}),
+    updatedAt: row.updated_at
+  };
+}
+
+export function saveAIBusinessProfile(telegramId, sessionId = telegramId, profile = {}) {
+  const ownerId = String(telegramId);
+  const scopedSessionId = String(sessionId || telegramId);
+  const now = Date.now();
+  const current = getAIBusinessProfile(ownerId, scopedSessionId);
+  const settings = profile.settings && typeof profile.settings === "object" ? profile.settings : current?.settings || {};
+  const promptTemplate = typeof profile.promptTemplate === "string" ? profile.promptTemplate : current?.promptTemplate || "";
+  const intentConfig = Array.isArray(profile.intentConfig) ? profile.intentConfig : current?.intentConfig || [];
+  const fallbackConfig = profile.fallbackConfig && typeof profile.fallbackConfig === "object" ? profile.fallbackConfig : current?.fallbackConfig || {};
+  db.prepare(`
+    INSERT INTO ai_business_profiles (
+      telegram_id, session_id, settings_json, prompt_template,
+      intent_config_json, fallback_config_json, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(telegram_id, session_id) DO UPDATE SET
+      settings_json = excluded.settings_json,
+      prompt_template = excluded.prompt_template,
+      intent_config_json = excluded.intent_config_json,
+      fallback_config_json = excluded.fallback_config_json,
+      updated_at = excluded.updated_at
+  `).run(
+    ownerId, scopedSessionId, JSON.stringify(settings), promptTemplate,
+    JSON.stringify(intentConfig), JSON.stringify(fallbackConfig), now
+  );
+  return getAIBusinessProfile(ownerId, scopedSessionId);
+}
+
+export function addAIBusinessExample(telegramId, sessionId, example) {
+  const result = db.prepare(`
+    INSERT INTO ai_business_examples (
+      telegram_id, session_id, question, data_json, ideal_answer, intent, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    String(telegramId), String(sessionId || telegramId),
+    String(example.question || "").slice(0, 4000),
+    JSON.stringify(example.data || {}),
+    String(example.idealAnswer || "").slice(0, 2000),
+    String(example.intent || "").slice(0, 100) || null,
+    Date.now()
+  );
+  return result.lastInsertRowid;
+}
+
+export function findAIBusinessExamples(telegramId, sessionId, intent, limit = 3) {
+  return db.prepare(`
+    SELECT question, data_json, ideal_answer, intent
+    FROM ai_business_examples
+    WHERE telegram_id = ? AND session_id = ?
+      AND (? IS NULL OR intent = ?)
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(
+    String(telegramId), String(sessionId || telegramId),
+    intent || null, intent || null, Math.max(1, Math.min(3, Number(limit) || 3))
+  ).map((row) => {
+    let data = {};
+    try { data = JSON.parse(row.data_json); } catch {}
+    return { question: row.question, data, idealAnswer: row.ideal_answer, intent: row.intent };
+  });
 }
 
 export function closeDatabase() {
