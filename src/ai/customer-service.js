@@ -804,6 +804,49 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
   const asksAvailability = /\b(masih ada|tersedia|ada gak|ada kah|ada tidak|stok|ready|habis|kosong)\b/i.test(normalizedMessage);
   const asksPrice = /\b(harga|berapa|rupiah|rp)\b/i.test(normalizedMessage);
 
+  // [ADDED] Resolve outlet contact questions directly from the authenticated business profile.
+  const asksOutletPhone = /\b(no hp|nomor hp|nomor telepon|nomor telp|no telp|kontak|whatsapp|wa)\b/i.test(normalizedMessage)
+    && /\b(outlet|cabang|gerai|bagian|pemurus|pramuka)\b/i.test(normalizedMessage);
+  if (asksOutletPhone) {
+    intent = "outlets";
+    const outletTokens = normalizedMessage.split(" ").filter((word) => word.length > 2 && ![
+      "apakah", "ada", "nomor", "telepon", "telp", "kontak", "whatsapp", "bagian", "untuk", "outlet", "cabang", "gerai"
+    ].includes(word));
+    const matchedOutlet = settings.outlets.find((outlet) => {
+      const outletName = normalizeProductText(outlet.name);
+      return outletTokens.some((token) => outletName.includes(token));
+    });
+    let reply;
+    let dataUsed;
+    let status;
+    if (!matchedOutlet) {
+      reply = "Saya belum menemukan outlet yang dimaksud. Bisa sebutkan nama outletnya?";
+      dataUsed = ["Daftar outlet diperiksa: " + settings.outlets.map((outlet) => outlet.name).join(", ")];
+      status = "Tidak ada outlet yang cocok dengan nama pada pertanyaan.";
+    } else if (matchedOutlet.phone) {
+      reply = "Nomor HP " + matchedOutlet.name + " adalah " + matchedOutlet.phone + ".";
+      dataUsed = ["Outlet: " + matchedOutlet.name, "Nomor HP: " + matchedOutlet.phone];
+      status = "Outlet ditemukan dan nomor HP tercatat.";
+    } else {
+      reply = "Nomor HP untuk " + matchedOutlet.name + " belum dicatat di data usaha.";
+      dataUsed = ["Outlet: " + matchedOutlet.name, "Nomor HP: Belum diisi"];
+      status = "Outlet ditemukan, tetapi kolom nomor HP masih kosong.";
+    }
+    return {
+      reply,
+      intent,
+      model: OLLAMA_MODEL,
+      createdAt: Date.now(),
+      trace: {
+        recognition: "Pemilik menanyakan nomor HP atau kontak outlet tertentu.",
+        action: "Mencari outlet berdasarkan nama atau kata kunci lokasi, kemudian memeriksa kolom nomor HP pada profil usaha.",
+        dataUsed,
+        status,
+        expectedAnswer: reply
+      }
+    };
+  }
+
   // [ADDED] Resolve outlet-count questions directly from the authenticated business profile.
   const asksOutletCount = /\b(berapa|jumlah|banyak|total)\b/i.test(normalizedMessage)
     && /\b(outlet|cabang|gerai)\b/i.test(normalizedMessage);
