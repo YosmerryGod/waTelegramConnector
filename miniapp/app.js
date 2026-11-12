@@ -492,6 +492,8 @@
       const data = await api("/account");
       state.membership = data.account || null;
       renderMembership();
+      renderAIBusinessToggle();
+      renderWagramAiPinnedRow();
       renderNotificationPreferences(); // [ADDED] Reapply notification access after the membership refresh.
       renderFreePauseCountdown(); // [ADDED] Show countdown after membership is known.
       // [ADDED] Re-render chat rows after the server confirms the plan; chats and membership load in parallel on startup.
@@ -752,7 +754,35 @@
   };
 
   function isPremiumMembership() {
-    return Boolean(state.membership?.plan && state.membership.plan !== "free");
+    const membership = state.membership;
+    if (!membership?.plan || membership.plan === "free") return false;
+    const expiry = membership.plan_expires_at ? new Date(membership.plan_expires_at).getTime() : 0;
+    return !expiry || (Number.isFinite(expiry) && expiry > Date.now());
+  }
+
+  // [ADDED] AI Business is exclusively available to active Premium C (30-day) members.
+  function isAIBusinessEligible() {
+    const membership = state.membership;
+    if (membership?.plan !== "premium-c") return false;
+    if (!membership.plan_expires_at) return true;
+    const expiry = new Date(membership.plan_expires_at).getTime();
+    return Number.isFinite(expiry) && expiry > Date.now();
+  }
+
+  // [ADDED] Update the permanently pinned WAGRAM AI row with the current access state.
+  function renderWagramAiPinnedRow() {
+    const eligible = isAIBusinessEligible();
+    const planLabel = $("#wagramAiPlanLabel");
+    const accessLabel = $("#wagramAiAccessLabel");
+    const lock = $("#wagramAiLockIndicator");
+    const row = $("#wagramAiPinnedRow");
+    if (!row) return;
+    if (planLabel) planLabel.textContent = eligible ? "AI Business" : "Premium C";
+    if (accessLabel) accessLabel.textContent = eligible
+      ? "Asisten bisnis, stok, dan laporan usaha"
+      : "Khusus pelanggan Premium C · 30 hari";
+    if (lock) lock.classList.toggle("hidden", eligible);
+    row.classList.toggle("is-premium-locked", !eligible);
   }
 
   function isPremiumNotification(key) {
@@ -818,7 +848,7 @@
     const option = $("#aiBusinessSettingOption");
     if (!button) return;
 
-    const premium = isPremiumMembership();
+    const premium = isAIBusinessEligible();
     const preferences = getAIBusinessPreferences();
     const sessionId = String(state.activeSessionId || "default");
     const enabled = premium && preferences[sessionId] === true;
@@ -831,7 +861,7 @@
 
     if (description) {
       description.textContent = !premium
-        ? "Khusus pengguna Premium"
+        ? "Khusus Premium C (30 hari)"
         : enabled
           ? "AI Business aktif untuk session ini"
           : "Asisten bisnis dan pencatatan stok harian";
@@ -840,7 +870,7 @@
 
   // [ADDED] Toggle the AI Business UI preference for the selected WhatsApp session.
   function toggleAIBusinessPreference() {
-    if (!isPremiumMembership()) {
+    if (!isAIBusinessEligible()) {
       openPremiumSheet();
       return;
     }
@@ -976,29 +1006,8 @@
     // Filter totals are displayed directly in the filter chips.
     const hits = query.length >= 2 ? state.messageHits : [];
 
-    // [ADDED] Keep WAGRAM AI pinned above regular WhatsApp conversations.
-    const aiBusinessRow = `
-      <div class="chat-swipe-row wagram-ai-chat-row">
-        <button class="list-item chat-row-content" type="button" data-open-ai-business>
-          <span class="chat-avatar-wrap">
-            <span class="avatar wagram-ai-avatar">
-              <img class="avatar-photo" src="./assets/wagram-logo.svg?v=20261112-wagram-ai-avatar-v1" alt="WAGRAM" loading="eager">
-            </span>
-          </span>
-          <div class="item-body">
-            <div class="item-row">
-              <span class="item-title">WAGRAM AI</span>
-              <span class="item-time">AI Assistant</span>
-            </div>
-            <div class="item-row">
-              <span class="item-sub">Asisten bisnis, stok, dan laporan usaha</span>
-            </div>
-          </div>
-        </button>
-      </div>`;
-
     if (!items.length && !hits.length) {
-      list.innerHTML = aiBusinessRow + (query
+      list.innerHTML = (query
         ? emptyState("search", "Tidak ada hasil", "Coba kata kunci lain.")
         : emptyState(
             "chat",
@@ -1069,7 +1078,7 @@
         }).join("")
       : "";
 
-    list.innerHTML = aiBusinessRow + chatRows + hitRows;
+    list.innerHTML = chatRows + hitRows;
   }
 
   let searchTimer = 0;
@@ -3275,13 +3284,15 @@
     $("#chatList").addEventListener("pointerup", finishChatPointer);
     $("#chatList").addEventListener("pointercancel", finishChatPointer);
 
-    $("#chatList").addEventListener("click", (event) => {
-      const aiBusiness = event.target.closest("[data-open-ai-business]");
-      if (aiBusiness) {
-        setPage("aiBusiness");
+    $("#wagramAiPinnedRow")?.addEventListener("click", () => {
+      if (!isAIBusinessEligible()) {
+        openPremiumSheet();
         return;
       }
+      setPage("aiBusiness");
+    });
 
+    $("#chatList").addEventListener("click", (event) => {
       const favorite = event.target.closest("[data-favorite-chat]");
       if (favorite) {
         event.stopPropagation();
