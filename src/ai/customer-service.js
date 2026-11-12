@@ -427,8 +427,8 @@ export async function createAIBusinessReply(telegramId, message, businessSetting
     );
     return {
       reply: greetedBefore
-        ? "Halo lagi! Silakan langsung ceritakan apa yang ingin kamu kerjakan atau tanyakan tentang bisnismu."
-        : "Halo! Saya WAGRAM AI. Ada yang bisa saya bantu untuk bisnismu hari ini?",
+        ? "Hai lagi! 😊 Mau bahas apa?"
+        : "Halo! 👋 Ada yang bisa saya bantu?",
       model: OLLAMA_MODEL,
       createdAt: Date.now()
     };
