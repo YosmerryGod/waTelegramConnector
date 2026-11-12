@@ -59,7 +59,7 @@ console.log("Selected session:", selected.account.is_primary ? "primary" : "addi
 console.log("AI profile:", profile ? "found" : "NOT FOUND");
 console.log("Manager data:", managerName ? "available" : "empty");
 console.log("Product records:", products.length);
-console.log("Ollama model:", process.env.OLLAMA_MODEL || "qwen2.5:1.5b");
+console.log("Ollama model:", process.env.OLLAMA_MODEL || "qwen3:4b");
 
 const results = [];
 const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID");
