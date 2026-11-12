@@ -7165,6 +7165,23 @@ body.in-chat #topbar {
 }
 
 
+/* [ADDED] Visual distinction for simulated customers during WAGRAM AI training. */
+.ai-business-training-active .ai-business-conversation-header .conversation-info p {
+  color: var(--accent);
+}
+.ai-business-more-menu button.is-training-active {
+  color: var(--accent);
+}
+.ai-business-training-customer {
+  border-left: 3px solid var(--accent);
+}
+.ai-business-training-sender {
+  margin-bottom: 5px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 /* [ADDED] Inspectable WAGRAM AI decision trace shown below assistant replies. */
 .ai-business-trace {
   margin-top: 10px;
