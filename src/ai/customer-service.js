@@ -592,7 +592,8 @@ async function generateGroundedAIBusinessAnswer({
     const answer = String(result?.answer || "").trim();
     const facts = Array.isArray(result?.facts) ? result.facts.map((fact) => String(fact)) : [];
     if (!answer || facts.some((fact) => !fact || !dataText.includes(fact))) return false;
-    const hasUsableData = Object.values(data || {}).some((value) => {
+    const hasUsableData = Object.entries(data || {}).some(([key, value]) => {
+      if (key === "aiRules") return false;
       if (Array.isArray(value)) return value.length > 0;
       if (value && typeof value === "object") return Object.values(value).some((item) => String(item ?? "").trim());
       return String(value ?? "").trim().length > 0;
