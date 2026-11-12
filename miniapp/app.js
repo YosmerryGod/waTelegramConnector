@@ -2438,6 +2438,39 @@
 
     // [MODIFIED] Open the centered AI Business settings menu.
     $("#aiBusinessSettingsButton")?.addEventListener("click", openAIBusinessSettings);
+    // [ADDED] Toggle the WAGRAM AI conversation actions menu.
+    $("#aiBusinessMoreButton")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const menu = $("#aiBusinessMoreMenu");
+      const button = $("#aiBusinessMoreButton");
+      const isOpen = !menu?.classList.contains("hidden");
+      menu?.classList.toggle("hidden", isOpen);
+      button?.setAttribute("aria-expanded", String(!isOpen));
+    });
+    // [ADDED] Clear only the current WhatsApp session's local AI conversation history.
+    $("#clearAIBusinessHistoryButton")?.addEventListener("click", async () => {
+      $("#aiBusinessMoreMenu")?.classList.add("hidden");
+      $("#aiBusinessMoreButton")?.setAttribute("aria-expanded", "false");
+      const history = getAIBusinessHistory();
+      if (!history.length) {
+        showToast("Riwayat chat masih kosong.");
+        return;
+      }
+      const confirmed = await confirmAction("Bersihkan seluruh riwayat chat WAGRAM AI untuk akun WhatsApp ini?");
+      if (!confirmed) return;
+      saveAIBusinessHistory([]);
+      renderAIBusinessHistory();
+      showToast("Riwayat chat WAGRAM AI berhasil dibersihkan.");
+    });
+    // [ADDED] Close the actions menu when tapping outside it.
+    document.addEventListener("click", (event) => {
+      const menu = $("#aiBusinessMoreMenu");
+      const button = $("#aiBusinessMoreButton");
+      if (!menu || menu.classList.contains("hidden")) return;
+      if (menu.contains(event.target) || button?.contains(event.target)) return;
+      menu.classList.add("hidden");
+      button?.setAttribute("aria-expanded", "false");
+    });
     $("#aiBusinessSettingsModal")?.addEventListener("click", handleAIBusinessSettingsClick);
     $("#aiBusinessSettingsModal")?.addEventListener("submit", handleAIBusinessSettingsSubmit);
 
