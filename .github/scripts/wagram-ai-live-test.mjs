@@ -64,13 +64,13 @@ console.log("Ollama model:", process.env.OLLAMA_MODEL || "qwen2.5:1.5b");
 const results = [];
 const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID");
 
-async function test(name, message, validate) {
+async function test(name, message, validate, history = []) {
   console.log(`\n--- ${name} ---`);
   const response = await ai.createAIBusinessReply(
     owner.telegram_id,
     sessionId,
     message,
-    []
+    history
   );
   const reply = String(response.reply || "").trim();
   assert.ok(reply, `${name}: AI returned an empty response.`);
@@ -109,6 +109,25 @@ await runTest("Manager", "Siapa manager saya?", (reply) => {
       "Manager data is empty, but AI did not acknowledge that.");
   }
 });
+
+await runTest(
+  "Manager follow-up context",
+  "Dan nomor teleponnya?",
+  (reply) => {
+    const managerPhone = String(manager.phone || "").trim();
+    if (managerPhone) {
+      assert.ok(reply.replace(/[^0-9+]/g, "").includes(managerPhone.replace(/[^0-9+]/g, "")),
+        "AI did not resolve the manager phone follow-up from conversation context.");
+    } else {
+      assert.ok(/belum|tidak tersedia|tidak ada|kosong/i.test(reply),
+        "Manager phone is empty, but AI did not acknowledge that.");
+    }
+  },
+  [
+    { role: "user", content: "Siapa manager saya?" },
+    { role: "assistant", content: managerName ? `Manager kamu adalah ${managerName}.` : "Data manager belum tersedia." }
+  ]
+);
 
 await runTest("Products", "Apa saja menu atau produk yang tersedia?", (reply) => {
   if (products.length) {
