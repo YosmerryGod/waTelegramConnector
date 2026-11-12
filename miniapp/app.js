@@ -49,6 +49,7 @@
 
   const PAGES = {
     chats: "#chatPage",
+    aiBusiness: "#aiBusinessPage", // [ADDED] Dedicated AI Business conversation page.
     calls: "#callsPage",
     contacts: "#contactsPage",
     connections: "#connectionsPage",
@@ -384,6 +385,7 @@
   function updateTopbarTitle() {
     const titles = {
       chats: "Pesan",
+      aiBusiness: "WAGRAM AI", // [ADDED] Title for the WAGRAM AI conversation.
       calls: "Panggilan",
       contacts: "Kontak",
       account: "Profil",
@@ -984,6 +986,27 @@
       return;
     }
 
+    // [ADDED] Keep WAGRAM AI pinned above regular WhatsApp conversations.
+    const aiBusinessRow = `
+      <div class="chat-swipe-row wagram-ai-chat-row">
+        <button class="list-item chat-row-content" type="button" data-open-ai-business>
+          <span class="chat-avatar-wrap">
+            <span class="avatar wagram-ai-avatar">
+              <img class="avatar-photo" src="./assets/wagram-logo.svg?v=20261112-wagram-ai-avatar-v1" alt="WAGRAM" loading="eager">
+            </span>
+          </span>
+          <div class="item-body">
+            <div class="item-row">
+              <span class="item-title">WAGRAM AI</span>
+              <span class="item-time">AI Assistant</span>
+            </div>
+            <div class="item-row">
+              <span class="item-sub">Asisten bisnis, stok, dan laporan usaha</span>
+            </div>
+          </div>
+        </button>
+      </div>`;
+
     const chatRows = items.map((chat) => {
       const name = chatName(chat);
       const unread = Number(chat.unread_count) || 0;
@@ -1043,7 +1066,7 @@
         }).join("")
       : "";
 
-    list.innerHTML = chatRows + hitRows;
+    list.innerHTML = aiBusinessRow + chatRows + hitRows;
   }
 
   let searchTimer = 0;
@@ -2396,6 +2419,8 @@
     });
 
     $("#backButton").addEventListener("click", () => setPage("chats"));
+    // [ADDED] Return from the WAGRAM AI page to the chat list.
+    $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
 
     // Tema
     $("#themeButton").addEventListener("click", () => {
@@ -3040,6 +3065,12 @@
     $("#chatList").addEventListener("pointercancel", finishChatPointer);
 
     $("#chatList").addEventListener("click", (event) => {
+      const aiBusiness = event.target.closest("[data-open-ai-business]");
+      if (aiBusiness) {
+        setPage("aiBusiness");
+        return;
+      }
+
       const favorite = event.target.closest("[data-favorite-chat]");
       if (favorite) {
         event.stopPropagation();
