@@ -15,7 +15,7 @@ jobs:
       WAGRAM_APP_DIR: /opt/waTelegramConnector
       SQLITE_PATH: /opt/waTelegramConnector/data/bridge.db
       OLLAMA_URL: http://127.0.0.1:11434
-      OLLAMA_MODEL: qwen2.5:1.5b
+      OLLAMA_MODEL: qwen3:4b
 
     steps:
       - name: Checkout repository
