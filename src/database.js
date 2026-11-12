@@ -2048,6 +2048,7 @@ export function saveAIBusinessProfile(telegramId, sessionId = telegramId, profil
     ? profile.intentConfig
     : current?.intentConfig?.length ? current.intentConfig : [
         { name: "greeting", examples: ["hello", "hai", "selamat pagi"] },
+        { name: "capabilities", examples: ["apa saja yang bisa kamu lakukan", "kamu bisa bantu apa", "fitur apa yang kamu punya", "apa kemampuanmu", "what can you do"] },
         { name: "manager", examples: ["siapa manager saya", "siapa penanggung jawab usaha"] },
         { name: "outlets", examples: ["berapa outlet", "apa saja cabang saya", "alamat outlet"] },
         { name: "products", examples: ["apa menu usaha ini", "produk apa yang dijual", "daftar makanan"] },
