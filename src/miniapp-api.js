@@ -1697,8 +1697,13 @@ router.put("/ai-business/settings", (req, res) => {
     if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
       return res.status(400).json({ ok: false, error: "INVALID_AI_BUSINESS_SETTINGS" });
     }
+    const qrisImage = String(settings.payment?.qrisImage || "");
+    const qrisImageMatch = qrisImage.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+    if (qrisImage && (!qrisImageMatch || qrisImageMatch[2].length > 1400000)) {
+      return res.status(400).json({ ok: false, error: "INVALID_QRIS_IMAGE", message: "Gambar QRIS harus JPG, PNG, atau WEBP maksimal 1 MB." });
+    }
     const serialized = JSON.stringify(settings);
-    if (serialized.length > 30000) {
+    if (serialized.length > 1500000) {
       return res.status(413).json({ ok: false, error: "AI_BUSINESS_SETTINGS_TOO_LARGE" });
     }
     const profile = saveAIBusinessProfile(req.telegramId, req.sessionId, {
