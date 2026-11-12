@@ -39,6 +39,9 @@ import {
 
 import { saveWhatsAppMedia } from "./media-storage.js";
 
+// [ADDED] Store customer/admin reply examples for the enabled AI assistant.
+import { recordAICustomerServiceMessage } from "./ai/customer-service.js";
+
 import {
   connectWhatsApp,
   disconnectWhatsApp,
@@ -1317,6 +1320,11 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
               ? proto.Message.encode(message.message).finish().toString("base64")
               : null
           });
+
+          // [ADDED] Incremental AI learning is tenant- and WhatsApp-session-scoped.
+          if (saved) {
+            recordAICustomerServiceMessage(id, sessionId, remoteJid);
+          }
 
           // [ADDED] Notify Mini App only after the SQLite transaction commits.
           if (saved) {
