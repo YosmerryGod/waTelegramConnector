@@ -314,6 +314,27 @@
           <svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
         </button>
       </form>
+      <!-- [ADDED] Centered AI Business setup menu and local setup forms. -->
+      <div id="aiBusinessSettingsModal" class="ai-business-settings-modal hidden" role="dialog" aria-modal="true" aria-labelledby="aiBusinessSettingsTitle">
+        <button class="ai-business-settings-backdrop" type="button" data-close-ai-settings aria-label="Tutup pengaturan"></button>
+        <section class="ai-business-settings-panel">
+          <header class="ai-business-settings-heading">
+            <div><span class="ai-business-settings-eyebrow">PENGATURAN USAHA</span><h2 id="aiBusinessSettingsTitle">Kelola bisnis</h2></div>
+            <button class="ai-business-settings-close" type="button" data-close-ai-settings aria-label="Tutup">×</button>
+          </header>
+          <div id="aiBusinessSettingsMenu" class="ai-business-settings-grid">
+            <button type="button" class="ai-business-setting-tile" data-ai-settings-section="manager"><span class="ai-business-setting-icon manager">♙</span><strong>Manager</strong><small>Kontak penanggung jawab</small></button>
+            <button type="button" class="ai-business-setting-tile" data-ai-settings-section="outlets"><span class="ai-business-setting-icon outlets">⌂</span><strong>Outlet</strong><small>Lokasi, nomor HP, jam buka</small></button>
+            <button type="button" class="ai-business-setting-tile" data-ai-settings-section="payment"><span class="ai-business-setting-icon payment">▤</span><strong>Pembayaran</strong><small>Informasi QRIS usaha</small></button>
+            <button type="button" class="ai-business-setting-tile" data-ai-settings-section="products"><span class="ai-business-setting-icon products">▦</span><strong>Produk</strong><small>Nama, harga, dan stok</small></button>
+          </div>
+          <div id="aiBusinessSettingsDetail" class="ai-business-settings-detail hidden">
+            <button type="button" class="ai-business-settings-back" data-back-ai-settings>‹ Kembali ke pengaturan</button>
+            <div id="aiBusinessSettingsFormHost"></div>
+          </div>
+          <p class="ai-business-settings-note">Pengaturan ini saat ini disimpan di perangkat ini. Sinkronisasi ke database akan dihubungkan berikutnya.</p>
+        </section>
+      </div>
     </main>
 
     <!-- PANGGILAN -->
