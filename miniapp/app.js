@@ -2915,7 +2915,7 @@
           </div>`;
       }
       return `
-        <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
+        <div class="message ${item.role === "user" || item.role === "training_owner" ? "outgoing" : "ai-business-reply"}">
           <div class="message-text">${escapeHTML(item.content)}</div>
           ${trace}
           <div class="message-time">${escapeHTML(item.time || "")}</div>
@@ -2945,7 +2945,8 @@
     if (intro) intro.classList.add("hidden");
     const history = getAIBusinessHistory();
     const timestamp = timeOnly(Date.now());
-    history.push({ role: "user", content: text, time: timestamp });
+    // [MODIFIED] Keep owner training answers separate from normal assistant conversation context.
+    history.push({ role: isAIBusinessTrainingActive() ? "training_owner" : "user", content: text, time: timestamp });
     saveAIBusinessHistory(history);
     renderAIBusinessHistory();
 
@@ -2968,7 +2969,7 @@
           method: "POST",
           body: JSON.stringify({
             message: text,
-            history: history.slice(0, -1).filter((item) => item.role !== "training_customer").map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
+            history: history.slice(0, -1).filter((item) => item.role !== "training_customer" && item.role !== "training_owner").map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
           })
         });
         const reply = String(result.reply || "").trim();
