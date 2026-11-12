@@ -2486,25 +2486,53 @@
     }
   }
 
-  function saveAIBusinessSettings(settings) {
+  async function saveAIBusinessSettings(settings) {
     try {
       const all = JSON.parse(localStorage.getItem(AI_BUSINESS_SETTINGS_KEY) || "{}");
       all[String(state.activeSessionId || "default")] = settings;
       localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
-      showToast("Pengaturan usaha disimpan di perangkat ini.");
-    } catch {
-      showToast("Pengaturan tidak dapat disimpan di perangkat ini.");
+      await api("/ai-business/settings", {
+        method: "PUT",
+        body: JSON.stringify({ settings })
+      });
+      showToast("Pengaturan usaha tersimpan di server.");
+      return true;
+    } catch (error) {
+      showToast(error.message || "Pengaturan usaha gagal disimpan ke server.");
+      return false;
     }
   }
 
-  function openAIBusinessSettings() {
+  async function syncAIBusinessSettingsFromServer() {
+    const response = await api("/ai-business/settings");
+    const sessionKey = String(state.activeSessionId || "default");
+    const all = JSON.parse(localStorage.getItem(AI_BUSINESS_SETTINGS_KEY) || "{}");
+    if (response.profile?.settings) {
+      all[sessionKey] = response.profile.settings;
+      localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
+      return response.profile.settings;
+    }
+    const legacySettings = all[sessionKey] || { manager: {}, outlets: [], payment: {}, products: [], aiRules: "" };
+    await api("/ai-business/settings", {
+      method: "PUT",
+      body: JSON.stringify({ settings: legacySettings })
+    });
+    return legacySettings;
+  }
+
+  async function openAIBusinessSettings() {
     const modal = $("#aiBusinessSettingsModal");
     if (!modal) return;
     $("#aiBusinessSettingsMenu").classList.remove("hidden");
     $("#aiBusinessSettingsDetail").classList.add("hidden");
-    // [ADDED] Restore the saved escalation rules whenever the popup opens.
-    $("#aiBusinessRulesInput").value = getAIBusinessSettings().aiRules || "";
     modal.classList.remove("hidden");
+    try {
+      await syncAIBusinessSettingsFromServer();
+    } catch (error) {
+      showToast(error.message || "Pengaturan AI tidak dapat dimuat dari server.");
+    }
+    // [MODIFIED] Restore the saved escalation rules after server synchronization.
+    $("#aiBusinessRulesInput").value = getAIBusinessSettings().aiRules || "";
   }
 
   function closeAIBusinessSettings() {
@@ -2719,7 +2747,6 @@
         method: "POST",
         body: JSON.stringify({
           message: text,
-          businessSettings: getAIBusinessSettings(),
           history: history.slice(0, -1).map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
         })
       });
