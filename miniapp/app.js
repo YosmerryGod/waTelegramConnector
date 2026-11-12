@@ -2430,6 +2430,8 @@
     $("#backButton").addEventListener("click", () => setPage("chats"));
     // [ADDED] Return from the WAGRAM AI page to the chat list.
     $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
+    // [ADDED] Restore the current session's training indicator when opening WAGRAM AI.
+    renderAIBusinessTrainingState();
     // [MODIFIED] Restore chat and migrate legacy local settings to the server when opening WAGRAM AI.
     $("#openAIBusinessButton")?.addEventListener("click", async () => {
       renderAIBusinessHistory();
@@ -2453,6 +2455,32 @@
       const isOpen = !menu?.classList.contains("hidden");
       menu?.classList.toggle("hidden", isOpen);
       button?.setAttribute("aria-expanded", String(!isOpen));
+    });
+    // [ADDED] Toggle AI training in the existing WAGRAM AI chat, with Gemini simulating customers.
+    $("#toggleAIBusinessTrainingButton")?.addEventListener("click", async () => {
+      $("#aiBusinessMoreMenu")?.classList.add("hidden");
+      $("#aiBusinessMoreButton")?.setAttribute("aria-expanded", "false");
+      const active = isAIBusinessTrainingActive();
+      if (active) {
+        setAIBusinessTrainingActive(false);
+        showToast("Mode Training diakhiri.");
+        return;
+      }
+      if (aiBusinessSettingsSyncedSession !== String(state.activeSessionId || "default")) {
+        try {
+          await syncAIBusinessSettingsFromServer();
+        } catch (error) {
+          showToast(error.message || "Data bisnis belum berhasil dimuat dari server.");
+          return;
+        }
+      }
+      setAIBusinessTrainingActive(true);
+      try {
+        await requestAIBusinessTrainingQuestion();
+      } catch (error) {
+        setAIBusinessTrainingActive(false);
+        showToast(error.message || "Mode Training gagal dimulai.");
+      }
     });
     // [ADDED] Clear only the current WhatsApp session's local AI conversation history.
     $("#clearAIBusinessHistoryButton")?.addEventListener("click", async () => {
@@ -2791,6 +2819,55 @@
     }
   }
 
+  // [ADDED] Persist training mode independently for each WhatsApp session.
+  const AI_BUSINESS_TRAINING_KEY = "wagram-ai-business-training-v1";
+
+  function isAIBusinessTrainingActive() {
+    try {
+      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_TRAINING_KEY) || "{}");
+      return Boolean(all[String(state.activeSessionId || "default")]);
+    } catch {
+      return false;
+    }
+  }
+
+  function setAIBusinessTrainingActive(active) {
+    try {
+      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_TRAINING_KEY) || "{}");
+      all[String(state.activeSessionId || "default")] = Boolean(active);
+      localStorage.setItem(AI_BUSINESS_TRAINING_KEY, JSON.stringify(all));
+    } catch {
+      showToast("Mode training tidak dapat disimpan di perangkat ini.");
+    }
+    renderAIBusinessTrainingState();
+  }
+
+  function renderAIBusinessTrainingState() {
+    const active = isAIBusinessTrainingActive();
+    const label = $("#aiBusinessTrainingMenuLabel");
+    const status = $("#aiBusinessStatusText");
+    const button = $("#toggleAIBusinessTrainingButton");
+    const input = $("#aiBusinessInput");
+    if (label) label.textContent = active ? "Akhiri Mode Training" : "Mode Training";
+    if (status) status.textContent = active ? "Training · AI menjadi konsumen" : "Asisten bisnis";
+    if (button) button.classList.toggle("is-training-active", active);
+    if (input) input.placeholder = active ? "Jawab sebagai pemilik usaha…" : "Ketik pesan…";
+    $("#aiBusinessPage")?.classList.toggle("ai-business-training-active", active);
+  }
+
+  async function requestAIBusinessTrainingQuestion(previousQuestion = "", ownerAnswer = "") {
+    const result = await api("/ai-business/training-question", {
+      method: "POST",
+      body: JSON.stringify({ previousQuestion, ownerAnswer })
+    });
+    const question = String(result.question || "").trim();
+    if (!question) throw new Error("AI belum menghasilkan pertanyaan konsumen.");
+    const history = getAIBusinessHistory();
+    history.push({ role: "training_customer", content: question, time: timeOnly(Date.now()) });
+    saveAIBusinessHistory(history);
+    renderAIBusinessHistory();
+  }
+
   function renderAIBusinessHistory() {
     const messages = $("#aiBusinessMessages");
     if (!messages) return;
@@ -2825,6 +2902,15 @@
           <div class="message ai-business-reply">
             <div class="message-text">${escapeHTML(item.content)}</div>
             ${trace}
+            <div class="message-time">${escapeHTML(item.time || "")}</div>
+          </div>`;
+      }
+      // [ADDED] Training customer prompts appear as incoming messages in this same chat.
+      if (item.role === "training_customer") {
+        return `
+          <div class="message ai-business-reply ai-business-training-customer">
+            <div class="ai-business-training-sender">Konsumen simulasi</div>
+            <div class="message-text">${escapeHTML(item.content)}</div>
             <div class="message-time">${escapeHTML(item.time || "")}</div>
           </div>`;
       }
@@ -2874,19 +2960,24 @@
     messages.scrollTop = messages.scrollHeight;
 
     try {
-      const result = await api("/ai-business/chat", {
-        method: "POST",
-        body: JSON.stringify({
-          message: text,
-          history: history.slice(0, -1).map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
-        })
-      });
-      const reply = String(result.reply || "").trim();
-      if (!reply) throw new Error("WAGRAM AI mengirim jawaban kosong.");
-      const updated = getAIBusinessHistory();
-      updated.push({ role: "assistant", content: reply, qrisImage: Boolean(result.qrisImage), time: timeOnly(Date.now()), trace: result.trace || null });
-      saveAIBusinessHistory(updated);
-      renderAIBusinessHistory();
+      if (isAIBusinessTrainingActive()) {
+        const previousCustomerMessage = [...history.slice(0, -1)].reverse().find((item) => item.role === "training_customer");
+        await requestAIBusinessTrainingQuestion(previousCustomerMessage?.content || "", text);
+      } else {
+        const result = await api("/ai-business/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            message: text,
+            history: history.slice(0, -1).filter((item) => item.role !== "training_customer").map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
+          })
+        });
+        const reply = String(result.reply || "").trim();
+        if (!reply) throw new Error("WAGRAM AI mengirim jawaban kosong.");
+        const updated = getAIBusinessHistory();
+        updated.push({ role: "assistant", content: reply, qrisImage: Boolean(result.qrisImage), time: timeOnly(Date.now()), trace: result.trace || null });
+        saveAIBusinessHistory(updated);
+        renderAIBusinessHistory();
+      }
     } catch (error) {
       document.getElementById(typingId)?.remove();
       messages.insertAdjacentHTML("beforeend", `
