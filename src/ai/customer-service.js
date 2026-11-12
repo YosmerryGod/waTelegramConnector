@@ -11,7 +11,7 @@ import {
 } from "../database.js";
 
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || "").trim();
-const GEMINI_MODEL = String(process.env.GEMINI_MODEL || "gemini-flash-lite-latest").trim();
+const GEMINI_MODEL = String(process.env.GEMINI_MODEL || "gemini-3.5-flash-lite").trim();
 const GEMINI_TIMEOUT_MS = Math.max(10000, Number(process.env.GEMINI_TIMEOUT_MS || 60000));
 const MAX_HISTORY_MESSAGES = 24;
 const MAX_EXAMPLES = 8;
