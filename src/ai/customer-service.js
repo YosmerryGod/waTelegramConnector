@@ -526,6 +526,38 @@ function selectIntentData(intent, settings) {
   }
 }
 
+// [ADDED] Answer capability questions from verified current runtime scope, not business records.
+async function generateAIBusinessCapabilitiesReply(message, history = []) {
+  const prompt = [
+    "Kamu adalah WAGRAM AI, asisten pemilik usaha di Mini App.",
+    "Pemilik bertanya tentang kemampuanmu. Jawab dalam Bahasa Indonesia, natural dan ringkas, maksimal 3 kalimat.",
+    "Kemampuan yang memang tersedia saat ini: memahami pertanyaan pemilik; membaca data manager, outlet, produk, harga, stok, dan informasi pembayaran yang sudah disimpan; menjawab pertanyaan berdasarkan data tersebut; membantu perhitungan dan merangkum informasi yang diberikan.",
+    "Batasan saat ini: kamu belum dapat langsung mengubah atau menghapus data bisnis, memproses transaksi, mengirim pesan ke manager, atau melihat data transaksi real-time. Untuk mengubah data, arahkan pemilik ke Pengaturan WAGRAM AI.",
+    "Jangan menyebut fitur target atau fitur yang belum tersedia sebagai kemampuan aktif. Jangan mengeluarkan daftar panjang. Jika pertanyaan menyebut 'hello' atau sapaan, tanggapi dengan hangat lalu jawab pertanyaan kemampuannya.",
+    "RIWAYAT:",
+    JSON.stringify((Array.isArray(history) ? history : []).slice(-4)),
+    "PERTANYAAN:",
+    String(message || ""),
+    "Jawab langsung, maksimal 3 kalimat."
+  ].join("\n");
+  const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: OLLAMA_MODEL,
+      prompt,
+      stream: false,
+      keep_alive: "30m",
+      options: { temperature: 0.35, num_ctx: 1024, num_predict: 100 }
+    }),
+    signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS)
+  });
+  if (!response.ok) throw new Error(`OLLAMA_CAPABILITIES_HTTP_${response.status}`);
+  const payload = await response.json();
+  const answer = String(payload?.response || "").trim();
+  return answer || "Aku bisa membantu membaca data usaha dan menjawab pertanyaan berdasarkan informasi yang tersedia. 😊";
+}
+
 // [ADDED] Generate grounded JSON answer and verify cited facts against the selected data.
 async function generateGroundedAIBusinessAnswer({
   message, intent, data, history, profile, examples, skillGuidance
@@ -653,6 +685,10 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
     : [];
 
   const intent = await detectAIBusinessIntent(message, recentHistory, profile?.intentConfig);
+  if (intent === "capabilities") {
+    const reply = await generateAIBusinessCapabilitiesReply(message, recentHistory);
+    return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+  }
   if (intent === "greeting") {
     const reply = await ollamaGenerateGreeting(message, recentHistory);
     return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
