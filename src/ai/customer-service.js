@@ -597,7 +597,7 @@ async function generateGroundedAIBusinessAnswer({
     const facts = Array.isArray(result?.facts) ? result.facts.map((fact) => String(fact)) : [];
     if (!answer || facts.some((fact) => !fact || !dataText.includes(fact))) return false;
     if (intent === "products" && Array.isArray(data?.products) && data.products.length === 0) {
-      return facts.length === 0 && !/burger|pizza|salad/i.test(answer);
+      return facts.length === 0 && /belum|tidak tersedia|tidak ada|belum tercatat|belum diisi|kosong/i.test(answer);
     }
     return true;
   };
