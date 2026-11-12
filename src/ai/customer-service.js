@@ -480,6 +480,35 @@ export async function createAIBusinessReply(telegramId, message, businessSetting
     const reply = await ollamaGenerateGreeting(message, history);
     return { reply, model: OLLAMA_MODEL, createdAt: Date.now() };
   }
+  // [ADDED] Resolve product/menu questions from trusted business data before calling the model.
+  const normalizedMessage = cleanText(message, 4000).toLowerCase();
+  const isProductQuestion = /\\b(menu|produk|product|makanan|minuman|masakan|jualan|dijual)\\b/.test(normalizedMessage);
+  const rawProducts = Array.isArray(businessSettings?.products)
+    ? businessSettings.products.filter((product) => cleanText(product?.name, 120))
+    : [];
+  const isMenuListQuestion = /\\b(menu|produk|makanan|minuman|masakan)\\b/.test(normalizedMessage)
+    && /\\b(apa|apa saja|aja|daftar|tersedia|ada|dijual|jualan)\\b/.test(normalizedMessage);
+
+  if (isProductQuestion && rawProducts.length === 0) {
+    return {
+      reply: "Data menu atau produk belum tersedia. Silakan tambahkan produk melalui Pengaturan WAGRAM AI.",
+      model: OLLAMA_MODEL,
+      createdAt: Date.now()
+    };
+  }
+
+  if (isMenuListQuestion && rawProducts.length > 0) {
+    const productNames = rawProducts
+      .slice(0, 50)
+      .map((product) => cleanText(product?.name, 120))
+      .filter(Boolean);
+    return {
+      reply: `Menu/produk yang tercatat: ${productNames.join(", ")}.`,
+      model: OLLAMA_MODEL,
+      createdAt: Date.now()
+    };
+  }
+
   const settings = {
     manager: {
       name: cleanText(businessSettings?.manager?.name, 100),
