@@ -6509,3 +6509,98 @@ html[data-theme="dark"] .premium-payment-download {
   font-size: 11px;
   white-space: nowrap;
 }
+
+
+/* [ADDED] Full-screen WAGRAM AI conversation layout. */
+.ai-business-page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+.ai-business-page.hidden {
+  display: none !important;
+}
+.ai-business-conversation-header {
+  flex: 0 0 auto;
+  min-height: 64px;
+}
+.ai-business-header-avatar {
+  display: grid;
+  flex: 0 0 40px;
+  place-items: center;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.ai-business-header-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ai-business-conversation-header #aiBusinessSettingsButton {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+}
+.ai-business-page .ai-business-intro {
+  flex: 0 0 auto;
+  margin: 12px 12px 4px;
+}
+.ai-business-page .ai-business-messages {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ai-business-page .ai-business-composer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.ai-business-page .ai-business-composer textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 120px;
+  min-height: 42px;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  outline: none;
+  resize: none;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.ai-business-page .ai-business-composer button {
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.ai-business-page .ai-business-composer button .i {
+  width: 20px;
+  height: 20px;
+}
+.ai-business-not-connected {
+  border-left: 3px solid var(--muted);
+}
+body.in-chat #topbar {
+  display: none !important;
+}
