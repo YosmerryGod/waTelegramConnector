@@ -2500,7 +2500,7 @@
       localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
       await api("/ai-business/settings", {
         method: "PUT",
-        body: JSON.stringify({ settings })
+        body: JSON.stringify({ settings, promptTemplate: settings.aiPromptTemplate || "" })
       });
       showToast("Pengaturan usaha tersimpan di server.");
       return true;
@@ -2515,9 +2515,13 @@
     const sessionKey = String(state.activeSessionId || "default");
     const all = JSON.parse(localStorage.getItem(AI_BUSINESS_SETTINGS_KEY) || "{}");
     if (response.profile?.settings) {
-      all[sessionKey] = response.profile.settings;
+      all[sessionKey] = {
+        ...response.profile.settings,
+        aiPromptTemplate: response.profile.promptTemplate || "",
+        aiFallbackMessage: response.profile.fallbackConfig?.notAvailable || ""
+      };
       localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
-      return response.profile.settings;
+      return all[sessionKey];
     }
     const legacySettings = all[sessionKey] || { manager: {}, outlets: [], payment: {}, products: [], aiRules: "" };
     await api("/ai-business/settings", {
@@ -2540,6 +2544,8 @@
     }
     // [MODIFIED] Restore the saved escalation rules after server synchronization.
     $("#aiBusinessRulesInput").value = getAIBusinessSettings().aiRules || "";
+    $("#aiBusinessPromptTemplateInput").value = getAIBusinessSettings().aiPromptTemplate || "";
+    $("#aiBusinessFallbackInput").value = getAIBusinessSettings().aiFallbackMessage || "";
   }
 
   function closeAIBusinessSettings() {
@@ -2604,6 +2610,8 @@
     if (event.target.closest("#saveAIBusinessRulesButton")) {
       const settings = getAIBusinessSettings();
       settings.aiRules = $("#aiBusinessRulesInput").value.trim();
+      settings.aiPromptTemplate = $("#aiBusinessPromptTemplateInput").value.trim();
+      settings.aiFallbackMessage = $("#aiBusinessFallbackInput").value.trim();
       saveAIBusinessSettings(settings);
       return;
     }
