@@ -2818,8 +2818,9 @@
         : "";
       return `
         <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
-          <div class="message-text">${escapeHTML(item.content)}</div>
+          {/* [MODIFIED] Show the QRIS image before the assistant's caption in the same message bubble. */}
           ${item.role === "assistant" && item.qrisImage ? `<img class="ai-business-qris-message-image" src="${escapeHTML(getAIBusinessSettings().payment?.qrisImage || "")}" alt="QRIS pembayaran usaha" loading="lazy">` : ""}
+          <div class="message-text">${escapeHTML(item.content)}</div>
           ${trace}
           <div class="message-time">${escapeHTML(item.time || "")}</div>
         </div>`;
