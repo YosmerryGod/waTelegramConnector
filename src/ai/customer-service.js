@@ -189,7 +189,7 @@ async function ollamaGenerateGreeting(message, history = []) {
       ...recent.map((item) => `${item.role === "assistant" ? "WAGRAM AI" : "Pemilik"}: ${item.content}`),
       `Sapaan terbaru: ${message}`,
       "Balasan WAGRAM AI:"
-    ].join("\\n");
+    ].join("\n");
 
     const response = await fetch(`${OLLAMA_URL}/api/generate`, {
       method: "POST",
