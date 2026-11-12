@@ -252,6 +252,51 @@ export async function learnAICustomerServiceHistory(telegramId, sessionId) {
   }
 }
 
+// [ADDED] Incrementally learn new customer/admin message pairs while AI is enabled.
+export function recordAICustomerServiceMessage(telegramId, sessionId, chatId) {
+  try {
+    const owner = ownerParams(telegramId, sessionId);
+    const settings = getSettings(owner.telegramId, owner.sessionId);
+    if (!settings?.enabled || getMembership(owner.telegramId)?.plan !== "premium-c") {
+      return 0;
+    }
+
+    const recent = listMessages(owner.telegramId, chatId, 10, owner.sessionId)
+      .filter((message) => message.message_type === "text" && message.body?.trim() && !message.is_deleted)
+      .sort((a, b) => Number(a.message_timestamp) - Number(b.message_timestamp));
+
+    let learned = 0;
+    for (let index = 0; index < recent.length - 1; index += 1) {
+      const customer = recent[index];
+      const reply = recent[index + 1];
+      if (customer.direction !== "incoming" || reply.direction !== "outgoing") continue;
+      learned += db.prepare(`
+        INSERT OR IGNORE INTO ai_customer_service_examples (
+          telegram_id, session_id, chat_id, customer_message, admin_reply, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+      `).run(
+        owner.telegramId,
+        owner.sessionId,
+        chatId,
+        customer.body.trim().slice(0, 1200),
+        reply.body.trim().slice(0, 1200),
+        Date.now()
+      ).changes;
+    }
+    if (learned > 0) {
+      db.prepare(`
+        UPDATE ai_customer_service_settings
+        SET learning_cursor = learning_cursor + ?, last_learned_at = ?, updated_at = ?
+        WHERE telegram_id = ? AND session_id = ? AND enabled = 1
+      `).run(learned, Date.now(), Date.now(), owner.telegramId, owner.sessionId);
+    }
+    return learned;
+  } catch (error) {
+    console.error("[AI Customer Service] Incremental learning skipped:", error.message);
+    return 0;
+  }
+}
+
 export async function createAICustomerServiceSuggestion(telegramId, sessionId, chatId) {
   assertEnabled(telegramId, sessionId);
   const owner = ownerParams(telegramId, sessionId);
