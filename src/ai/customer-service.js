@@ -790,8 +790,8 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
   // the small language model's intent classification.
   const normalizeProductText = (value) => String(value || "")
     .toLocaleLowerCase("id-ID")
-    .replace(/[^\\p{L}\\p{N}\\s]/gu, " ")
-    .replace(/\\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
     .trim();
   const normalizedMessage = normalizeProductText(message);
   const matchedProduct = settings.products.find((product) => {
@@ -800,8 +800,8 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
       .filter((word) => word.length > 1 && !["khas", "dan", "atau"].includes(word));
     return words.length > 0 && words.every((word) => normalizedMessage.includes(word));
   });
-  const asksAvailability = /\\b(masih ada|tersedia|ada gak|ada kah|ada tidak|stok|ready|habis|kosong)\\b/i.test(normalizedMessage);
-  const asksPrice = /\\b(harga|berapa|rupiah|rp)\\b/i.test(normalizedMessage);
+  const asksAvailability = /\b(masih ada|tersedia|ada gak|ada kah|ada tidak|stok|ready|habis|kosong)\b/i.test(normalizedMessage);
+  const asksPrice = /\b(harga|berapa|rupiah|rp)\b/i.test(normalizedMessage);
 
   if (matchedProduct && asksAvailability) {
     intent = "product_stock";
@@ -814,7 +814,23 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
     } else {
       reply = matchedProduct.name + " sedang habis (stok 0).";
     }
-    return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+    return {
+      reply,
+      intent,
+      model: OLLAMA_MODEL,
+      createdAt: Date.now(),
+      trace: {
+        recognition: "Pertanyaan tentang ketersediaan atau stok produk",
+        action: "Mencocokkan nama produk dengan data usaha pada akun dan sesi aktif, lalu memeriksa nilai stok.",
+        dataUsed: [
+          "Produk: " + matchedProduct.name,
+          "Harga: " + (matchedProduct.price ? "Rp" + new Intl.NumberFormat("id-ID").format(Number(matchedProduct.price)) : "Belum tercatat"),
+          "Stok: " + (matchedProduct.stock === "" ? "Belum tercatat" : matchedProduct.stock)
+        ],
+        status: matchedProduct.stock === "" || !Number.isFinite(stockValue) ? "Data produk ditemukan, tetapi nilai stok belum valid." : "Produk ditemukan dan stok berhasil diperiksa.",
+        expectedAnswer: reply
+      }
+    };
   }
 
   if (matchedProduct && asksPrice) {
@@ -823,7 +839,19 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
     const reply = matchedProduct.price !== "" && Number.isFinite(priceValue)
       ? "Harga " + matchedProduct.name + " saat ini Rp" + new Intl.NumberFormat("id-ID").format(priceValue) + "."
       : "Harga " + matchedProduct.name + " belum tercatat di data usaha.";
-    return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+    return {
+      reply,
+      intent,
+      model: OLLAMA_MODEL,
+      createdAt: Date.now(),
+      trace: {
+        recognition: "Pertanyaan tentang harga produk",
+        action: "Mencocokkan nama produk dengan data usaha pada akun dan sesi aktif, lalu membaca harga.",
+        dataUsed: ["Produk: " + matchedProduct.name, "Harga: " + (matchedProduct.price || "Belum tercatat")],
+        status: matchedProduct.price !== "" && Number.isFinite(priceValue) ? "Produk dan harga ditemukan." : "Produk ditemukan, tetapi harga belum tercatat.",
+        expectedAnswer: reply
+      }
+    };
   }
 
   if (intent === "capabilities") {
@@ -848,5 +876,20 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
     skillGuidance
   });
 
-  return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+  const dataUsed = Object.entries(relevantData || {})
+    .filter(([key, value]) => key !== "aiRules" && value != null && (
+      (Array.isArray(value) && value.length > 0) ||
+      (typeof value === "object" && !Array.isArray(value) && Object.values(value).some((item) => String(item ?? "").trim())) ||
+      (typeof value !== "object" && String(value).trim())
+    ))
+    .map(([key, value]) => key + ": " + JSON.stringify(value).slice(0, 500));
+  const trace = {
+    recognition: "Intent terdeteksi: " + intent,
+    action: "Membaca profil usaha berdasarkan akun Telegram dan sesi WhatsApp aktif, memilih data yang relevan, lalu meminta Ollama menyusun jawaban.",
+    dataUsed: dataUsed.length ? dataUsed : ["Tidak ada data bisnis relevan yang ditemukan untuk intent ini."],
+    status: dataUsed.length ? "Data relevan tersedia untuk diproses." : "Tidak ada data relevan pada profil usaha dan sesi aktif.",
+    expectedAnswer: reply
+  };
+
+  return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now(), trace };
 }
