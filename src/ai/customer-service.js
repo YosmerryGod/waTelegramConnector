@@ -630,7 +630,7 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
   // [ADDED] QRIS lookup bypasses Gemini recognition/generation to avoid provider 503/504 errors.
   if (isQrisRequest(message)) {
     const reply = qrisImage
-      ? "Tentu, ini QRIS untuk pembayaran. Silakan scan gambar berikut."
+      ? "Ini QRIS-nya, Kak. Silakan scan untuk melakukan pembayaran."
       : "QRIS belum tersedia karena gambar QRIS belum diunggah di pengaturan WAGRAM AI.";
     return {
       reply,
