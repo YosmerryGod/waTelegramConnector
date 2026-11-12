@@ -2504,7 +2504,6 @@
         body: JSON.stringify({
           settings,
           promptTemplate: settings.aiPromptTemplate || "",
-          fallbackMessage: settings.aiFallbackMessage || ""
         })
       });
       showToast("Pengaturan usaha tersimpan di server.");
@@ -2543,7 +2542,6 @@
         body: JSON.stringify({
           settings: localSettings,
           promptTemplate: localSettings.aiPromptTemplate || "",
-          fallbackMessage: localSettings.aiFallbackMessage || ""
         })
       });
       aiBusinessSettingsSyncedSession = sessionKey;
@@ -2554,7 +2552,6 @@
       all[sessionKey] = {
         ...serverSettings,
         aiPromptTemplate: response.profile.promptTemplate || "",
-        aiFallbackMessage: response.profile.fallbackConfig?.notAvailable || ""
       };
       localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
       aiBusinessSettingsSyncedSession = sessionKey;
@@ -2567,7 +2564,6 @@
       body: JSON.stringify({
         settings: legacySettings,
         promptTemplate: legacySettings.aiPromptTemplate || "",
-        fallbackMessage: legacySettings.aiFallbackMessage || ""
       })
     });
     aiBusinessSettingsSyncedSession = sessionKey;
@@ -2588,7 +2584,6 @@
     // [MODIFIED] Restore the saved escalation rules after server synchronization.
     $("#aiBusinessRulesInput").value = getAIBusinessSettings().aiRules || "";
     $("#aiBusinessPromptTemplateInput").value = getAIBusinessSettings().aiPromptTemplate || "";
-    $("#aiBusinessFallbackInput").value = getAIBusinessSettings().aiFallbackMessage || "";
   }
 
   function closeAIBusinessSettings() {
@@ -2654,7 +2649,6 @@
       const settings = getAIBusinessSettings();
       settings.aiRules = $("#aiBusinessRulesInput").value.trim();
       settings.aiPromptTemplate = $("#aiBusinessPromptTemplateInput").value.trim();
-      settings.aiFallbackMessage = $("#aiBusinessFallbackInput").value.trim();
       saveAIBusinessSettings(settings);
       return;
     }
