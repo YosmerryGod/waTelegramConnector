@@ -15,6 +15,7 @@ import {
   setAICustomerServiceEnabled,
   learnAICustomerServiceHistory,
   createAICustomerServiceSuggestion,
+  createAIBusinessReply, // [ADDED] WAGRAM AI Business chat powered by local Ollama.
   checkOllamaHealth
 } from "./ai/customer-service.js";
 
@@ -1661,6 +1662,50 @@ router.post("/ai/suggest/:chatId", async (req, res) => {
         : status === 409
           ? "AI harus aktif dan pesan terakhir harus berasal dari pelanggan."
           : "Draft balasan belum dapat dibuat."
+    });
+  }
+});
+
+
+
+/* [ADDED] WAGRAM AI Business chat. Premium expiry is enforced server-side by getMembership(). */
+router.post("/ai-business/chat", async (req, res) => {
+  try {
+    const message = String(req.body?.message || "").trim();
+    if (!message || message.length > 4000) {
+      return res.status(400).json({
+        ok: false,
+        error: "INVALID_AI_BUSINESS_MESSAGE",
+        message: "Pesan wajib diisi dan maksimal 4.000 karakter."
+      });
+    }
+
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan !== "premium-c") {
+      return res.status(403).json({
+        ok: false,
+        error: "AI_BUSINESS_REQUIRES_PREMIUM_C",
+        message: "WAGRAM AI Business hanya tersedia untuk Premium 30 hari."
+      });
+    }
+
+    const result = await createAIBusinessReply(
+      req.telegramId,
+      message,
+      req.body?.businessSettings || {},
+      req.body?.history || []
+    );
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, ...result });
+  } catch (error) {
+    const status = error.status || 500;
+    console.error("[WAGRAM AI Business] Request failed:", error.message);
+    return res.status(status).json({
+      ok: false,
+      error: error.message || "AI_BUSINESS_FAILED",
+      message: status === 403
+        ? "WAGRAM AI Business membutuhkan Premium 30 hari yang masih aktif."
+        : "WAGRAM AI belum dapat menjawab. Periksa layanan Ollama di VPS."
     });
   }
 });
