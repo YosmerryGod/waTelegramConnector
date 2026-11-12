@@ -8,37 +8,28 @@ permissions:
 
 jobs:
   live-ai-test:
-    name: Test WAGRAM AI using the configured Premium C WhatsApp session
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: Run WAGRAM AI tests on the VPS
+    runs-on: self-hosted
+    timeout-minutes: 15
     env:
-      WAGRAM_API_BASE: ${{ secrets.WAGRAM_TEST_API_BASE }}
-      WAGRAM_INIT_DATA: ${{ secrets.WAGRAM_TEST_INIT_DATA }}
-      WAGRAM_SESSION_ID: ${{ secrets.WAGRAM_TEST_SESSION_ID }}
+      WAGRAM_APP_DIR: /opt/waTelegramConnector
+      SQLITE_PATH: /opt/waTelegramConnector/data/bridge.db
+      OLLAMA_URL: http://127.0.0.1:11434
+      OLLAMA_MODEL: qwen2.5:1.5b
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Validate live test credentials
+      - name: Verify VPS app, database, and Ollama
         shell: bash
         run: |
           set -euo pipefail
-          for name in WAGRAM_API_BASE WAGRAM_INIT_DATA WAGRAM_SESSION_ID; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::Missing GitHub Actions secret for ${name}"
-              exit 1
-            fi
-          done
-          case "$WAGRAM_API_BASE" in
-            https://*) ;;
-            *) echo "::error::WAGRAM_TEST_API_BASE must use HTTPS"; exit 1 ;;
-          esac
+          test -d "$WAGRAM_APP_DIR"
+          test -f "$SQLITE_PATH"
+          test -f "$WAGRAM_APP_DIR/node_modules/better-sqlite3/package.json"
+          curl --fail --silent --show-error "$OLLAMA_URL/api/tags" >/dev/null
+          echo "VPS application, SQLite database, dependencies, and Ollama are reachable."
 
-      - name: Test real WAGRAM AI responses
-        run: node .github/scripts/wagram-ai-live-test.mjs
+      - name: Run Premium C WAGRAM AI tests
+        run: node "$GITHUB_WORKSPACE/.github/scripts/wagram-ai-live-test.mjs"
