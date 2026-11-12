@@ -43,7 +43,7 @@ function loadWagramSkillGuidance() {
         current.push(line);
       }
     }
-    if (capturing && current.length) sections.push(current.join("\\n"));
+    if (capturing && current.length) sections.push(current.join("\n"));
     return sections.join("\n\n").slice(0, 12000);
   } catch (error) {
     console.warn("[WAGRAM AI] Skill document unavailable:", error.message);
