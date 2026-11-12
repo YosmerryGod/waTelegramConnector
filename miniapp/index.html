@@ -361,14 +361,19 @@
           <div class="ai-business-rules">
             <label for="aiBusinessRulesInput">Catatan khusus untuk AI</label>
             <p>Tulis hal yang tidak boleh ditangani AI dan harus dilaporkan kepada manager.</p>
-            <textarea id="aiBusinessRulesInput" rows="4" maxlength="3000" placeholder="Contoh: Komplain pelanggan, permintaan refund, perubahan harga, masalah pembayaran, dan pesanan khusus harus diteruskan ke manager."></textarea>
-            <button type="button" id="saveAIBusinessRulesButton" class="ai-business-save-button">Simpan catatan</button>
+            <textarea id="aiBusinessRulesInput" rows="3" maxlength="3000" placeholder="Catatan operasional dan aturan bisnis untuk AI."></textarea>
+            <label for="aiBusinessPromptTemplateInput">System prompt WAGRAM AI</label>
+            <p>Aturan dasar cara AI memahami dan menjawab pertanyaan. Data faktual tetap berasal dari pengaturan bisnis.</p>
+            <textarea id="aiBusinessPromptTemplateInput" rows="5" maxlength="6000" placeholder="Aturan dasar AI..."></textarea>
+            <label for="aiBusinessFallbackInput">Pesan saat informasi tidak tersedia</label>
+            <textarea id="aiBusinessFallbackInput" rows="2" maxlength="500" placeholder="Pesan ketika data yang diminta belum tersedia."></textarea>
+            <button type="button" id="saveAIBusinessRulesButton" class="ai-business-save-button">Simpan pengaturan AI</button>
           </div>
           <div id="aiBusinessSettingsDetail" class="ai-business-settings-detail hidden">
             <button type="button" class="ai-business-settings-back" data-back-ai-settings>‹ Kembali ke pengaturan</button>
             <div id="aiBusinessSettingsFormHost"></div>
           </div>
-          <p class="ai-business-settings-note">Pengaturan ini saat ini disimpan di perangkat ini. Sinkronisasi ke database akan dihubungkan berikutnya.</p>
+          <p class="ai-business-settings-note">Pengaturan AI dan data bisnis disimpan di server untuk akun dan sesi WhatsApp ini.</p>
         </section>
       </div>
     </main>
