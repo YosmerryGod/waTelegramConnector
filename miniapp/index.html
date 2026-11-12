@@ -305,9 +305,8 @@
           <button type="button" data-ai-prompt="Produk apa saja yang stoknya menipis?">Cek stok menipis</button>
         </div>
       </div>
-      <div id="aiBusinessMessages" class="ai-business-messages" aria-live="polite">
-        <div class="loading">Memuat percakapan AI…</div>
-      </div>
+      <!-- [MODIFIED] Start with an empty conversation area; do not show a permanent loading spinner. -->
+      <div id="aiBusinessMessages" class="ai-business-messages" aria-live="polite"></div>
       <!-- [MODIFIED] Fixed message composer styled like the WhatsApp chat input. -->
       <form id="aiBusinessComposer" class="ai-business-composer">
         <textarea id="aiBusinessInput" rows="1" maxlength="4000" placeholder="Ketik pesan…" aria-label="Pesan untuk WAGRAM AI"></textarea>
