@@ -379,6 +379,16 @@ export async function createAIBusinessReply(telegramId, message, businessSetting
   requirePremium30Days(telegramId);
 
   const cleanText = (value, max = 500) => String(value ?? "").trim().slice(0, max);
+
+  // [ADDED] Answer simple greetings directly so a short "hello" never triggers a long capability dump.
+  const greeting = cleanText(message, 4000).toLowerCase().replace(/[!.,?]+$/g, "").trim();
+  if (/^(hi|hai|halo|hello|hei|hey|assalamualaikum|selamat pagi|selamat siang|selamat sore|selamat malam)( wagram ai)?$/.test(greeting)) {
+    return {
+      reply: "Halo! Saya WAGRAM AI, asisten bisnis Anda. Saya bisa membantu menjawab pertanyaan tentang outlet, produk, stok, pembayaran, dan menyusun laporan dari data yang sudah Anda simpan. Mau mulai dari apa?",
+      model: OLLAMA_MODEL,
+      createdAt: Date.now()
+    };
+  }
   const settings = {
     manager: {
       name: cleanText(businessSettings?.manager?.name, 100),
@@ -416,7 +426,7 @@ export async function createAIBusinessReply(telegramId, message, businessSetting
 
   const prompt = [
     "Kamu adalah WAGRAM AI, asisten operasional untuk pemilik usaha di Indonesia.",
-    "Jawab dalam Bahasa Indonesia yang ramah, ringkas, jelas, dan praktis. Untuk pertanyaan perkenalan, jawab singkat dan sebutkan kemampuan yang benar-benar tersedia.",
+    "Jawab dalam Bahasa Indonesia yang ramah, ringkas, jelas, dan praktis. Jawaban normal maksimal 3 kalimat kecuali pemilik meminta rincian atau laporan. Jangan memberi daftar panjang kemampuan kecuali diminta secara eksplisit. Untuk sapaan, cukup balas sapaan secara singkat dan tanyakan apa yang ingin dibantu.",
     "Kamu dapat membaca dan menggunakan data bisnis yang dikirim bersama pesan: manager, outlet, jam operasional, informasi QRIS, produk, harga, stok, dan catatan khusus pemilik.",
     "PENTING: Saat ini kamu hanya asisten percakapan. Kamu TIDAK memiliki akses untuk langsung menambah, mengubah, atau menghapus data outlet, produk, harga, stok, QRIS, transaksi, atau database. Jangan pernah mengaku sudah menyimpan atau mengubah data. Jika pemilik ingin mengubah data, arahkan ke menu Pengaturan (ikon gear) pada halaman WAGRAM AI.",
     "Kamu dapat membantu menghitung, merangkum, menyusun laporan berdasarkan data yang benar-benar tersedia, dan memberi instruksi langkah demi langkah. Jangan mengklaim dapat melihat transaksi atau stok real-time jika datanya tidak dikirim.",
