@@ -530,9 +530,14 @@ async function generateGroundedAIBusinessAnswer({
   message, intent, data, history, profile, examples, skillGuidance
 }) {
   const config = profile || {};
-  const promptTemplate = String(config.promptTemplate || "");
   const fallbackConfig = config.fallbackConfig || {};
   const fallbackMessage = String(fallbackConfig.notAvailable || "Informasi tersebut belum tersedia dalam data usaha yang tercatat.");
+  const businessName = String(data?.payment?.merchant || "bisnis");
+  const promptTemplate = String(config.promptTemplate || "")
+    .replaceAll("{{nama_bisnis}}", businessName)
+    .replaceAll("{{max_kalimat}}", "3")
+    .replaceAll("{{pesan_tidak_tersedia}}", fallbackMessage)
+    .replaceAll("{{data}}", JSON.stringify(data));
   const dataText = JSON.stringify(data);
   const exampleText = (Array.isArray(examples) ? examples : []).slice(0, 3).map((example) => ({
     question: example.question,
@@ -547,6 +552,8 @@ async function generateGroundedAIBusinessAnswer({
     "Gunakan Bahasa Indonesia natural, ringkas, maksimal 3 kalimat kecuali diminta rinci.",
     skillGuidance || "",
     promptTemplate,
+    "CATATAN KHUSUS PEMILIK:",
+    String(data?.aiRules || ""),
     "CONTOH PERCAKAPAN RELEVAN:",
     JSON.stringify(exampleText),
     "DATA:",
@@ -584,10 +591,15 @@ async function generateGroundedAIBusinessAnswer({
     const answer = String(result?.answer || "").trim();
     const facts = Array.isArray(result?.facts) ? result.facts.map((fact) => String(fact)) : [];
     if (!answer || facts.some((fact) => !fact || !dataText.includes(fact))) return false;
-    if (intent === "products" && Array.isArray(data?.products) && data.products.length === 0) {
+    const hasUsableData = Object.values(data || {}).some((value) => {
+      if (Array.isArray(value)) return value.length > 0;
+      if (value && typeof value === "object") return Object.values(value).some((item) => String(item ?? "").trim());
+      return String(value ?? "").trim().length > 0;
+    });
+    if (!hasUsableData) {
       return facts.length === 0 && /belum|tidak tersedia|tidak ada|belum tercatat|belum diisi|kosong/i.test(answer);
     }
-    return true;
+    return facts.length > 0;
   };
 
   if (!isValid(generated)) {
