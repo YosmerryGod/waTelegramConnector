@@ -6604,3 +6604,56 @@ html[data-theme="dark"] .premium-payment-download {
 body.in-chat #topbar {
   display: none !important;
 }
+
+
+/* [ADDED] Style the WAGRAM AI welcome state and quick actions to match the app theme. */
+.ai-business-page .ai-business-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--text);
+}
+.ai-business-page .ai-business-intro-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-2));
+  color: var(--accent);
+}
+.ai-business-page .ai-business-intro h2 {
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+.ai-business-page .ai-business-intro p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.ai-business-page .ai-business-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+.ai-business-page .ai-business-suggestions button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ai-business-page .ai-business-messages:empty {
+  display: block;
+}
