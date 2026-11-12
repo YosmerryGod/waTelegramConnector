@@ -342,9 +342,12 @@
     updateTopbarTitle();
     // [ADDED] Show the add-contact action only on the Contacts page.
     $("#addContactButton").classList.toggle("hidden", page !== "contacts");
-    $("#bottomNav").classList.toggle("hidden", page === "premium");
+    $("#bottomNav").classList.toggle("hidden", page === "premium" || page === "aiBusiness");
     document.body.classList.toggle("premium-page-active", page === "premium");
     closeConversationUI();
+    // [ADDED] WAGRAM AI uses the same full-screen conversation layout as WhatsApp chats.
+    $("#topbar").classList.toggle("hidden", page === "aiBusiness");
+    document.body.classList.toggle("in-chat", page === "aiBusiness");
 
     for (const [key, selector] of Object.entries(PAGES)) {
       $(selector).classList.toggle("hidden", key !== page);
@@ -2421,6 +2424,35 @@
     $("#backButton").addEventListener("click", () => setPage("chats"));
     // [ADDED] Return from the WAGRAM AI page to the chat list.
     $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
+
+    // [ADDED] Open Profile so the user can manage the AI Business setting.
+    $("#aiBusinessSettingsButton")?.addEventListener("click", () => setPage("account"));
+
+    // [ADDED] The composer displays sent messages while the AI Business service is being connected.
+    $("#aiBusinessComposer")?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const input = $("#aiBusinessInput");
+      const value = input.value.trim();
+      if (!value) return;
+
+      const intro = $("#aiBusinessIntro");
+      if (intro) intro.classList.add("hidden");
+
+      const messages = $("#aiBusinessMessages");
+      const timestamp = timeOnly(Date.now());
+      messages.insertAdjacentHTML("beforeend", `
+        <div class="message outgoing">
+          <div class="message-text">${escapeHTML(value)}</div>
+          <div class="message-time">${escapeHTML(timestamp)}</div>
+        </div>
+        <div class="message ai-business-not-connected">
+          <div class="message-text">Pesan diterima. Layanan AI Business belum terhubung, jadi saya belum bisa memproses atau membalas pesan ini.</div>
+          <div class="message-time">${escapeHTML(timestamp)}</div>
+        </div>`);
+      input.value = "";
+      messages.scrollTop = messages.scrollHeight;
+      input.focus();
+    });
 
     // Tema
     $("#themeButton").addEventListener("click", () => {
