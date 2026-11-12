@@ -61,7 +61,7 @@ Tugas:
 |---|---|
 | Runtime | Ollama di VPS |
 | Base URL default | `http://127.0.0.1:11434` |
-| Model default | `qwen2.5:1.5b` |
+| Model default | `qwen3:4b` |
 | Pemanggilan model saat ini | `POST /api/generate` |
 | Temperature saat ini | `0.35` |
 | Context saat ini | `3072` |
@@ -112,7 +112,7 @@ Jangan pernah mengekspos endpoint Ollama ke internet publik tanpa autentikasi da
 
 ### 3.4 Pemilihan model
 
-Model aktif saat ini adalah `qwen2.5:1.5b`. Model yang lebih besar tidak otomatis lebih baik untuk VPS: ukur kualitas, latency, RAM, dan stabilitas.
+Model default yang dituju adalah `qwen3:4b` (Q4_K_M, sekitar 2.5 GB unduhan). Siapkan RAM tambahan untuk model weights, KV cache, context, dan proses backend; ukuran file unduhan bukan total RAM runtime. Uji kualitas, latency, RAM, dan stabilitas sebelum menaikkan context.
 
 Sebelum mengganti model:
 - Catat spesifikasi CPU, RAM, swap, dan storage VPS.
@@ -513,7 +513,7 @@ Sebelum rilis perubahan prompt/model/tools, jalankan test set minimal 20–50 ka
 
 ### Tahap 1 — Stabilkan percakapan
 - [x] Ollama terpasang dan API lokal dapat diakses.
-- [x] Model `qwen2.5:1.5b` berhasil diuji.
+- [x] Model `qwen3:4b` berhasil diuji.
 - [x] Endpoint AI Business tersedia.
 - [x] Perbaiki gaya respons pemilik agar natural, kontekstual, dan tidak berulang.
 - [x] Tingkatkan relevansi contoh chat Customer Service dan masukkan fakta bisnis terpilih ke prompt draft.
