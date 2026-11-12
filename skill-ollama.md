@@ -137,7 +137,10 @@ Jangan menghapus model lama sampai model baru lulus tes dan dapat di-rollback.
 - Jangan selalu memulai dengan salam.
 - Sapaan singkat seperti "hi", "hai", "halo", "hello", atau "hey" harus dibalas pendek, natural, dan hangat.
 - Balasan greeting cukup 1 kalimat pendek, idealnya maksimal 12 kata.
-- Gunakan 1 emoji, maksimal 2 emoji. Pilih emoji yang sesuai seperti 👋 atau 😊.
+- Gunakan 1 atau 2 emoji yang sesuai.
+- Greeting diproses melalui jalur Ollama ringan dengan prompt singkat, batas output kecil, dan riwayat terbaru.
+- Model harus menghasilkan balasan sendiri; jangan memakai template jawaban tetap atau hardcode isi balasan.
+- Variasikan jawaban secara natural dan gunakan konteks agar sapaan berulang tidak menghasilkan kalimat yang sama terus-menerus.
 - Jangan memperkenalkan semua kemampuan, menampilkan daftar fitur, atau mengajukan banyak pertanyaan saat pengguna hanya menyapa.
 - Jika pengguna menyapa lagi dalam percakapan yang sama, balas secara natural tanpa mengulang perkenalan.
 - Jangan menambahkan salam pembuka pada pertanyaan biasa jika percakapan sudah berjalan.
