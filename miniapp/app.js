@@ -754,10 +754,7 @@
   };
 
   function isPremiumMembership() {
-    const membership = state.membership;
-    if (!membership?.plan || membership.plan === "free") return false;
-    const expiry = membership.plan_expires_at ? new Date(membership.plan_expires_at).getTime() : 0;
-    return !expiry || (Number.isFinite(expiry) && expiry > Date.now());
+    return Boolean(state.membership?.plan && state.membership.plan !== "free");
   }
 
   // [ADDED] AI Business is exclusively available to active Premium C (30-day) members.
