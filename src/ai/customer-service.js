@@ -805,8 +805,8 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
   const asksPrice = /\b(harga|berapa|rupiah|rp)\b/i.test(normalizedMessage);
 
   // [ADDED] Resolve outlet-count questions directly from the authenticated business profile.
-  const asksOutletCount = /\\b(berapa|jumlah|banyak|total)\\b/i.test(normalizedMessage)
-    && /\\b(outlet|cabang|gerai)\\b/i.test(normalizedMessage);
+  const asksOutletCount = /\b(berapa|jumlah|banyak|total)\b/i.test(normalizedMessage)
+    && /\b(outlet|cabang|gerai)\b/i.test(normalizedMessage);
   if (asksOutletCount) {
     intent = "outlets";
     const outletNames = settings.outlets.map((outlet) => outlet.name).filter(Boolean);
