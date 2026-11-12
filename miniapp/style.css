@@ -7033,3 +7033,15 @@ body.in-chat #topbar {
   #wagramAiPinnedRow .chat-row-content { padding: 10px; gap: 10px; }
   #wagramAiPinnedRow .item-sub { max-width: 54vw; }
 }
+
+
+/* [ADDED] Align WAGRAM AI message timestamps like WhatsApp message bubbles. */
+.ai-business-reply .message-time {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: right;
+}
