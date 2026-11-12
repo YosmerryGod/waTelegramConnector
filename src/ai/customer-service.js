@@ -784,7 +784,48 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
       })).filter((item) => item.content)
     : [];
 
-  const intent = await detectAIBusinessIntent(message, recentHistory, profile?.intentConfig);
+  let intent = await detectAIBusinessIntent(message, recentHistory, profile?.intentConfig);
+
+  // [ADDED] Resolve product names from the saved owner profile before relying on
+  // the small language model's intent classification.
+  const normalizeProductText = (value) => String(value || "")
+    .toLocaleLowerCase("id-ID")
+    .replace(/[^\\p{L}\\p{N}\\s]/gu, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
+  const normalizedMessage = normalizeProductText(message);
+  const matchedProduct = settings.products.find((product) => {
+    const words = normalizeProductText(product.name)
+      .split(" ")
+      .filter((word) => word.length > 1 && !["khas", "dan", "atau"].includes(word));
+    return words.length > 0 && words.every((word) => normalizedMessage.includes(word));
+  });
+  const asksAvailability = /\\b(masih ada|tersedia|ada gak|ada kah|ada tidak|stok|ready|habis|kosong)\\b/i.test(normalizedMessage);
+  const asksPrice = /\\b(harga|berapa|rupiah|rp)\\b/i.test(normalizedMessage);
+
+  if (matchedProduct && asksAvailability) {
+    intent = "product_stock";
+    const stockValue = Number(matchedProduct.stock);
+    let reply;
+    if (matchedProduct.stock === "" || !Number.isFinite(stockValue)) {
+      reply = "Data stok " + matchedProduct.name + " belum tercatat. Silakan periksa stok produk di pengaturan.";
+    } else if (stockValue > 0) {
+      reply = matchedProduct.name + " masih tersedia, stok saat ini " + stockValue + " porsi. 😊";
+    } else {
+      reply = matchedProduct.name + " sedang habis (stok 0).";
+    }
+    return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+  }
+
+  if (matchedProduct && asksPrice) {
+    intent = "product_price";
+    const priceValue = Number(matchedProduct.price);
+    const reply = matchedProduct.price !== "" && Number.isFinite(priceValue)
+      ? "Harga " + matchedProduct.name + " saat ini Rp" + new Intl.NumberFormat("id-ID").format(priceValue) + "."
+      : "Harga " + matchedProduct.name + " belum tercatat di data usaha.";
+    return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+  }
+
   if (intent === "capabilities") {
     const reply = await generateAIBusinessCapabilitiesReply(message, recentHistory);
     return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
