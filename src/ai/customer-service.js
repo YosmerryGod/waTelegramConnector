@@ -499,7 +499,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     manager: settings.manager || {},
     outlets: Array.isArray(settings.outlets) ? settings.outlets.slice(0, 30) : [],
     products: Array.isArray(settings.products) ? settings.products.slice(0, 100) : [],
-    payment: settings.payment ? { merchant: settings.payment.merchant || "", qrisConfigured: Boolean(settings.payment.qrisId) } : {},
+    payment: settings.payment ? { merchant: settings.payment.merchant || "", qrisConfigured: Boolean(settings.payment.qrisImage || settings.payment.qrisId) } : {},
     aiRules: String(settings.aiRules || "").slice(0, 3000)
   };
   const recentHistory = Array.isArray(history) ? history.slice(-10).map((item) => ({
@@ -617,9 +617,37 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   }
   throw new Error("GEMINI_AGENT_MAX_TOOL_STEPS");
 }
+// [ADDED] Handle QRIS requests deterministically; payment image data never needs an LLM call.
+function isQrisRequest(message) {
+  return /\\bqris\\b|\\bqr\\s*code\\b|kode\\s*(?:qr|pembayaran)|barcode\\s*(?:pembayaran|bayar)|cara\\s*bayar/i.test(String(message || ""));
+}
+
 export async function createAIBusinessReply(telegramId, sessionId, message, history = []) {
   requirePremium30Days(telegramId);
   const profile = getAIBusinessProfile(telegramId, sessionId);
+  const qrisImage = String(profile?.settings?.payment?.qrisImage || "");
+
+  // [ADDED] QRIS lookup bypasses Gemini recognition/generation to avoid provider 503/504 errors.
+  if (isQrisRequest(message)) {
+    const reply = qrisImage
+      ? "Tentu, ini QRIS untuk pembayaran. Silakan scan gambar berikut."
+      : "QRIS belum tersedia karena gambar QRIS belum diunggah di pengaturan WAGRAM AI.";
+    return {
+      reply,
+      qrisImage: qrisImage || null,
+      intent: "payment",
+      model: "local-business-data",
+      createdAt: Date.now(),
+      trace: {
+        recognition: "Permintaan QRIS dikenali secara langsung.",
+        action: "Memeriksa gambar QRIS pada pengaturan bisnis sesi aktif.",
+        dataUsed: [qrisImage ? "Gambar QRIS tersedia" : "Gambar QRIS belum diunggah"],
+        status: "Pemeriksaan QRIS selesai tanpa memanggil provider AI.",
+        expectedAnswer: reply
+      }
+    };
+  }
+
   const result = await runOwnerAIAgent({ telegramId, sessionId, message, history, profile });
   return {
     reply: result.reply,
