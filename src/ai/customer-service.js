@@ -790,6 +790,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       model: OLLAMA_MODEL,
       messages: [{ role: "user", content: recognitionPrompt }],
       format: "json",
+      think: false, // [MODIFIED] Disable Qwen3 thinking so recognition JSON is returned in message.content.
       stream: false,
       keep_alive: "30m",
       options: { temperature: 0.1, num_ctx: 2048, num_predict: 220 }
@@ -927,6 +928,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         model: OLLAMA_MODEL,
         messages,
         tools,
+        think: false, // [MODIFIED] Keep the final answer/tool-call content in message.content.
         stream: false,
         keep_alive: "30m",
         options: { temperature: 0.2, num_ctx: 4096, num_predict: 420 }
