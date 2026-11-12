@@ -446,13 +446,13 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
 
   // [MODIFIED] Retrieve a larger candidate pool scoped to this owner/session,
   // then rank examples by relevance to the customer's latest message.
-  const candidates = db.prepare(\`
+  const candidates = db.prepare(`
     SELECT customer_message, admin_reply
     FROM ai_customer_service_examples
     WHERE telegram_id = ? AND session_id = ?
     ORDER BY id DESC
     LIMIT 80
-  \`).all(owner.telegramId, owner.sessionId);
+  `).all(owner.telegramId, owner.sessionId);
   const examples = selectRelevantCustomerServiceExamples(latest.body, candidates);
 
   // [ADDED] Supply verified business facts while excluding internal payment payloads
