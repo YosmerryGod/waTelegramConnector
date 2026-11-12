@@ -2620,12 +2620,26 @@
           <button class="ai-business-save-button" type="submit">Simpan outlet</button>
         </form>`;
     } else if (section === "payment") {
+      const qrisImage = String(settings.payment.qrisImage || "");
       host.innerHTML = `
         <form data-ai-settings-form="payment" class="ai-business-data-form">
-          <label>Nama merchant<input name="merchant" type="text" maxlength="100" placeholder="Nama pada QRIS" value="${escapeHTML(settings.payment.merchant || "")}"></label>
-          <label>Nomor / ID QRIS<input name="qrisId" type="text" maxlength="150" placeholder="Nomor identitas QRIS (opsional)" value="${escapeHTML(settings.payment.qrisId || "")}"></label>
-          <label>Data QRIS<textarea name="qrisPayload" rows="4" maxlength="4000" placeholder="Tempel string QRIS atau informasi pembayaran di sini">${escapeHTML(settings.payment.qrisPayload || "")}</textarea></label>
-          <button class="ai-business-save-button" type="submit">Simpan pembayaran</button>
+          <div class="ai-business-qris-upload">
+            <div class="ai-business-qris-preview-wrap">
+              <img id="aiBusinessQrisPreview" class="ai-business-qris-preview ${qrisImage ? "" : "hidden"}" src="${escapeHTML(qrisImage)}" alt="QRIS pembayaran usaha">
+              <div id="aiBusinessQrisPlaceholder" class="ai-business-qris-placeholder ${qrisImage ? "hidden" : ""}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v2M17 20h4M20 18v3"/></svg>
+                <strong>Belum ada gambar QRIS</strong>
+                <span>Upload gambar QRIS milik usaha</span>
+              </div>
+            </div>
+            <label class="ai-business-qris-file-label" for="aiBusinessQrisImageInput">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5"/><path d="M4 16v4h16v-4"/></svg>
+              <span id="aiBusinessQrisFileLabel">${qrisImage ? "Ganti gambar QRIS" : "Pilih gambar QRIS"}</span>
+            </label>
+            <input id="aiBusinessQrisImageInput" class="ai-business-qris-file-input" name="qrisImage" type="file" accept="image/jpeg,image/png,image/webp">
+            <small>Format JPG, PNG, atau WEBP. Maksimal 1 MB.</small>
+          </div>
+          <button class="ai-business-save-button" type="submit">Simpan QRIS</button>
         </form>`;
     } else if (section === "products") {
       const products = settings.products.length ? settings.products : [{ name: "", price: "", stock: "" }];
@@ -2703,7 +2717,7 @@
     }
   }
 
-  function handleAIBusinessSettingsSubmit(event) {
+  async function handleAIBusinessSettingsSubmit(event) {
     const form = event.target.closest("[data-ai-settings-form]");
     if (!form) return;
     event.preventDefault();
@@ -2720,7 +2734,30 @@
       const closes = data.getAll("outletClose");
       settings.outlets = names.map((name, index) => ({ name: String(name).trim(), phone: String(phones[index] || "").trim(), open: String(opens[index] || ""), close: String(closes[index] || "") })).filter((outlet) => outlet.name);
     } else if (section === "payment") {
-      settings.payment = { merchant: String(data.get("merchant") || "").trim(), qrisId: String(data.get("qrisId") || "").trim(), qrisPayload: String(data.get("qrisPayload") || "").trim() };
+      const imageFile = data.get("qrisImage");
+      if (imageFile instanceof File && imageFile.size > 0) {
+        if (!["image/jpeg", "image/png", "image/webp"].includes(imageFile.type)) {
+          showToast("Format gambar harus JPG, PNG, atau WEBP.");
+          return;
+        }
+        if (imageFile.size > 1024 * 1024) {
+          showToast("Ukuran gambar QRIS maksimal 1 MB.");
+          return;
+        }
+        try {
+          settings.payment = { ...settings.payment, qrisImage: await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ""));
+            reader.onerror = () => reject(new Error("Gambar QRIS gagal dibaca."));
+            reader.readAsDataURL(imageFile);
+          }) };
+        } catch (error) {
+          showToast(error.message || "Gambar QRIS gagal dibaca.");
+          return;
+        }
+      } else {
+        settings.payment = { ...settings.payment };
+      }
     } else if (section === "products") {
       const names = data.getAll("productName");
       const prices = data.getAll("productPrice");
