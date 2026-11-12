@@ -6810,3 +6810,43 @@ body.in-chat #topbar {
   .ai-business-settings-panel { padding: 15px; }
   .ai-business-setting-tile { min-height: 120px; padding: 11px; }
 }
+
+
+/* [ADDED] Notes field for AI restrictions and manager escalation rules. */
+.ai-business-rules {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+.ai-business-rules > label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 750;
+}
+.ai-business-rules > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.ai-business-rules textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  outline: none;
+  resize: vertical;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.ai-business-rules .ai-business-save-button {
+  width: 100%;
+}
