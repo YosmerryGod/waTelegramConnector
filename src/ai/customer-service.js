@@ -512,14 +512,15 @@ function selectIntentData(intent, settings) {
     return (Array.isArray(source.products) ? source.products : [])
       .filter((item) => item.name && normalized.includes(String(item.name).toLowerCase()));
   };
+  const ownerRules = source.aiRules || "";
   switch (intent) {
-    case "manager": return { manager: source.manager || {} };
+    case "manager": return { manager: source.manager || {}, aiRules: ownerRules };
     case "outlets":
-    case "business_hours": return { outlets: source.outlets || [] };
-    case "products": return { products: source.products || [] };
+    case "business_hours": return { outlets: source.outlets || [], aiRules: ownerRules };
+    case "products": return { products: source.products || [], aiRules: ownerRules };
     case "product_price":
-    case "product_stock": return { products: productName(source.__message || "") };
-    case "payment": return { payment: source.payment || {} };
+    case "product_stock": return { products: productName(source.__message || ""), aiRules: ownerRules };
+    case "payment": return { payment: source.payment || {}, aiRules: ownerRules };
     case "greeting": return {};
     default: return source;
   }
