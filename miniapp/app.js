@@ -790,6 +790,75 @@
         crown.remove();
       }
     });
+
+    // [ADDED] Keep the AI Business switch synchronized with the current Premium session.
+    renderAIBusinessToggle();
+  }
+
+  // [ADDED] Store the AI Business UI preference separately for each WhatsApp session.
+  const AI_BUSINESS_PREFS_KEY = "wagram-ai-business-preferences";
+
+  function getAIBusinessPreferences() {
+    try {
+      return JSON.parse(localStorage.getItem(AI_BUSINESS_PREFS_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  // [ADDED] Reflect Premium access and the saved switch state in the Profile UI.
+  function renderAIBusinessToggle() {
+    const button = $("#aiBusinessToggle");
+    const description = $("#aiBusinessSettingDescription");
+    const option = $("#aiBusinessSettingOption");
+    if (!button) return;
+
+    const premium = isPremiumMembership();
+    const preferences = getAIBusinessPreferences();
+    const sessionId = String(state.activeSessionId || "default");
+    const enabled = premium && preferences[sessionId] === true;
+
+    button.setAttribute("aria-checked", String(enabled));
+    button.setAttribute("aria-disabled", String(!premium));
+    button.disabled = !premium;
+    option?.classList.toggle("is-premium-locked", !premium);
+    option?.classList.toggle("is-ai-business-enabled", enabled);
+
+    if (description) {
+      description.textContent = !premium
+        ? "Khusus pengguna Premium"
+        : enabled
+          ? "AI Business aktif untuk session ini"
+          : "Asisten bisnis dan pencatatan stok harian";
+    }
+  }
+
+  // [ADDED] Toggle the AI Business UI preference for the selected WhatsApp session.
+  function toggleAIBusinessPreference() {
+    if (!isPremiumMembership()) {
+      openPremiumSheet();
+      return;
+    }
+
+    const button = $("#aiBusinessToggle");
+    if (!button) return;
+
+    const sessionId = String(state.activeSessionId || "default");
+    const preferences = getAIBusinessPreferences();
+    const enabled = button.getAttribute("aria-checked") !== "true";
+    preferences[sessionId] = enabled;
+
+    try {
+      localStorage.setItem(AI_BUSINESS_PREFS_KEY, JSON.stringify(preferences));
+    } catch {
+      showToast("Pengaturan AI Business tidak dapat disimpan di perangkat ini.");
+      return;
+    }
+
+    renderAIBusinessToggle();
+    showToast(enabled
+      ? "Toggle AI Business diaktifkan."
+      : "Toggle AI Business dinonaktifkan.");
   }
 
   function toggleNotificationPreference(button) {
@@ -2755,6 +2824,9 @@
       const collapsed = section.classList.toggle("is-collapsed");
       $("#historyCleanupToggle").setAttribute("aria-expanded", String(!collapsed));
     });
+
+    // [ADDED] AI Business switch is a UI preference until its AI workflow is connected.
+    $("#aiBusinessToggle")?.addEventListener("click", toggleAIBusinessPreference);
 
     // [ADDED] Notification switches are saved locally on this device.
     $("#notificationOptions").addEventListener("click", (event) => {
