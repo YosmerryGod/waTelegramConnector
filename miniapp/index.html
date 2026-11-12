@@ -242,6 +242,16 @@
         <button class="chip" data-filter="archived" type="button">Arsip<span class="chip-count">0</span></button>
       </div>
 
+      <!-- [ADDED] AI Business entry stays inside the Messages page, keeping bottom navigation unchanged. -->
+      <button class="ai-business-launcher" id="openAIBusinessButton" type="button">
+        <span class="ai-business-launcher-icon"><svg class="i"><use href="#i-briefcase"/></svg></span>
+        <span class="ai-business-launcher-copy">
+          <strong>AI Business</strong>
+          <small>Catat stok, kelola data usaha, dan tanya laporan harian</small>
+        </span>
+        <span class="ai-business-launcher-arrow">›</span>
+      </button>
+
       <!-- [REMOVED] Duplicate conversation heading and chat count; filter chips already show the counts. -->
 
       <div id="chatList" class="list">
@@ -274,6 +284,39 @@
       </div>
 
       <div class="read-note">Status baca hanya disimpan di aplikasi ini dan tidak dikirim ke WhatsApp.</div>
+    </main>
+
+    <!-- [ADDED] Dedicated AI Business chat, opened from the Messages page. -->
+    <main id="aiBusinessPage" class="page ai-business-page hidden">
+      <div class="ai-business-header">
+        <button id="backFromAIBusinessButton" class="icon-button plain" type="button" aria-label="Kembali ke Pesan">
+          <svg class="i"><use href="#i-back"/></svg>
+        </button>
+        <div class="ai-business-header-icon"><svg class="i"><use href="#i-briefcase"/></svg></div>
+        <div class="ai-business-header-copy">
+          <strong>AI Business</strong>
+          <small id="aiBusinessStatusText">Asisten bisnis WAGRAM</small>
+        </div>
+      </div>
+      <div class="ai-business-intro" id="aiBusinessIntro">
+        <div class="ai-business-intro-icon"><svg class="i"><use href="#i-briefcase"/></svg></div>
+        <h2>Asisten bisnis kamu</h2>
+        <p>Ceritakan aktivitas usaha, catat stok harian, dan tanyakan data bisnis yang sudah kamu simpan.</p>
+        <div class="ai-business-suggestions">
+          <button type="button" data-ai-prompt="Catat stok hari ini:">Catat stok harian</button>
+          <button type="button" data-ai-prompt="Bantu saya buat laporan stok hari ini.">Buat laporan stok</button>
+          <button type="button" data-ai-prompt="Produk apa saja yang stoknya menipis?">Cek stok menipis</button>
+        </div>
+      </div>
+      <div id="aiBusinessMessages" class="ai-business-messages" aria-live="polite">
+        <div class="loading">Memuat percakapan AI…</div>
+      </div>
+      <form id="aiBusinessComposer" class="ai-business-composer">
+        <textarea id="aiBusinessInput" rows="1" maxlength="4000" placeholder="Tulis data stok atau tanyakan sesuatu…" aria-label="Pesan untuk AI Business"></textarea>
+        <button id="sendAIBusinessMessageButton" type="submit" aria-label="Kirim pesan ke AI Business">
+          <svg class="i"><use href="#i-chat"/></svg>
+        </button>
+      </form>
     </main>
 
     <!-- PANGGILAN -->
@@ -415,10 +458,11 @@
             <span class="notification-option-copy"><strong>Media &amp; dokumen</strong><small>Foto, video, audio dan dokumen</small></span>
             <button class="notification-switch" type="button" data-notification="media" role="switch" aria-checked="true" aria-label="Media dan dokumen"></button>
           </div>
-          <div class="notification-option notification-coming-soon">
+          <!-- [ADDED] AI Business is controlled from Profile and requires Premium 30 days. -->
+          <div class="notification-option" id="aiBusinessSettingOption">
             <span class="notification-option-icon"><svg class="i"><use href="#i-briefcase"/></svg></span>
-            <span class="notification-option-copy"><strong>AI Business</strong><small>Notifikasi fitur AI Business</small></span>
-            <span class="coming-soon-pill">SOON</span>
+            <span class="notification-option-copy"><strong>AI Business</strong><small id="aiBusinessSettingDescription">Asisten bisnis dan pencatatan stok harian</small></span>
+            <button class="notification-switch" id="aiBusinessToggle" type="button" role="switch" aria-checked="false" aria-label="Aktifkan AI Business"></button>
           </div>
           <div class="notification-option notification-coming-soon">
             <span class="notification-option-icon"><svg class="i"><use href="#i-eye-off"/></svg></span>

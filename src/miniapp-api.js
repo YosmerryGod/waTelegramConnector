@@ -9,6 +9,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { MEDIA_ROOT } from "./media-storage.js";
 
+// [ADDED] Premium 30-day AI Customer Service endpoints.
+import {
+  getAICustomerServiceStatus,
+  setAICustomerServiceEnabled,
+  learnAICustomerServiceHistory,
+  createAICustomerServiceSuggestion,
+  checkOllamaHealth
+} from "./ai/customer-service.js";
+
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import QRCode from "qrcode";
 import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppAccountProfile, getWhatsAppProfile, getWhatsAppPhoneNumber } from "./whatsapp.js";
@@ -1545,6 +1554,114 @@ router.get("/messages/:id/media", async (req, res) => {
       .pipe(res);
   } catch (error) {
     sendServerError(res, error, "Could not load media");
+  }
+});
+
+
+/* [ADDED] AI Customer Service: available only to Premium 30-day users.
+   All actions are scoped to the authenticated Telegram owner and selected WhatsApp session. */
+router.get("/ai/status", (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({
+      ok: true,
+      ai: getAICustomerServiceStatus(req.telegramId, req.sessionId)
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Could not read AI Customer Service status");
+  }
+});
+
+router.post("/ai/enable", (req, res) => {
+  try {
+    const ai = setAICustomerServiceEnabled(req.telegramId, req.sessionId, true);
+    // Historical learning runs in the background so activation stays responsive.
+    void learnAICustomerServiceHistory(req.telegramId, req.sessionId).catch((error) => {
+      console.error("[AI Customer Service] Initial learning failed:", error.message);
+    });
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(202).json({ ok: true, ai, learningStarted: true });
+  } catch (error) {
+    const status = error.status || (error.message === "AI_CUSTOMER_SERVICE_REQUIRES_PREMIUM_30D" ? 403 : 500);
+    return res.status(status).json({
+      ok: false,
+      error: error.message || "AI_CUSTOMER_SERVICE_ERROR",
+      message: status === 403
+        ? "AI Customer Service hanya tersedia untuk Premium 30 hari."
+        : "AI Customer Service tidak dapat diaktifkan."
+    });
+  }
+});
+
+router.post("/ai/disable", (req, res) => {
+  try {
+    const ai = setAICustomerServiceEnabled(req.telegramId, req.sessionId, false);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, ai });
+  } catch (error) {
+    return sendServerError(res, error, "Could not disable AI Customer Service");
+  }
+});
+
+router.post("/ai/learn", async (req, res) => {
+  try {
+    const result = await learnAICustomerServiceHistory(req.telegramId, req.sessionId);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, ...result, ai: getAICustomerServiceStatus(req.telegramId, req.sessionId) });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      ok: false,
+      error: error.message || "AI_LEARNING_FAILED",
+      message: status === 403
+        ? "Fitur ini membutuhkan Premium 30 hari."
+        : status === 409
+          ? "Aktifkan AI Customer Service terlebih dahulu."
+          : "AI belum berhasil mempelajari riwayat chat."
+    });
+  }
+});
+
+router.get("/ai/health", async (_req, res) => {
+  try {
+    return res.json({ ok: true, ollama: await checkOllamaHealth() });
+  } catch {
+    return res.status(503).json({
+      ok: false,
+      error: "OLLAMA_UNAVAILABLE",
+      message: "Layanan AI lokal belum tersedia."
+    });
+  }
+});
+
+router.post("/ai/suggest/:chatId", async (req, res) => {
+  try {
+    const chatId = String(req.params.chatId || "");
+    if (!chatId || chatId.length > 256) {
+      return res.status(400).json({ ok: false, error: "INVALID_CHAT_ID" });
+    }
+    const chat = getChat(req.telegramId, chatId, req.sessionId);
+    if (!chat || chat.chat_type !== "private") {
+      return res.status(404).json({ ok: false, error: "PRIVATE_CHAT_NOT_FOUND" });
+    }
+    const suggestion = await createAICustomerServiceSuggestion(
+      req.telegramId,
+      req.sessionId,
+      chatId
+    );
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, suggestion });
+  } catch (error) {
+    const status = error.status || 500;
+    return res.status(status).json({
+      ok: false,
+      error: error.message || "AI_SUGGESTION_FAILED",
+      message: status === 403
+        ? "Fitur ini membutuhkan Premium 30 hari."
+        : status === 409
+          ? "AI harus aktif dan pesan terakhir harus berasal dari pelanggan."
+          : "Draft balasan belum dapat dibuat."
+    });
   }
 });
 
