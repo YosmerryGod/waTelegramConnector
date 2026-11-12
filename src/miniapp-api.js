@@ -1705,7 +1705,9 @@ router.put("/ai-business/settings", (req, res) => {
       settings,
       promptTemplate: req.body?.promptTemplate,
       intentConfig: req.body?.intentConfig,
-      fallbackConfig: req.body?.fallbackConfig
+      fallbackConfig: req.body?.fallbackConfig || {
+        notAvailable: String(req.body?.fallbackMessage || "").slice(0, 500)
+      }
     });
     res.setHeader("Cache-Control", "no-store");
     return res.json({ ok: true, profile });
