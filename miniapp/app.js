@@ -2430,10 +2430,17 @@
     $("#backButton").addEventListener("click", () => setPage("chats"));
     // [ADDED] Return from the WAGRAM AI page to the chat list.
     $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
-    // [ADDED] Restore this session's WAGRAM AI conversation when opening the page.
-    $("#openAIBusinessButton")?.addEventListener("click", renderAIBusinessHistory);
-    $("#wagramAiPinnedRow")?.addEventListener("click", () => {
-      if (isAIBusinessEligible()) renderAIBusinessHistory();
+    // [MODIFIED] Restore chat and migrate legacy local settings to the server when opening WAGRAM AI.
+    $("#openAIBusinessButton")?.addEventListener("click", async () => {
+      renderAIBusinessHistory();
+      try { await syncAIBusinessSettingsFromServer(); }
+      catch (error) { showToast(error.message || "Pengaturan AI tidak dapat dimuat."); }
+    });
+    $("#wagramAiPinnedRow")?.addEventListener("click", async () => {
+      if (!isAIBusinessEligible()) return;
+      renderAIBusinessHistory();
+      try { await syncAIBusinessSettingsFromServer(); }
+      catch (error) { showToast(error.message || "Pengaturan AI tidak dapat dimuat."); }
     });
 
     // [MODIFIED] Open the centered AI Business settings menu.
