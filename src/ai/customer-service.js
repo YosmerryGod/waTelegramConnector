@@ -856,11 +856,35 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
 
   if (intent === "capabilities") {
     const reply = await generateAIBusinessCapabilitiesReply(message, recentHistory);
-    return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+    return {
+      reply,
+      intent,
+      model: OLLAMA_MODEL,
+      createdAt: Date.now(),
+      trace: {
+        recognition: "Pemilik menanyakan kemampuan WAGRAM AI.",
+        action: "Mencocokkan pertanyaan dengan daftar kemampuan yang memang tersedia.",
+        dataUsed: ["Daftar kemampuan WAGRAM AI yang ditetapkan di sistem."],
+        status: "Pertanyaan kemampuan diproses tanpa membaca data produk atau transaksi.",
+        expectedAnswer: reply
+      }
+    };
   }
   if (intent === "greeting") {
     const reply = await ollamaGenerateGreeting(message, recentHistory);
-    return { reply, intent, model: OLLAMA_MODEL, createdAt: Date.now() };
+    return {
+      reply,
+      intent,
+      model: OLLAMA_MODEL,
+      createdAt: Date.now(),
+      trace: {
+        recognition: "Pesan dikenali sebagai sapaan.",
+        action: "Menyusun balasan singkat dengan mempertimbangkan riwayat percakapan.",
+        dataUsed: recentHistory.length ? ["Riwayat percakapan terakhir."] : ["Tidak memerlukan data bisnis."],
+        status: "Sapaan diproses.",
+        expectedAnswer: reply
+      }
+    };
   }
 
   const relevantData = selectIntentData(intent, { ...settings, __message: message });
