@@ -1,0 +1,44 @@
+name: WAGRAM AI Live Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-ai-test:
+    name: Test WAGRAM AI using the configured Premium C WhatsApp session
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WAGRAM_API_BASE: ${{ secrets.WAGRAM_TEST_API_BASE }}
+      WAGRAM_INIT_DATA: ${{ secrets.WAGRAM_TEST_INIT_DATA }}
+      WAGRAM_SESSION_ID: ${{ secrets.WAGRAM_TEST_SESSION_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate live test credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in WAGRAM_API_BASE WAGRAM_INIT_DATA WAGRAM_SESSION_ID; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing GitHub Actions secret for ${name}"
+              exit 1
+            fi
+          done
+          case "$WAGRAM_API_BASE" in
+            https://*) ;;
+            *) echo "::error::WAGRAM_TEST_API_BASE must use HTTPS"; exit 1 ;;
+          esac
+
+      - name: Test real WAGRAM AI responses
+        run: node .github/scripts/wagram-ai-live-test.mjs
