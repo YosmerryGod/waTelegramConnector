@@ -2819,7 +2819,7 @@
       return `
         <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
           <div class="message-text">${escapeHTML(item.content)}</div>
-          ${item.role === "assistant" && item.qrisImage ? `<img class="ai-business-qris-message-image" src="${escapeHTML(item.qrisImage)}" alt="QRIS pembayaran usaha" loading="lazy">` : ""}
+          ${item.role === "assistant" && item.qrisImage ? `<img class="ai-business-qris-message-image" src="${escapeHTML(getAIBusinessSettings().payment?.qrisImage || "")}" alt="QRIS pembayaran usaha" loading="lazy">` : ""}
           ${trace}
           <div class="message-time">${escapeHTML(item.time || "")}</div>
         </div>`;
@@ -2873,7 +2873,7 @@
       const reply = String(result.reply || "").trim();
       if (!reply) throw new Error("WAGRAM AI mengirim jawaban kosong.");
       const updated = getAIBusinessHistory();
-      updated.push({ role: "assistant", content: reply, qrisImage: result.qrisImage || null, time: timeOnly(Date.now()), trace: result.trace || null });
+      updated.push({ role: "assistant", content: reply, qrisImage: Boolean(result.qrisImage), time: timeOnly(Date.now()), trace: result.trace || null });
       saveAIBusinessHistory(updated);
       renderAIBusinessHistory();
     } catch (error) {
