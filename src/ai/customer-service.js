@@ -489,10 +489,10 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
 
   const examplesText = examples.length
     ? examples.map((example, index) =>
-        "Contoh " + (index + 1) + " (relevansi " + example.relevance.toFixed(2) + ")\\nPelanggan: " +
-        String(example.customer_message).slice(0, 700) + "\\nAdmin: " +
+        "Contoh " + (index + 1) + " (relevansi " + example.relevance.toFixed(2) + ")\nPelanggan: " +
+        String(example.customer_message).slice(0, 700) + "\nAdmin: " +
         String(example.admin_reply).slice(0, 700)
-      ).join("\\n\\n")
+      ).join("\n\n")
     : "Belum ada contoh balasan yang relevan. Gunakan gaya layanan yang ramah, jelas, dan natural.";
 
   const prompt = [
@@ -524,7 +524,7 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     String(latest.body || "").trim().slice(0, 2000),
     "",
     "Tulis satu draft balasan paling membantu. Tanpa label, analisis, atau tanda kutip."
-  ].join("\\n");
+  ].join("\n");
 
   return {
     draft: await ollamaGenerate(prompt),
@@ -533,6 +533,7 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     createdAt: Date.now()
   };
 }
+
 export async function checkOllamaHealth() {
   const response = await fetch(`${OLLAMA_URL}/api/tags`, {
     signal: AbortSignal.timeout(5000)
