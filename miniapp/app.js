@@ -2436,9 +2436,9 @@
   function getAIBusinessSettings() {
     try {
       const all = JSON.parse(localStorage.getItem(AI_BUSINESS_SETTINGS_KEY) || "{}");
-      return all[String(state.activeSessionId || "default")] || { manager: {}, outlets: [], payment: {}, products: [] };
+      return all[String(state.activeSessionId || "default")] || { manager: {}, outlets: [], payment: {}, products: [], aiRules: "" };
     } catch {
-      return { manager: {}, outlets: [], payment: {}, products: [] };
+      return { manager: {}, outlets: [], payment: {}, products: [], aiRules: "" };
     }
   }
 
@@ -2458,6 +2458,8 @@
     if (!modal) return;
     $("#aiBusinessSettingsMenu").classList.remove("hidden");
     $("#aiBusinessSettingsDetail").classList.add("hidden");
+    // [ADDED] Restore the saved escalation rules whenever the popup opens.
+    $("#aiBusinessRulesInput").value = getAIBusinessSettings().aiRules || "";
     modal.classList.remove("hidden");
   }
 
@@ -2519,6 +2521,13 @@
   }
 
   function handleAIBusinessSettingsClick(event) {
+    // [ADDED] Save AI escalation rules separately from the four setup sections.
+    if (event.target.closest("#saveAIBusinessRulesButton")) {
+      const settings = getAIBusinessSettings();
+      settings.aiRules = $("#aiBusinessRulesInput").value.trim();
+      saveAIBusinessSettings(settings);
+      return;
+    }
     if (event.target.closest("[data-close-ai-settings]")) {
       closeAIBusinessSettings();
       return;
