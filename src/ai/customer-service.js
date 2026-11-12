@@ -7,7 +7,8 @@ import {
   listChats,
   listMessages,
   getAIBusinessProfile,
-  findAIBusinessExamples
+  findAIBusinessExamples,
+  addAIBusinessExample
 } from "../database.js";
 
 const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || "").trim();
@@ -625,6 +626,42 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   }
   throw new Error("GEMINI_AGENT_MAX_TOOL_STEPS");
 }
+// [ADDED] Generate a simulated customer message for owner-led WAGRAM AI training.
+export async function createAIBusinessTrainingQuestion(telegramId, sessionId, previousQuestion = "", ownerAnswer = "") {
+  requirePremium30Days(telegramId);
+  const profile = getAIBusinessProfile(telegramId, sessionId);
+  const settings = profile?.settings && typeof profile.settings === "object" ? profile.settings : {};
+  if (previousQuestion && ownerAnswer) {
+    addAIBusinessExample(telegramId, sessionId, {
+      question: previousQuestion,
+      idealAnswer: ownerAnswer,
+      intent: "owner_training"
+    });
+  }
+  const examples = findAIBusinessExamples(telegramId, sessionId, null, 3);
+  const businessContext = {
+    manager: settings.manager || {},
+    outlets: Array.isArray(settings.outlets) ? settings.outlets.slice(0, 20) : [],
+    products: Array.isArray(settings.products) ? settings.products.slice(0, 50) : [],
+    payment: settings.payment ? { merchant: settings.payment.merchant || "", qrisConfigured: Boolean(settings.payment.qrisImage || settings.payment.qrisId) } : {},
+    aiRules: String(settings.aiRules || "").slice(0, 2000)
+  };
+  const prompt = [
+    "Buat satu pesan simulasi dari seorang calon konsumen yang sedang menghubungi bisnis ini.",
+    "Kamu berperan sebagai konsumen sungguhan, bukan asisten, pelatih, atau pemilik bisnis.",
+    "Tulis hanya satu pesan chat singkat dalam Bahasa Indonesia natural. Jangan beri label, analisis, atau jawaban.",
+    "Gunakan variasi kebutuhan konsumen berdasarkan data bisnis: bertanya produk, harga, stok, jam buka, lokasi, pembayaran, atau menyampaikan keberatan.",
+    "Jangan mengarang fakta bisnis dalam pertanyaan. Jangan mengulang pertanyaan yang sudah muncul.",
+    "DATA BISNIS:", JSON.stringify(businessContext),
+    "CONTOH GAYA JAWABAN PEMILIK (gunakan untuk memahami konteks, jangan tiru sebagai konsumen):", JSON.stringify(examples),
+    "PERTANYAAN TERAKHIR:", String(previousQuestion || "").slice(0, 1000),
+    "JAWABAN PEMILIK TERAKHIR:", String(ownerAnswer || "").slice(0, 1000)
+  ].join("\n");
+  const question = (await geminiGenerateText(prompt)).trim().replace(/^["'“”]+|["'“”]+$/g, "");
+  if (!question) throw new Error("GEMINI_TRAINING_EMPTY_QUESTION");
+  return { question: question.slice(0, 1000), model: GEMINI_MODEL, savedExample: Boolean(previousQuestion && ownerAnswer) };
+}
+
 // [ADDED] Handle QRIS requests deterministically; payment image data never needs an LLM call.
 function isQrisRequest(message) {
   return /\bqris\b|\bqr\s*code\b|kode\s*(?:qr|pembayaran)|barcode\s*(?:pembayaran|bayar)|cara\s*bayar/i.test(String(message || ""));
