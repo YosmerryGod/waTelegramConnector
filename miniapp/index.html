@@ -242,16 +242,7 @@
         <button class="chip" data-filter="archived" type="button">Arsip<span class="chip-count">0</span></button>
       </div>
 
-      <!-- [ADDED] AI Business entry stays inside the Messages page, keeping bottom navigation unchanged. -->
-      <button class="ai-business-launcher" id="openAIBusinessButton" type="button">
-        <span class="ai-business-launcher-icon"><svg class="i"><use href="#i-briefcase"/></svg></span>
-        <span class="ai-business-launcher-copy">
-          <strong>AI Business</strong>
-          <small>Catat stok, kelola data usaha, dan tanya laporan harian</small>
-        </span>
-        <span class="ai-business-launcher-arrow">›</span>
-      </button>
-
+      <!-- [MODIFIED] AI Business now appears as the first row in the chat list. -->
       <!-- [REMOVED] Duplicate conversation heading and chat count; filter chips already show the counts. -->
 
       <div id="chatList" class="list">
@@ -726,7 +717,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261112-ai-business-toggle-v1"></script>
+  <script src="app.js?v=20261112-wagram-ai-chat-row-v1"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
