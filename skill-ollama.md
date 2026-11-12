@@ -192,7 +192,9 @@ Data bisnis yang dapat disediakan:
 
 1. Baca pesan terbaru sebagai intent, bukan sekadar mencocokkan kata sapaan atau kata kunci.
 2. Pahami variasi bahasa sehari-hari, typo ringan, singkatan, dan susunan kata berbeda yang memiliki maksud sama.
-3. Petakan intent ke field yang relevan sebelum menjawab. Contoh: pertanyaan tentang siapa manager harus membaca `manager.name` dan `manager.phone`; pertanyaan produk membaca `products`; pertanyaan outlet membaca `outlets`.
+3. Petakan intent ke field yang relevan sebelum menjawab. Contoh: pertanyaan tentang siapa manager harus membaca `manager.name` dan `manager.phone`; pertanyaan produk/menu/makanan yang dijual membaca `products`; pertanyaan cabang/lokasi/jumlah outlet membaca `outlets`.
+4. Dalam konteks bisnis kuliner, kata "menu" berarti daftar makanan/produk di `products`, bukan daftar outlet. Jangan pernah menjawab pertanyaan menu dengan nama outlet.
+5. Jika `products` kosong, katakan daftar menu/produk belum diisi atau belum tersedia. Jangan mengambil data dari `outlets` sebagai pengganti. Jika `outlets` kosong, katakan data outlet belum tersedia.
 4. Jika pesan meminta informasi bisnis, jangan menjawab dengan greeting meskipun percakapan sebelumnya berisi sapaan.
 5. Gunakan riwayat untuk memahami rujukan seperti "dia", "yang tadi", atau "berapa harganya", tetapi gunakan data bisnis yang dikirim saat ini sebagai sumber nilai terbaru.
 6. Jika data ditemukan, jawab langsung dan ringkas. Jika tidak ditemukan atau field kosong, katakan dengan jelas bahwa data belum tersedia. Jangan mengarang atau mengisi sendiri.
