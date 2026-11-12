@@ -471,20 +471,8 @@ export async function checkOllamaHealth() {
 
 // [ADDED] Classify owner intent with Ollama JSON output.
 async function detectAIBusinessIntent(message, history, intentConfig = []) {
-  const configuredIntents = Array.isArray(intentConfig) ? intentConfig : [];
-  const intentDefinitions = configuredIntents.length
-    ? configuredIntents
-    : [
-        { name: "greeting", examples: ["hello", "hai", "selamat pagi"] },
-        { name: "manager", examples: ["siapa manager saya", "siapa penanggung jawab usaha"] },
-        { name: "outlets", examples: ["berapa outlet", "apa saja cabang saya", "alamat outlet"] },
-        { name: "products", examples: ["apa menu usaha ini", "produk apa yang dijual", "daftar makanan"] },
-        { name: "product_price", examples: ["berapa harga produk", "harga menu ini berapa"] },
-        { name: "product_stock", examples: ["berapa stok produk", "stok menu ini"] },
-        { name: "payment", examples: ["informasi pembayaran", "qris usaha"] },
-        { name: "business_hours", examples: ["jam buka outlet", "kapan outlet buka"] },
-        { name: "general", examples: ["pertanyaan lain tentang usaha"] }
-      ];
+  const intentDefinitions = Array.isArray(intentConfig) ? intentConfig : [];
+  if (!intentDefinitions.length) return "general";
   const prompt = [
     "Klasifikasikan maksud pesan pemilik WAGRAM AI.",
     "Pilih tepat satu intent dari daftar JSON berikut. Jangan membuat intent baru.",
