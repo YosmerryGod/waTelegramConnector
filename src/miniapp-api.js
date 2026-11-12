@@ -58,7 +58,9 @@ import {
   hasWhatsAppParticipant,
   createPremiumPaymentOrder, // [ADDED] Server-side Premium payment order allocation.
   getPremiumPaymentOrder, // [ADDED] Read an order owned by the authenticated user.
-  markPremiumPaymentReported // [ADDED] Record a user's payment confirmation.
+  markPremiumPaymentReported, // [ADDED] Record a user's payment confirmation.
+  getAIBusinessProfile,
+  saveAIBusinessProfile
 } from "./database.js";
 
 const router = express.Router();
@@ -1668,6 +1670,49 @@ router.post("/ai/suggest/:chatId", async (req, res) => {
 
 
 
+/* [ADDED] Read persistent WAGRAM AI settings scoped to the authenticated owner and WhatsApp session. */
+router.get("/ai-business/settings", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan !== "premium-c") {
+      return res.status(403).json({ ok: false, error: "AI_BUSINESS_REQUIRES_PREMIUM_C" });
+    }
+    const profile = getAIBusinessProfile(req.telegramId, req.sessionId);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, profile });
+  } catch (error) {
+    return sendServerError(res, error, "Could not load WAGRAM AI settings");
+  }
+});
+
+/* [ADDED] Save WAGRAM AI settings on the server; browser-provided owner/session IDs are never trusted. */
+router.put("/ai-business/settings", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan !== "premium-c") {
+      return res.status(403).json({ ok: false, error: "AI_BUSINESS_REQUIRES_PREMIUM_C" });
+    }
+    const settings = req.body?.settings;
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+      return res.status(400).json({ ok: false, error: "INVALID_AI_BUSINESS_SETTINGS" });
+    }
+    const serialized = JSON.stringify(settings);
+    if (serialized.length > 30000) {
+      return res.status(413).json({ ok: false, error: "AI_BUSINESS_SETTINGS_TOO_LARGE" });
+    }
+    const profile = saveAIBusinessProfile(req.telegramId, req.sessionId, {
+      settings,
+      promptTemplate: req.body?.promptTemplate,
+      intentConfig: req.body?.intentConfig,
+      fallbackConfig: req.body?.fallbackConfig
+    });
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, profile });
+  } catch (error) {
+    return sendServerError(res, error, "Could not save WAGRAM AI settings");
+  }
+});
+
 /* [ADDED] WAGRAM AI Business chat. Premium expiry is enforced server-side by getMembership(). */
 router.post("/ai-business/chat", async (req, res) => {
   try {
@@ -1691,8 +1736,8 @@ router.post("/ai-business/chat", async (req, res) => {
 
     const result = await createAIBusinessReply(
       req.telegramId,
+      req.sessionId,
       message,
-      req.body?.businessSettings || {},
       req.body?.history || []
     );
     res.setHeader("Cache-Control", "no-store");
