@@ -973,19 +973,6 @@
     // Filter totals are displayed directly in the filter chips.
     const hits = query.length >= 2 ? state.messageHits : [];
 
-    if (!items.length && !hits.length) {
-      list.innerHTML = query
-        ? emptyState("search", "Tidak ada hasil", "Coba kata kunci lain.")
-        : emptyState(
-            "chat",
-            "Belum ada percakapan",
-            state.filter === "all"
-              ? "Pesan WhatsApp yang masuk akan muncul di sini."
-              : "Tidak ada chat pada filter ini."
-          );
-      return;
-    }
-
     // [ADDED] Keep WAGRAM AI pinned above regular WhatsApp conversations.
     const aiBusinessRow = `
       <div class="chat-swipe-row wagram-ai-chat-row">
@@ -1006,6 +993,19 @@
           </div>
         </button>
       </div>`;
+
+    if (!items.length && !hits.length) {
+      list.innerHTML = aiBusinessRow + (query
+        ? emptyState("search", "Tidak ada hasil", "Coba kata kunci lain.")
+        : emptyState(
+            "chat",
+            "Belum ada percakapan",
+            state.filter === "all"
+              ? "Pesan WhatsApp yang masuk akan muncul di sini."
+              : "Tidak ada chat pada filter ini."
+          ));
+      return;
+    }
 
     const chatRows = items.map((chat) => {
       const name = chatName(chat);
