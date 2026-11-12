@@ -2519,9 +2519,40 @@
     const response = await api("/ai-business/settings");
     const sessionKey = String(state.activeSessionId || "default");
     const all = JSON.parse(localStorage.getItem(AI_BUSINESS_SETTINGS_KEY) || "{}");
-    if (response.profile?.settings) {
+    const serverSettings = response.profile?.settings && typeof response.profile.settings === "object"
+      ? response.profile.settings
+      : null;
+    const localSettings = all[sessionKey] && typeof all[sessionKey] === "object"
+      ? all[sessionKey]
+      : null;
+    const hasBusinessData = (settings) => {
+      if (!settings) return false;
+      const manager = settings.manager || {};
+      const hasManager = Boolean(String(manager.name || manager.fullName || manager.phone || "").trim());
+      const hasOutlets = Array.isArray(settings.outlets) && settings.outlets.length > 0;
+      const hasProducts = Array.isArray(settings.products) && settings.products.length > 0;
+      const payment = settings.payment || {};
+      const hasPayment = Object.values(payment).some((value) => String(value ?? "").trim());
+      return hasManager || hasOutlets || hasProducts || hasPayment;
+    };
+
+    // [MODIFIED] Migrate meaningful legacy local data if the server profile is empty.
+    if (localSettings && hasBusinessData(localSettings) && !hasBusinessData(serverSettings)) {
+      await api("/ai-business/settings", {
+        method: "PUT",
+        body: JSON.stringify({
+          settings: localSettings,
+          promptTemplate: localSettings.aiPromptTemplate || "",
+          fallbackMessage: localSettings.aiFallbackMessage || ""
+        })
+      });
+      aiBusinessSettingsSyncedSession = sessionKey;
+      return localSettings;
+    }
+
+    if (serverSettings) {
       all[sessionKey] = {
-        ...response.profile.settings,
+        ...serverSettings,
         aiPromptTemplate: response.profile.promptTemplate || "",
         aiFallbackMessage: response.profile.fallbackConfig?.notAvailable || ""
       };
@@ -2529,10 +2560,15 @@
       aiBusinessSettingsSyncedSession = sessionKey;
       return all[sessionKey];
     }
-    const legacySettings = all[sessionKey] || { manager: {}, outlets: [], payment: {}, products: [], aiRules: "" };
+
+    const legacySettings = localSettings || { manager: {}, outlets: [], payment: {}, products: [], aiRules: "" };
     await api("/ai-business/settings", {
       method: "PUT",
-      body: JSON.stringify({ settings: legacySettings })
+      body: JSON.stringify({
+        settings: legacySettings,
+        promptTemplate: legacySettings.aiPromptTemplate || "",
+        fallbackMessage: legacySettings.aiFallbackMessage || ""
+      })
     });
     aiBusinessSettingsSyncedSession = sessionKey;
     return legacySettings;
