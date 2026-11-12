@@ -2500,7 +2500,11 @@
       localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
       await api("/ai-business/settings", {
         method: "PUT",
-        body: JSON.stringify({ settings, promptTemplate: settings.aiPromptTemplate || "" })
+        body: JSON.stringify({
+          settings,
+          promptTemplate: settings.aiPromptTemplate || "",
+          fallbackMessage: settings.aiFallbackMessage || ""
+        })
       });
       showToast("Pengaturan usaha tersimpan di server.");
       return true;
