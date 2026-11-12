@@ -2816,10 +2816,20 @@
             </div>
           </details>`
         : "";
+      // [MODIFIED] Render the QRIS image and its friendly caption as two separate chat bubbles.
+      if (item.role === "assistant" && item.qrisImage) {
+        return `
+          <div class="message ai-business-reply ai-business-qris-image-bubble">
+            <img class="ai-business-qris-message-image" src="${escapeHTML(getAIBusinessSettings().payment?.qrisImage || "")}" alt="QRIS pembayaran usaha" loading="lazy">
+          </div>
+          <div class="message ai-business-reply">
+            <div class="message-text">${escapeHTML(item.content)}</div>
+            ${trace}
+            <div class="message-time">${escapeHTML(item.time || "")}</div>
+          </div>`;
+      }
       return `
         <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
-          {/* [MODIFIED] Show the QRIS image before the assistant's caption in the same message bubble. */}
-          ${item.role === "assistant" && item.qrisImage ? `<img class="ai-business-qris-message-image" src="${escapeHTML(getAIBusinessSettings().payment?.qrisImage || "")}" alt="QRIS pembayaran usaha" loading="lazy">` : ""}
           <div class="message-text">${escapeHTML(item.content)}</div>
           ${trace}
           <div class="message-time">${escapeHTML(item.time || "")}</div>
