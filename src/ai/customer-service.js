@@ -619,7 +619,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
 }
 // [ADDED] Handle QRIS requests deterministically; payment image data never needs an LLM call.
 function isQrisRequest(message) {
-  return /\\bqris\\b|\\bqr\\s*code\\b|kode\\s*(?:qr|pembayaran)|barcode\\s*(?:pembayaran|bayar)|cara\\s*bayar/i.test(String(message || ""));
+  return /\bqris\b|\bqr\s*code\b|kode\s*(?:qr|pembayaran)|barcode\s*(?:pembayaran|bayar)|cara\s*bayar/i.test(String(message || ""));
 }
 
 export async function createAIBusinessReply(telegramId, sessionId, message, history = []) {
