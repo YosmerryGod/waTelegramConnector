@@ -383,8 +383,13 @@ export async function createAIBusinessReply(telegramId, message, businessSetting
   // [ADDED] Answer simple greetings directly so a short "hello" never triggers a long capability dump.
   const greeting = cleanText(message, 4000).toLowerCase().replace(/[!.,?]+$/g, "").trim();
   if (/^(hi|hai|halo|hello|hei|hey|assalamualaikum|selamat pagi|selamat siang|selamat sore|selamat malam)( wagram ai)?$/.test(greeting)) {
+    const greetedBefore = Array.isArray(history) && history.some((item) =>
+      item?.role === "assistant" && /halo! saya wagram ai|halo lagi! silakan/i.test(String(item?.content || ""))
+    );
     return {
-      reply: "Halo! Saya WAGRAM AI, asisten bisnis Anda. Saya bisa membantu menjawab pertanyaan tentang outlet, produk, stok, pembayaran, dan menyusun laporan dari data yang sudah Anda simpan. Mau mulai dari apa?",
+      reply: greetedBefore
+        ? "Halo lagi! Silakan langsung ceritakan apa yang ingin kamu kerjakan atau tanyakan tentang bisnismu."
+        : "Halo! Saya WAGRAM AI. Ada yang bisa saya bantu untuk bisnismu hari ini?",
       model: OLLAMA_MODEL,
       createdAt: Date.now()
     };
