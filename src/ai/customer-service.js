@@ -1,4 +1,6 @@
 import "dotenv/config";
+import fs from "node:fs";
+import path from "node:path";
 import db from "../database.js";
 import {
   getMembership,
@@ -11,6 +13,43 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen2.5:1.5b";
 const OLLAMA_TIMEOUT_MS = Math.max(10000, Number(process.env.OLLAMA_TIMEOUT_MS || 90000));
 const MAX_HISTORY_MESSAGES = 24;
 const MAX_EXAMPLES = 8;
+
+// [ADDED] Load the runtime-safe guidance sections from the repository skill document.
+// The skill is a specification, not a list of executable tools; only policy/persona
+// sections are injected into the model context.
+function loadWagramSkillGuidance() {
+  try {
+    const skillPath = path.resolve(process.cwd(), "skill-ollama.md");
+    const markdown = fs.readFileSync(skillPath, "utf8");
+    const lines = markdown.split(/\\r?\\n/);
+    const wantedHeadings = new Set([
+      "## 2. Prinsip utama",
+      "### 4.1 WAGRAM AI untuk pemilik",
+      "## 5. Pengetahuan bisnis dan sumber data",
+      "## 10. Aturan khusus pemilik / escalation notes",
+      "## 11. Premium, otorisasi, dan isolasi data",
+      "## 12. Keamanan dan prompt injection",
+      "## 14. Error handling dan fallback"
+    ]);
+    const sections = [];
+    let capturing = false;
+    let current = [];
+    for (const line of lines) {
+      if (/^#{1,3}\\s/.test(line)) {
+        if (capturing && current.length) sections.push(current.join("\\n"));
+        capturing = wantedHeadings.has(line.trim());
+        current = capturing ? [line] : [];
+      } else if (capturing) {
+        current.push(line);
+      }
+    }
+    if (capturing && current.length) sections.push(current.join("\\n"));
+    return sections.join("\\n\\n").slice(0, 12000);
+  } catch (error) {
+    console.warn("[WAGRAM AI] Skill document unavailable:", error.message);
+    return "";
+  }
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS ai_customer_service_settings (
@@ -429,8 +468,12 @@ export async function createAIBusinessReply(telegramId, message, businessSetting
       })).filter((item) => item.content)
     : [];
 
+  // [ADDED] The repository skill document now supplies the runtime policy/persona guidance.
+  const skillGuidance = loadWagramSkillGuidance();
+
   const prompt = [
     "Kamu adalah WAGRAM AI, asisten operasional untuk pemilik usaha di Indonesia.",
+    skillGuidance ? "PEDOMAN SKILL WAGRAM (ikuti sebagai aturan perilaku):\\n" + skillGuidance : "",
     "Jawab dalam Bahasa Indonesia yang ramah, ringkas, jelas, dan praktis. Jawaban normal maksimal 3 kalimat kecuali pemilik meminta rincian atau laporan. Jangan memberi daftar panjang kemampuan kecuali diminta secara eksplisit. Untuk sapaan, cukup balas sapaan secara singkat dan tanyakan apa yang ingin dibantu.",
     "Kamu dapat membaca dan menggunakan data bisnis yang dikirim bersama pesan: manager, outlet, jam operasional, informasi QRIS, produk, harga, stok, dan catatan khusus pemilik.",
     "PENTING: Saat ini kamu hanya asisten percakapan. Kamu TIDAK memiliki akses untuk langsung menambah, mengubah, atau menghapus data outlet, produk, harga, stok, QRIS, transaksi, atau database. Jangan pernah mengaku sudah menyimpan atau mengubah data. Jika pemilik ingin mengubah data, arahkan ke menu Pengaturan (ikon gear) pada halaman WAGRAM AI.",
