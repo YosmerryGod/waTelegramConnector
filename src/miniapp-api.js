@@ -60,7 +60,8 @@ import {
   getPremiumPaymentOrder, // [ADDED] Read an order owned by the authenticated user.
   markPremiumPaymentReported, // [ADDED] Record a user's payment confirmation.
   getAIBusinessProfile,
-  saveAIBusinessProfile
+  saveAIBusinessProfile,
+  addAIBusinessExample
 } from "./database.js";
 
 const router = express.Router();
@@ -1710,6 +1711,31 @@ router.put("/ai-business/settings", (req, res) => {
     return res.json({ ok: true, profile });
   } catch (error) {
     return sendServerError(res, error, "Could not save WAGRAM AI settings");
+  }
+});
+
+/* [ADDED] Save owner-corrected answers as scoped few-shot examples for WAGRAM AI. */
+router.post("/ai-business/examples", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan !== "premium-c") {
+      return res.status(403).json({ ok: false, error: "AI_BUSINESS_REQUIRES_PREMIUM_C" });
+    }
+    const question = String(req.body?.question || "").trim();
+    const idealAnswer = String(req.body?.idealAnswer || "").trim();
+    const intent = String(req.body?.intent || "").trim();
+    if (!question || question.length > 4000 || !idealAnswer || idealAnswer.length > 2000) {
+      return res.status(400).json({ ok: false, error: "INVALID_AI_BUSINESS_EXAMPLE" });
+    }
+    const id = addAIBusinessExample(req.telegramId, req.sessionId, {
+      question,
+      data: req.body?.data && typeof req.body.data === "object" ? req.body.data : {},
+      idealAnswer,
+      intent
+    });
+    return res.status(201).json({ ok: true, id });
+  } catch (error) {
+    return sendServerError(res, error, "Could not save WAGRAM AI learning example");
   }
 });
 
