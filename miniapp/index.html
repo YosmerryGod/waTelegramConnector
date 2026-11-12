@@ -328,6 +328,13 @@
             <button type="button" class="ai-business-setting-tile" data-ai-settings-section="payment"><span class="ai-business-setting-icon payment">▤</span><strong>Pembayaran</strong><small>Informasi QRIS usaha</small></button>
             <button type="button" class="ai-business-setting-tile" data-ai-settings-section="products"><span class="ai-business-setting-icon products">▦</span><strong>Produk</strong><small>Nama, harga, dan stok</small></button>
           </div>
+          <!-- [ADDED] Business rules the AI must not handle and must escalate to the manager. -->
+          <div class="ai-business-rules">
+            <label for="aiBusinessRulesInput">Catatan khusus untuk AI</label>
+            <p>Tulis hal yang tidak boleh ditangani AI dan harus dilaporkan kepada manager.</p>
+            <textarea id="aiBusinessRulesInput" rows="4" maxlength="3000" placeholder="Contoh: Komplain pelanggan, permintaan refund, perubahan harga, masalah pembayaran, dan pesanan khusus harus diteruskan ke manager."></textarea>
+            <button type="button" id="saveAIBusinessRulesButton" class="ai-business-save-button">Simpan catatan</button>
+          </div>
           <div id="aiBusinessSettingsDetail" class="ai-business-settings-detail hidden">
             <button type="button" class="ai-business-settings-back" data-back-ai-settings>‹ Kembali ke pengaturan</button>
             <div id="aiBusinessSettingsFormHost"></div>
