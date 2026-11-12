@@ -2425,10 +2425,180 @@
     // [ADDED] Return from the WAGRAM AI page to the chat list.
     $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
 
-    // [ADDED] Open Profile so the user can manage the AI Business setting.
-    $("#aiBusinessSettingsButton")?.addEventListener("click", () => setPage("account"));
+    // [MODIFIED] Open the centered AI Business settings menu.
+    $("#aiBusinessSettingsButton")?.addEventListener("click", openAIBusinessSettings);
+    $("#aiBusinessSettingsModal")?.addEventListener("click", handleAIBusinessSettingsClick);
+    $("#aiBusinessSettingsModal")?.addEventListener("submit", handleAIBusinessSettingsSubmit);
 
-    // [ADDED] The composer displays sent messages while the AI Business service is being connected.
+    // [ADDED] AI Business settings are stored per active WhatsApp session on this device.
+  const AI_BUSINESS_SETTINGS_KEY = "wagram-ai-business-settings-v1";
+
+  function getAIBusinessSettings() {
+    try {
+      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_SETTINGS_KEY) || "{}");
+      return all[String(state.activeSessionId || "default")] || { manager: {}, outlets: [], payment: {}, products: [] };
+    } catch {
+      return { manager: {}, outlets: [], payment: {}, products: [] };
+    }
+  }
+
+  function saveAIBusinessSettings(settings) {
+    try {
+      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_SETTINGS_KEY) || "{}");
+      all[String(state.activeSessionId || "default")] = settings;
+      localStorage.setItem(AI_BUSINESS_SETTINGS_KEY, JSON.stringify(all));
+      showToast("Pengaturan usaha disimpan di perangkat ini.");
+    } catch {
+      showToast("Pengaturan tidak dapat disimpan di perangkat ini.");
+    }
+  }
+
+  function openAIBusinessSettings() {
+    const modal = $("#aiBusinessSettingsModal");
+    if (!modal) return;
+    $("#aiBusinessSettingsMenu").classList.remove("hidden");
+    $("#aiBusinessSettingsDetail").classList.add("hidden");
+    modal.classList.remove("hidden");
+  }
+
+  function closeAIBusinessSettings() {
+    $("#aiBusinessSettingsModal")?.classList.add("hidden");
+  }
+
+  function renderAIBusinessSettingsSection(section) {
+    const settings = getAIBusinessSettings();
+    const host = $("#aiBusinessSettingsFormHost");
+    const titles = { manager: "Manager", outlets: "Outlet", payment: "Pembayaran QRIS", products: "Produk" };
+    $("#aiBusinessSettingsTitle").textContent = titles[section] || "Kelola bisnis";
+    $("#aiBusinessSettingsMenu").classList.add("hidden");
+    $("#aiBusinessSettingsDetail").classList.remove("hidden");
+
+    if (section === "manager") {
+      host.innerHTML = `
+        <form data-ai-settings-form="manager" class="ai-business-data-form">
+          <label>Nama manager<input name="name" type="text" maxlength="100" placeholder="Nama penanggung jawab" value="${escapeHTML(settings.manager.name || "")}"></label>
+          <label>Nomor HP / WhatsApp<input name="phone" type="tel" maxlength="30" placeholder="08xxxxxxxxxx" value="${escapeHTML(settings.manager.phone || "")}"></label>
+          <button class="ai-business-save-button" type="submit">Simpan manager</button>
+        </form>`;
+    } else if (section === "outlets") {
+      const outlets = settings.outlets.length ? settings.outlets : [{ name: "", phone: "", open: "08:00", close: "21:00" }];
+      host.innerHTML = `
+        <form data-ai-settings-form="outlets" class="ai-business-data-form">
+          <div id="aiBusinessOutletFields">${outlets.map((outlet, index) => `
+            <div class="ai-business-outlet-form">
+              <div class="ai-business-outlet-heading"><strong>Outlet ${index + 1}</strong><button type="button" data-remove-outlet="${index}" aria-label="Hapus outlet">Hapus</button></div>
+              <label>Nama outlet<input name="outletName" type="text" maxlength="100" placeholder="Nama outlet" value="${escapeHTML(outlet.name || "")}"></label>
+              <label>Nomor HP outlet<input name="outletPhone" type="tel" maxlength="30" placeholder="Nomor yang bisa dihubungi" value="${escapeHTML(outlet.phone || "")}"></label>
+              <div class="ai-business-time-fields"><label>Jam buka<input name="outletOpen" type="time" value="${escapeHTML(outlet.open || "08:00")}"></label><label>Jam tutup<input name="outletClose" type="time" value="${escapeHTML(outlet.close || "21:00")}"></label></div>
+            </div>`).join("")}</div>
+          <button type="button" class="ai-business-add-button" data-add-outlet>+ Tambah outlet</button>
+          <button class="ai-business-save-button" type="submit">Simpan outlet</button>
+        </form>`;
+    } else if (section === "payment") {
+      host.innerHTML = `
+        <form data-ai-settings-form="payment" class="ai-business-data-form">
+          <label>Nama merchant<input name="merchant" type="text" maxlength="100" placeholder="Nama pada QRIS" value="${escapeHTML(settings.payment.merchant || "")}"></label>
+          <label>Nomor / ID QRIS<input name="qrisId" type="text" maxlength="150" placeholder="Nomor identitas QRIS (opsional)" value="${escapeHTML(settings.payment.qrisId || "")}"></label>
+          <label>Data QRIS<textarea name="qrisPayload" rows="4" maxlength="4000" placeholder="Tempel string QRIS atau informasi pembayaran di sini">${escapeHTML(settings.payment.qrisPayload || "")}</textarea></label>
+          <button class="ai-business-save-button" type="submit">Simpan pembayaran</button>
+        </form>`;
+    } else if (section === "products") {
+      const products = settings.products.length ? settings.products : [{ name: "", price: "", stock: "" }];
+      host.innerHTML = `
+        <form data-ai-settings-form="products" class="ai-business-data-form">
+          <div id="aiBusinessProductFields">${products.map((product, index) => `
+            <div class="ai-business-product-form">
+              <div class="ai-business-outlet-heading"><strong>Produk ${index + 1}</strong><button type="button" data-remove-product="${index}" aria-label="Hapus produk">Hapus</button></div>
+              <label>Nama produk<input name="productName" type="text" maxlength="120" placeholder="Nama produk" value="${escapeHTML(product.name || "")}"></label>
+              <div class="ai-business-time-fields"><label>Harga (Rp)<input name="productPrice" type="number" min="0" step="1" placeholder="0" value="${escapeHTML(product.price || "")}"></label><label>Stok<input name="productStock" type="number" min="0" step="1" placeholder="0" value="${escapeHTML(product.stock || "")}"></label></div>
+            </div>`).join("")}</div>
+          <button type="button" class="ai-business-add-button" data-add-product>+ Tambah produk</button>
+          <button class="ai-business-save-button" type="submit">Simpan produk</button>
+        </form>`;
+    }
+  }
+
+  function handleAIBusinessSettingsClick(event) {
+    if (event.target.closest("[data-close-ai-settings]")) {
+      closeAIBusinessSettings();
+      return;
+    }
+    const sectionButton = event.target.closest("[data-ai-settings-section]");
+    if (sectionButton) {
+      renderAIBusinessSettingsSection(sectionButton.dataset.aiSettingsSection);
+      return;
+    }
+    if (event.target.closest("[data-back-ai-settings]")) {
+      $("#aiBusinessSettingsDetail").classList.add("hidden");
+      $("#aiBusinessSettingsMenu").classList.remove("hidden");
+      $("#aiBusinessSettingsTitle").textContent = "Kelola bisnis";
+      return;
+    }
+    if (event.target.closest("[data-add-outlet]")) {
+      const wrap = $("#aiBusinessOutletFields");
+      const index = wrap.querySelectorAll(".ai-business-outlet-form").length;
+      wrap.insertAdjacentHTML("beforeend", `
+        <div class="ai-business-outlet-form">
+          <div class="ai-business-outlet-heading"><strong>Outlet ${index + 1}</strong><button type="button" data-remove-outlet="${index}">Hapus</button></div>
+          <label>Nama outlet<input name="outletName" type="text" maxlength="100" placeholder="Nama outlet"></label>
+          <label>Nomor HP outlet<input name="outletPhone" type="tel" maxlength="30" placeholder="Nomor yang bisa dihubungi"></label>
+          <div class="ai-business-time-fields"><label>Jam buka<input name="outletOpen" type="time" value="08:00"></label><label>Jam tutup<input name="outletClose" type="time" value="21:00"></label></div>
+        </div>`);
+      return;
+    }
+    if (event.target.closest("[data-add-product]")) {
+      const wrap = $("#aiBusinessProductFields");
+      const index = wrap.querySelectorAll(".ai-business-product-form").length;
+      wrap.insertAdjacentHTML("beforeend", `
+        <div class="ai-business-product-form">
+          <div class="ai-business-outlet-heading"><strong>Produk ${index + 1}</strong><button type="button" data-remove-product="${index}">Hapus</button></div>
+          <label>Nama produk<input name="productName" type="text" maxlength="120" placeholder="Nama produk"></label>
+          <div class="ai-business-time-fields"><label>Harga (Rp)<input name="productPrice" type="number" min="0" step="1" placeholder="0"></label><label>Stok<input name="productStock" type="number" min="0" step="1" placeholder="0"></label></div>
+        </div>`);
+      return;
+    }
+    const removeOutlet = event.target.closest("[data-remove-outlet]");
+    if (removeOutlet) {
+      const items = [...$("#aiBusinessOutletFields").querySelectorAll(".ai-business-outlet-form")];
+      if (items.length > 1) items[Number(removeOutlet.dataset.removeOutlet)]?.remove();
+      return;
+    }
+    const removeProduct = event.target.closest("[data-remove-product]");
+    if (removeProduct) {
+      const items = [...$("#aiBusinessProductFields").querySelectorAll(".ai-business-product-form")];
+      if (items.length > 1) items[Number(removeProduct.dataset.removeProduct)]?.remove();
+    }
+  }
+
+  function handleAIBusinessSettingsSubmit(event) {
+    const form = event.target.closest("[data-ai-settings-form]");
+    if (!form) return;
+    event.preventDefault();
+    const data = new FormData(form);
+    const settings = getAIBusinessSettings();
+    const section = form.dataset.aiSettingsForm;
+
+    if (section === "manager") {
+      settings.manager = { name: String(data.get("name") || "").trim(), phone: String(data.get("phone") || "").trim() };
+    } else if (section === "outlets") {
+      const names = data.getAll("outletName");
+      const phones = data.getAll("outletPhone");
+      const opens = data.getAll("outletOpen");
+      const closes = data.getAll("outletClose");
+      settings.outlets = names.map((name, index) => ({ name: String(name).trim(), phone: String(phones[index] || "").trim(), open: String(opens[index] || ""), close: String(closes[index] || "") })).filter((outlet) => outlet.name);
+    } else if (section === "payment") {
+      settings.payment = { merchant: String(data.get("merchant") || "").trim(), qrisId: String(data.get("qrisId") || "").trim(), qrisPayload: String(data.get("qrisPayload") || "").trim() };
+    } else if (section === "products") {
+      const names = data.getAll("productName");
+      const prices = data.getAll("productPrice");
+      const stocks = data.getAll("productStock");
+      settings.products = names.map((name, index) => ({ name: String(name).trim(), price: String(prices[index] || "").trim(), stock: String(stocks[index] || "").trim() })).filter((product) => product.name);
+    }
+    saveAIBusinessSettings(settings);
+    closeAIBusinessSettings();
+  }
+
+  // [ADDED] The composer displays sent messages while the AI Business service is being connected.
     $("#aiBusinessComposer")?.addEventListener("submit", (event) => {
       event.preventDefault();
       const input = $("#aiBusinessInput");
