@@ -118,7 +118,7 @@ await runTest("Products", "Apa saja menu atau produk yang tersedia?", (reply) =>
   } else {
     assert.ok(/belum|tidak tersedia|tidak ada|kosong/i.test(reply),
       "Product data is empty, but AI did not acknowledge that.");
-    assert.ok(!/\\b(burger|pizza|salad)\\b/i.test(reply),
+    assert.ok(!/\b(burger|pizza|salad)\b/i.test(reply),
       "AI invented sample product names while the product list is empty.");
   }
 });
