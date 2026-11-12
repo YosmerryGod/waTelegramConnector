@@ -242,9 +242,28 @@
         <button class="chip" data-filter="archived" type="button">Arsip<span class="chip-count">0</span></button>
       </div>
 
-      <!-- [MODIFIED] AI Business now appears as the first row in the chat list. -->
-      <!-- [REMOVED] Duplicate conversation heading and chat count; filter chips already show the counts. -->
+      <!-- [ADDED] Persistent WAGRAM AI row, independent from WhatsApp chat rendering and filters. -->
+      <div id="wagramAiPinnedRow" class="chat-swipe-row wagram-ai-chat-row">
+        <button class="list-item chat-row-content" type="button" data-open-ai-business>
+          <span class="chat-avatar-wrap">
+            <span class="avatar wagram-ai-avatar">
+              <img class="avatar-photo" src="./assets/wagram-logo.svg?v=20261112-wagram-ai-avatar-v1" alt="WAGRAM" loading="eager">
+            </span>
+          </span>
+          <div class="item-body">
+            <div class="item-row">
+              <span class="item-title">WAGRAM AI</span>
+              <span class="item-time" id="wagramAiPlanLabel">Premium C</span>
+            </div>
+            <div class="item-row">
+              <span class="item-sub" id="wagramAiAccessLabel">Asisten bisnis, stok, dan laporan usaha</span>
+            </div>
+          </div>
+          <span class="wagram-ai-lock-indicator" id="wagramAiLockIndicator" aria-hidden="true">♛</span>
+        </button>
+      </div>
 
+      <!-- [MODIFIED] Duplicate conversation heading and chat count remain removed; filter chips show counts. -->
       <div id="chatList" class="list">
         <div class="loading">Memuat percakapan…</div>
       </div>
