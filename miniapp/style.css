@@ -6660,6 +6660,7 @@ body.in-chat #topbar {
 
 
 /* [ADDED] Centered business setup menu and responsive form cards. */
+/* [MODIFIED] Professional WAGRAM AI settings layout. */
 .ai-business-settings-modal {
   position: fixed;
   inset: 0;
@@ -6669,8 +6670,8 @@ body.in-chat #topbar {
   justify-content: center;
   padding: 18px;
   background: rgba(0, 0, 0, .68);
-  -webkit-backdrop-filter: blur(7px);
-  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
 .ai-business-settings-modal.hidden { display: none !important; }
 .ai-business-settings-backdrop {
@@ -6684,10 +6685,12 @@ body.in-chat #topbar {
 .ai-business-settings-panel {
   position: relative;
   z-index: 1;
-  width: min(100%, 430px);
-  max-height: min(84dvh, 720px);
-  overflow-y: auto;
-  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 480px);
+  max-height: min(88dvh, 780px);
+  overflow: hidden;
+  padding: 22px;
   border: 1px solid var(--border);
   border-radius: 24px;
   background: var(--surface);
@@ -6696,61 +6699,114 @@ body.in-chat #topbar {
 }
 .ai-business-settings-heading {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 14px;
+  margin-bottom: 22px;
 }
 .ai-business-settings-eyebrow {
   color: var(--accent);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 1.5px;
 }
-.ai-business-settings-heading h2 { margin-top: 4px; font-size: 21px; font-weight: 800; }
+.ai-business-settings-heading h2 { margin-top: 5px; font-size: 22px; font-weight: 800; }
+.ai-business-settings-heading p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
 .ai-business-settings-close {
+  display: grid;
+  flex: 0 0 36px;
   width: 36px;
   height: 36px;
+  place-items: center;
   border: 1px solid var(--border);
-  border-radius: 50%;
+  border-radius: 12px;
   background: var(--surface-2);
   color: var(--text);
   font-size: 23px;
 }
+.ai-business-settings-menu {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.ai-business-settings-group + .ai-business-settings-group { margin-top: 24px; }
+.ai-business-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.ai-business-section-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 1.15px;
+}
+.ai-business-section-heading > span { color: var(--muted); font-size: 10px; }
 .ai-business-settings-grid {
   display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 10px;
+  grid-template-columns: 1fr;
+  gap: 8px;
 }
 .ai-business-setting-tile {
   display: flex;
-  min-height: 132px;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 7px;
-  padding: 14px;
+  min-width: 0;
+  min-height: 66px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 17px;
+  border-radius: 15px;
   background: var(--surface-2);
   color: var(--text);
   text-align: left;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
 }
+.ai-business-setting-tile:active { transform: scale(.99); }
+.ai-business-setting-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ai-business-setting-icon {
   display: grid;
+  flex: 0 0 42px;
   width: 42px;
   height: 42px;
   place-items: center;
-  border-radius: 14px;
-  background: color-mix(in srgb,var(--accent) 14%,var(--surface));
+  border-radius: 13px;
+  background: color-mix(in srgb,var(--accent) 13%,var(--surface));
   color: var(--accent);
-  font-size: 25px;
-  font-weight: 700;
 }
-.ai-business-setting-tile strong { font-size: 14px; font-weight: 750; }
-.ai-business-setting-tile small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.ai-business-setting-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-business-setting-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+.ai-business-setting-copy strong { font-size: 13px; font-weight: 750; }
+.ai-business-setting-copy small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.ai-business-setting-arrow { color: var(--muted); font-size: 23px; line-height: 1; }
+.ai-business-ai-group { padding-top: 20px; border-top: 1px solid var(--border); }
 .ai-business-settings-note {
+  flex: 0 0 auto;
   margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 10px;
   line-height: 1.5;
@@ -6806,28 +6862,45 @@ body.in-chat #topbar {
 }
 .ai-business-save-button { background: var(--accent); color: #fff; }
 .ai-business-add-button { border: 1px dashed var(--border); background: var(--surface-2); color: var(--accent); }
+@media (max-width: 600px) {
+  .ai-business-settings-modal {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .ai-business-settings-panel {
+    width: 100%;
+    max-height: min(91dvh, 820px);
+    padding: 22px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 24px 24px 0 0;
+    border-bottom: 0;
+  }
+}
 @media (max-width: 360px) {
-  .ai-business-settings-panel { padding: 15px; }
-  .ai-business-setting-tile { min-height: 120px; padding: 11px; }
+  .ai-business-settings-panel { padding-right: 15px; padding-left: 15px; }
+  .ai-business-setting-tile { min-height: 62px; padding: 9px; }
+  .ai-business-setting-icon { flex-basis: 38px; width: 38px; height: 38px; }
 }
 
-
-/* [ADDED] Notes field for AI restrictions and manager escalation rules. */
+/* [MODIFIED] Clear, separated fields for WAGRAM AI configuration. */
 .ai-business-rules {
   display: grid;
-  gap: 8px;
-  margin-top: 14px;
-  padding: 14px;
+  gap: 14px;
+  margin-top: 0;
+  padding: 15px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface-2);
 }
-.ai-business-rules > label {
+.ai-business-rule-field {
+  display: grid;
+  gap: 6px;
+}
+.ai-business-rules .ai-business-rule-field > label {
   color: var(--text);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
 }
-.ai-business-rules > p {
+.ai-business-rules .ai-business-rule-field > p {
   margin: 0;
   color: var(--muted);
   font-size: 11px;
@@ -6835,10 +6908,10 @@ body.in-chat #topbar {
 }
 .ai-business-rules textarea {
   width: 100%;
-  min-height: 92px;
+  min-height: 76px;
   padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 11px;
   outline: none;
   resize: vertical;
   background: var(--surface);
@@ -6847,10 +6920,11 @@ body.in-chat #topbar {
   font-size: 12px;
   line-height: 1.5;
 }
-.ai-business-rules .ai-business-save-button {
-  width: 100%;
+.ai-business-rules textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent);
 }
-
+.ai-business-rules .ai-business-save-button { width: 100%; }
 
 /* [ADDED] Lock marker for WAGRAM AI when the account is not Premium C. */
 .wagram-ai-chat-row {
