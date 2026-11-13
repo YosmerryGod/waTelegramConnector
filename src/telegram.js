@@ -1402,35 +1402,39 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                   buffer.length > 0 &&
                   buffer.length <= MAX_MEDIA_BYTES
                 ) {
-                  const storagePath = await saveWhatsAppMedia({
-                    telegramId: id,
-                    sessionId,
-                    messageId,
-                    buffer,
-                    mimetype: info.mimetype,
-                    fileName: info.fileName
-                  });
-
-                  const attached = attachLocalMedia({
-                    telegramId: id,
-                    sessionId,
-                    whatsappChatId: remoteJid,
-                    messageId,
-                    storagePath,
-                    mimetype: info.mimetype,
-                    fileName: info.fileName
-                  });
-
-                  if (attached) {
-                    publishToMiniApp(id, {
-                      type: "media.ready",
-                      data: { sessionId, chatId: remoteJid, messageId }
+                  // [MODIFIED] Media storage is independent from AI image understanding.
+                  // A local storage failure must not prevent the AI from analyzing the downloaded image.
+                  try {
+                    const storagePath = await saveWhatsAppMedia({
+                      telegramId: id,
+                      sessionId,
+                      messageId,
+                      buffer,
+                      mimetype: info.mimetype,
+                      fileName: info.fileName
                     });
+
+                    const attached = attachLocalMedia({
+                      telegramId: id,
+                      sessionId,
+                      whatsappChatId: remoteJid,
+                      messageId,
+                      storagePath,
+                      mimetype: info.mimetype,
+                      fileName: info.fileName
+                    });
+
+                    if (attached) {
+                      publishToMiniApp(id, {
+                        type: "media.ready",
+                        data: { sessionId, chatId: remoteJid, messageId }
+                      });
+                    }
+                  } catch (storageError) {
+                    console.error("Failed to store WhatsApp media for Mini App:", storageError.message);
                   }
 
-                  // [ADDED] Analyze incoming private images for payment proof.
-                  // Forward confirmed-looking proofs to the account owner on Telegram,
-                  // then acknowledge the customer on WhatsApp after the manager receives it.
+                  // [MODIFIED] Analyze every downloaded incoming private image independently of Mini App storage.
                   if (!isOutgoing && !isGroup && info.kind === "image") {
                     void handleIncomingAIPaymentProof({
                       telegramId: id,
@@ -1444,7 +1448,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                       socket,
                       quotedMessage: message,
                     }).catch((paymentError) => {
-                      console.error("[WAGRAM AI Payment Proof] Worker crashed:", paymentError.message);
+                      console.error("[WAGRAM AI Image] Worker crashed:", paymentError.message);
                     });
                   }
                 }
