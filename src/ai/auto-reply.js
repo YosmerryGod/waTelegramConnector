@@ -30,9 +30,11 @@ db.exec(`
     ON ai_auto_reply_jobs(telegram_id, session_id, created_at DESC);
 `);
 
+// [MODIFIED] Wait for a full 5-second quiet window so customers can send
+// multiple WhatsApp bubbles before the AI reads the conversation and replies.
 const AUTO_REPLY_SETTLE_MS = Math.max(
   300,
-  Math.min(5000, Number(process.env.WAGRAM_AUTO_REPLY_SETTLE_MS || 1200))
+  Math.min(5000, Number(process.env.WAGRAM_AUTO_REPLY_SETTLE_MS || 5000))
 );
 
 export function claimAIAutoReplyJob(telegramId, sessionId, chatId, messageId) {
