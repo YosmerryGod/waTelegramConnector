@@ -3314,24 +3314,53 @@
       }
 
       proofPreviewLoading.classList.remove("hidden");
-      let bitmap;
+      let bitmap = null;
+      let objectUrl = "";
       try {
-        bitmap = await createImageBitmap(file);
+        // [ADDED] Prefer ImageBitmap, then fall back to the WebView's native Image decoder.
+        let imageSource = null;
+        try {
+          if (typeof createImageBitmap === "function") {
+            bitmap = await createImageBitmap(file);
+            imageSource = bitmap;
+          }
+        } catch (bitmapError) {
+          console.warn("Premium proof ImageBitmap decoding failed; trying Image fallback:", bitmapError);
+        }
+
+        if (!imageSource) {
+          objectUrl = URL.createObjectURL(file);
+          imageSource = await new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error("Browser tidak dapat membaca gambar ini. Coba pilih ulang atau gunakan screenshot JPG/PNG."));
+            image.src = objectUrl;
+          });
+        }
+
         if (readToken !== proofReadToken) {
-          bitmap.close?.();
+          bitmap?.close?.();
+          bitmap = null;
           return;
         }
+
+        const imageWidth = Number(imageSource.width || imageSource.naturalWidth || 0);
+        const imageHeight = Number(imageSource.height || imageSource.naturalHeight || 0);
+        if (!imageWidth || !imageHeight) {
+          throw new Error("Ukuran gambar tidak dapat dibaca. Coba pilih ulang file bukti pembayaran.");
+        }
+
         const maxDimension = 1600;
-        const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+        const scale = Math.min(1, maxDimension / Math.max(imageWidth, imageHeight));
         const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        canvas.width = Math.max(1, Math.round(imageWidth * scale));
+        canvas.height = Math.max(1, Math.round(imageHeight * scale));
         const context = canvas.getContext("2d", { alpha: false });
         if (!context) throw new Error("Browser tidak mendukung pemrosesan gambar.");
         context.fillStyle = "#ffffff";
         context.fillRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        bitmap.close?.();
+        context.drawImage(imageSource, 0, 0, canvas.width, canvas.height);
+        bitmap?.close?.();
         bitmap = null;
 
         const toJpegBlob = (quality) => new Promise((resolve, reject) => {
@@ -3377,6 +3406,7 @@
         showPremiumProofInlineError(error.message || "Gambar gagal diproses.");
       } finally {
         bitmap?.close?.();
+        if (objectUrl) URL.revokeObjectURL(objectUrl); // [ADDED] Release the fallback image URL after decoding.
         if (readToken === proofReadToken) proofPreviewLoading.classList.add("hidden");
       }
     });
