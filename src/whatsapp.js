@@ -335,6 +335,7 @@ export async function getWhatsAppProfile(telegramId, whatsappJid) {
 
   const socket = entry.socket;
   const jid = String(whatsappJid || "");
+  const isNewsletter = jid.endsWith("@newsletter");
 
   const withTimeout = (promise, timeoutMs) => new Promise((resolve, reject) => {
     const timer = setTimeout(
@@ -354,10 +355,33 @@ export async function getWhatsAppProfile(telegramId, whatsappJid) {
     );
   });
 
+  // [ADDED] Newsletter channels expose their avatar through newsletter metadata.
+  if (isNewsletter) {
+    let metadata = null;
+    try {
+      metadata = await withTimeout(socket.newsletterMetadata(jid, "jid"), 12000);
+    } catch {
+      metadata = null;
+    }
+
+    const picture = metadata?.picture;
+    const pictureUrl = typeof picture === "string"
+      ? picture
+      : picture?.url || picture?.directPath || null;
+
+    return {
+      pictureUrl,
+      aboutText: metadata?.description || null,
+      statusSetAt: null
+    };
+  }
+
   const [pictureResult, statusResult] = await Promise.allSettled([
     withTimeout(socket.profilePictureUrl(jid, "image", 12000), 13000)
       .catch(() => withTimeout(socket.profilePictureUrl(jid, "preview", 8000), 9000)),
-    withTimeout(socket.fetchStatus(jid), 10000)
+    jid.endsWith("@g.us")
+      ? Promise.resolve(null)
+      : withTimeout(socket.fetchStatus(jid), 10000)
   ]);
 
   const pictureUrl = pictureResult.status === "fulfilled"
