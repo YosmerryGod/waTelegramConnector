@@ -1063,18 +1063,20 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             status === "replaced" ? "disconnected" : status,
             phoneNumber || null
           );
-          if (status === "connected" && phoneNumber) {
-            const relink = linkWhatsAppSessionByPhone(id, sessionId, phoneNumber);
-            if (relink) {
-              console.info("[WAGRAM Session Recovery] Re-linked same WhatsApp number to previous data:", JSON.stringify(relink));
-            }
-          }
         } else {
           updateSession(
             id,
             status === "replaced" ? "disconnected" : status,
             phoneNumber || null
           );
+        }
+
+        // [ADDED] Recover the previous data identity for the same verified WhatsApp number.
+        if (status === "connected" && phoneNumber) {
+          const relink = linkWhatsAppSessionByPhone(id, sessionId, phoneNumber);
+          if (relink) {
+            console.info("[WAGRAM Session Recovery] Re-linked same WhatsApp number to previous data:", JSON.stringify(relink));
+          }
         }
 
         // [ADDED] Broadcast connection state after persisting it.
