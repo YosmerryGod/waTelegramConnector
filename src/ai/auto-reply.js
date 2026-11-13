@@ -201,6 +201,16 @@ export async function handleIncomingAIAutoReply({
       return { sent: false, reason: "superseded_during_generation" };
     }
 
+    // [ADDED] Respect an owner disabling AI while OpenRouter is generating.
+    const latestAIStatus = getAICustomerServiceStatus(ownerId, accountId);
+    if (!latestAIStatus.eligible || !latestAIStatus.enabled) {
+      updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
+        status: "skipped",
+        error: "AI Customer Service was disabled before the reply was sent."
+      });
+      return { sent: false, reason: "ai_disabled_during_generation" };
+    }
+
     // [ADDED] Persist the exact generated text before sending so the outgoing
     // Baileys event cannot accidentally teach the AI its own generated answer.
     updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
