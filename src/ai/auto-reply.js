@@ -180,6 +180,26 @@ export async function handleIncomingAIAutoReply({
       throw new Error("AI_REPLY_EMPTY");
     }
 
+    // [ADDED] Recheck after model generation. If a newer customer message
+    // arrived while OpenRouter was responding, do not send a stale answer.
+    const latestAfterGeneration = listMessages(ownerId, whatsappChatId, 10, accountId)
+      .filter((item) =>
+        item.message_type === "text" &&
+        item.body?.trim() &&
+        !item.is_deleted
+      )[0];
+    if (
+      !latestAfterGeneration ||
+      latestAfterGeneration.direction !== "incoming" ||
+      String(latestAfterGeneration.whatsapp_message_id) !== incomingId
+    ) {
+      updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
+        status: "skipped",
+        error: "A newer message arrived while the AI was generating the reply."
+      });
+      return { sent: false, reason: "superseded_during_generation" };
+    }
+
     // [ADDED] Persist the exact generated text before sending so the outgoing
     // Baileys event cannot accidentally teach the AI its own generated answer.
     updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
