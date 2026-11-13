@@ -7310,3 +7310,20 @@ body.in-chat #topbar {
   border-radius: 14px;
   background: #ffffff;
 }
+
+
+/* [ADDED] Premium proof upload state: keep the selected image visible under a clear loading overlay. */
+.premium-proof-picker{position:relative}
+.premium-proof-picker:has(.premium-proof-upload-overlay:not(.hidden)){cursor:wait}
+.premium-proof-upload-overlay{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:20px;text-align:center;background:rgba(5,16,10,.82);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);color:#fff}
+.premium-proof-upload-overlay.hidden{display:none!important}
+.premium-proof-upload-overlay strong{font-size:13px;font-weight:800}
+.premium-proof-upload-overlay small{max-width:240px;color:rgba(255,255,255,.76);font-size:11px;line-height:1.45}
+.premium-proof-upload-spinner{width:30px;height:30px;border:3px solid rgba(255,255,255,.25);border-top-color:#25d366;border-radius:50%;animation:premiumProofSpin .8s linear infinite}
+.premium-proof-upload-track{display:block;width:min(100%,210px);height:4px;overflow:hidden;border-radius:99px;background:rgba(255,255,255,.2)}
+.premium-proof-upload-track span{display:block;width:38%;height:100%;border-radius:inherit;background:#25d366;animation:premiumProofProgress 1.15s ease-in-out infinite}
+.premium-proof-modal.is-uploading .premium-proof-picker{pointer-events:none}
+.premium-proof-modal.is-uploading .premium-proof-actions{opacity:.7}
+@keyframes premiumProofSpin{to{transform:rotate(360deg)}}
+@keyframes premiumProofProgress{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
+@media(prefers-reduced-motion:reduce){.premium-proof-upload-spinner,.premium-proof-upload-track span{animation:none}.premium-proof-upload-track span{width:100%}}
