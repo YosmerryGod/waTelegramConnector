@@ -3259,6 +3259,10 @@
       proofPreview.classList.add("hidden");
       proofPlaceholder.classList.remove("hidden");
       proofConfirmButton.disabled = true;
+      proofModal.classList.remove("is-uploading"); // [ADDED]
+      proofInput.disabled = false; // [ADDED]
+      $("#premiumProofUploadState").classList.add("hidden"); // [ADDED]
+      proofModal.removeAttribute("aria-busy"); // [ADDED]
       $("#premiumProofError").textContent = "";
       proofModal.classList.remove("hidden");
     });
@@ -3294,12 +3298,13 @@
     });
 
     $("#premiumProofCancelButton").addEventListener("click", () => {
+      if (proofModal.classList.contains("is-uploading")) return; // [ADDED]
       proofModal.classList.add("hidden");
       selectedPremiumProof = null;
     });
 
     proofModal.addEventListener("click", (event) => {
-      if (event.target === proofModal) {
+      if (event.target === proofModal && !proofModal.classList.contains("is-uploading")) { // [MODIFIED]
         proofModal.classList.add("hidden");
         selectedPremiumProof = null;
       }
@@ -3310,6 +3315,10 @@
       const paidButton = $("#premiumPaymentPaidButton");
       proofConfirmButton.disabled = true;
       $("#premiumProofCancelButton").disabled = true;
+      proofInput.disabled = true; // [ADDED]
+      proofModal.classList.add("is-uploading"); // [ADDED]
+      proofModal.setAttribute("aria-busy", "true"); // [ADDED]
+      $("#premiumProofUploadState").classList.remove("hidden"); // [ADDED]
       proofConfirmButton.textContent = "Mengirim…";
       $("#premiumProofError").textContent = "";
       try {
@@ -3324,6 +3333,10 @@
       } catch (error) {
         $("#premiumProofError").textContent = error.message || "Bukti pembayaran gagal dikirim.";
       } finally {
+        proofModal.classList.remove("is-uploading"); // [ADDED]
+        proofModal.removeAttribute("aria-busy"); // [ADDED]
+        $("#premiumProofUploadState").classList.add("hidden"); // [ADDED]
+        proofInput.disabled = false; // [ADDED]
         proofConfirmButton.disabled = !selectedPremiumProof;
         $("#premiumProofCancelButton").disabled = false;
         proofConfirmButton.textContent = "Confirm";
