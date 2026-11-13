@@ -6516,14 +6516,18 @@ html[data-theme="dark"] .premium-payment-download {
 .whatsapp-session-footer #whatsappSessionDeleteButton{border:1px solid color-mix(in srgb,var(--danger) 42%,transparent);background:var(--danger-soft);color:var(--danger);border-radius:12px;font-weight:800;font-size:11px}
 
 /* [ADDED] Focused QR pairing popup: hide account manager controls while pairing. */
-.whatsapp-sessions-modal.is-pairing .whatsapp-sessions-header { margin-bottom:14px; }
-.whatsapp-sessions-modal.is-pairing .whatsapp-sessions-eyebrow { display:none; }
+/* [MODIFIED] Compact, focused pairing header with clear device-link context. */
+.whatsapp-sessions-modal.is-pairing .whatsapp-sessions-header { margin-bottom:18px; align-items:center; }
+.whatsapp-sessions-modal.is-pairing .whatsapp-sessions-eyebrow { display:block; font-size:10px; letter-spacing:1.4px; }
+.whatsapp-sessions-modal.is-pairing .whatsapp-sessions-header h2 { margin-top:5px; font-size:23px; letter-spacing:-.45px; }
+.whatsapp-sessions-modal.is-pairing .whatsapp-sessions-header p { margin-top:5px; font-size:12px; }
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-list,
 .whatsapp-sessions-modal.is-pairing #createWhatsAppSessionButton,
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-footer { display:none!important; }
-.whatsapp-sessions-modal.is-pairing .whatsapp-session-qr { display:flex; flex-direction:column; align-items:center; gap:14px; }
+.whatsapp-sessions-modal.is-pairing .whatsapp-session-qr { display:flex; flex-direction:column; align-items:center; gap:13px; }
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-qr img { width:100%; max-width:360px; border-radius:18px; background:#fff; }
-.whatsapp-pairing-cancel { width:100%; min-height:48px; margin-top:4px; }
+.whatsapp-sessions-modal.is-pairing .whatsapp-session-qr > p { display:flex; align-items:center; justify-content:center; width:100%; min-height:38px; margin:0; padding:8px 12px; border:1px solid var(--border,rgba(255,255,255,.1)); border-radius:12px; background:var(--surface-2,rgba(255,255,255,.035)); color:var(--text); font-size:12px; font-weight:600; letter-spacing:.1px; }
+.whatsapp-pairing-cancel { width:100%; min-height:46px; margin-top:2px; border-radius:13px; font-size:13px; font-weight:700; }
 
 /* [MODIFIED] WhatsApp pairing QR stays hidden behind a loader until the image is decoded. */
 .whatsapp-qr-brand-frame { position:relative; display:inline-flex; width:100%; max-width:360px; min-height:280px; align-items:center; justify-content:center; overflow:hidden; border-radius:18px; background:#fff; }
