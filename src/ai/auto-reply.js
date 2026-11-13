@@ -6,7 +6,8 @@ import {
   createAICustomerServiceSuggestion,
   createAIBusinessReply,
   analyzeAIPaymentProofImage,
-  createAIPaymentProofCustomerReply
+  createAIPaymentProofCustomerReply,
+  createAIBusinessImageCustomerReply
 } from "./customer-service.js";
 
 // [ADDED] Durable at-most-once processing guard for WhatsApp auto replies.
@@ -126,8 +127,16 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     const conversation=listMessages(ownerId,chat,20,accountId).filter((item)=>item.body&&!item.is_deleted).reverse().map((item)=>({role:item.direction==="outgoing"?"business":"customer",text:String(item.body||"").slice(0,1000)}));
     const products=Array.isArray(profile.settings?.products)?profile.settings.products.slice(0,100):[];
     const result=await analyzeAIPaymentProofImage({imageBuffer,mimetype,conversation,products});
-    if (!result.isPaymentProof) { updateAutoReply(ownerId,accountId,chat,incomingId,{status:"skipped",error:"not_payment_proof"}); return {handled:false,reason:"not_payment_proof"}; }
-    if (!socket||typeof socket.sendMessage!=="function"||typeof socket.onWhatsApp!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
+    if (!socket||typeof socket.sendMessage!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
+    if (!result.isPaymentProof) {
+      const customerReply = await createAIBusinessImageCustomerReply(ownerId, accountId, chat, result);
+      updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
+      await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
+      updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
+      console.info("[WAGRAM AI Image Reply] Non-payment image handled:",JSON.stringify({telegramId:ownerId,sessionId:accountId,messageId:incomingId,imageType:result.imageType}));
+      return {handled:true,forwarded:false,imageType:result.imageType};
+    }
+    if (typeof socket.onWhatsApp!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
     const manager=profile.settings?.manager && typeof profile.settings.manager==="object" ? profile.settings.manager : {};
     if (!manager.phone) throw new Error("PAYMENT_MANAGER_PHONE_NOT_CONFIGURED");
     const managerDigits=manager.phone.replace(/\D/g,"");
