@@ -4,7 +4,8 @@ import { listMessages, getAIBusinessProfile } from "../database.js";
 import {
   getAICustomerServiceStatus,
   createAICustomerServiceSuggestion,
-  createAIBusinessReply
+  createAIBusinessReply,
+  analyzeAIPaymentProofImage
 } from "./customer-service.js";
 
 // [ADDED] Durable at-most-once processing guard for WhatsApp auto replies.
@@ -112,6 +113,32 @@ export function isAIAutoReplyMessage(telegramId, sessionId, chatId, body) {
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,messageId,phoneNumber,customerName,imageBuffer,mimetype,socket,quotedMessage,notifyManager}) {
+  const ownerId=String(telegramId||""), accountId=String(sessionId||telegramId), chat=String(chatId||""), incomingId=String(messageId||"");
+  if (!ownerId||!accountId||!chat||!incomingId) return {handled:false,reason:"invalid_input"};
+  const profile=getAIBusinessProfile(ownerId,accountId);
+  if (!profile||!Buffer.isBuffer(imageBuffer)||!imageBuffer.length) return {handled:false,reason:"business_ai_or_image_missing"};
+  if (!claimAIAutoReplyJob(ownerId,accountId,chat,incomingId)) return {handled:false,reason:"duplicate"};
+  try {
+    const conversation=listMessages(ownerId,chat,20,accountId).filter((item)=>item.body&&!item.is_deleted).reverse().map((item)=>({role:item.direction==="outgoing"?"business":"customer",text:String(item.body||"").slice(0,1000)}));
+    const products=Array.isArray(profile.settings?.products)?profile.settings.products.slice(0,100):[];
+    const result=await analyzeAIPaymentProofImage({imageBuffer,mimetype,conversation,products});
+    if (!result.isPaymentProof) { updateAutoReply(ownerId,accountId,chat,incomingId,{status:"skipped",error:"not_payment_proof"}); return {handled:false,reason:"not_payment_proof"}; }
+    if (typeof notifyManager!=="function"||!socket||typeof socket.sendMessage!=="function") throw new Error("PAYMENT_PROOF_DELIVERY_UNAVAILABLE");
+    const val=(v)=>v===null||v===undefined||String(v).trim()===""?"Belum terbaca":String(v).trim();
+    const p=result.payment||{}, o=result.order||{};
+    const caption=["BUKTI PEMBAYARAN BARU — PERLU VERIFIKASI","Pelanggan: "+val(customerName),"WhatsApp: "+val(phoneNumber?"+"+phoneNumber:chat),"DETAIL PESANAN","Produk: "+val(o.product),"Jumlah: "+val(o.quantity),"Harga satuan: "+val(o.unit_price),"Total pesanan: "+val(o.total),"INFORMASI BUKTI","Nominal: "+val(p.amount)+" "+val(p.currency),"Tanggal/waktu: "+val(p.date)+" "+val(p.time),"Pengirim: "+val(p.payer),"Penerima: "+val(p.recipient),"Metode: "+val(p.method),"Referensi: "+val(p.reference),"Status tertulis: "+val(p.status_text),"Keyakinan klasifikasi: "+Math.round(result.confidence*100)+"%","PERLU VERIFIKASI MUTASI. Gambar bukan bukti dana sudah masuk."].join("\n").slice(0,1024);
+    await notifyManager(imageBuffer,caption,mimetype);
+    await socket.sendMessage(chat,{text:"Terima kasih, bukti pembayaran sudah kami terima. Pesanan akan segera diproses setelah verifikasi pengelola."},quotedMessage?{quoted:quotedMessage}:{});
+    updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent",generatedReply:"[payment proof forwarded]"});
+    return {handled:true,forwarded:true};
+  } catch(error) {
+    updateAutoReply(ownerId,accountId,chat,incomingId,{status:"failed",error:error.message||"PAYMENT_PROOF_FAILED"});
+    console.error("[WAGRAM AI Payment Proof] Failed:",error.message);
+    return {handled:false,reason:"failed"};
+  }
 }
 
 // [ADDED] Send exactly one AI reply for one incoming private text message.
