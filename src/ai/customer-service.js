@@ -879,6 +879,99 @@ function isQrisRequest(message) {
   return /\bqris\b|\bqr\s*code\b|kode\s*(?:qr|pembayaran)|barcode\s*(?:pembayaran|bayar)|cara\s*bayar/i.test(String(message || ""));
 }
 
+// [ADDED] Use an OpenRouter vision-capable model to classify incoming payment images.
+// This only extracts evidence; it never verifies that money actually reached the account.
+export async function analyzeAIPaymentProofImage({
+  imageBuffer,
+  mimetype = "image/jpeg",
+  conversation = [],
+  products = []
+} = {}) {
+  if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY_MISSING");
+  if (!Buffer.isBuffer(imageBuffer) || imageBuffer.length === 0) {
+    throw new Error("PAYMENT_PROOF_IMAGE_EMPTY");
+  }
+
+  const supportedMime = ["image/jpeg", "image/png", "image/webp"].includes(String(mimetype).toLowerCase())
+    ? String(mimetype).toLowerCase()
+    : "image/jpeg";
+  const visionModel = String(
+    process.env.WAGRAM_VISION_MODEL ||
+    process.env.OPENROUTER_VISION_MODEL ||
+    "google/gemini-2.5-flash"
+  ).trim();
+  const prompt = [
+    "Kamu bertugas mengklasifikasikan gambar yang dikirim pelanggan ke bisnis.",
+    "Tentukan apakah gambar benar-benar tampak seperti bukti pembayaran/transfer/QRIS, bukan sekadar gambar uang, QR pembayaran kosong, invoice, tagihan, atau screenshot percakapan.",
+    "Bukti pembayaran dapat berupa struk transfer bank/e-wallet/QRIS yang menampilkan indikasi transaksi telah berhasil.",
+    "Jangan menyatakan pembayaran valid atau uang sudah diterima. Gambar dapat dipalsukan dan harus diverifikasi pengelola.",
+    "Jika bukan bukti pembayaran, is_payment_proof=false.",
+    "Ekstrak hanya informasi yang benar-benar terbaca. Gunakan null untuk data yang tidak terbaca.",
+    "Gunakan konteks percakapan untuk menyusun detail pesanan. Jangan mengarang produk, jumlah, harga, atau total. Jika tidak ada, gunakan null.",
+    "Balas JSON valid saja dengan struktur: {is_payment_proof:boolean, confidence:number, payment:{amount:string|null,currency:string|null,date:string|null,time:string|null,payer:string|null,recipient:string|null,reference:string|null,status_text:string|null,method:string|null}, order:{product:string|null,quantity:string|null,unit_price:string|null,total:string|null}, notes:string}.",
+    "",
+    "DAFTAR PRODUK BISNIS:",
+    JSON.stringify(products).slice(0, 7000),
+    "",
+    "RIWAYAT CHAT TERBARU:",
+    JSON.stringify(conversation).slice(0, 9000)
+  ].join("\n");
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + OPENROUTER_API_KEY,
+      "Content-Type": "application/json",
+      "HTTP-Referer": String(process.env.OPENROUTER_SITE_URL || "https://wagram.app"),
+      "X-Title": String(process.env.OPENROUTER_APP_NAME || "WAGRAM")
+    },
+    body: JSON.stringify({
+      model: visionModel,
+      temperature: 0,
+      max_tokens: 500,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: {
+              url: "data:" + supportedMime + ";base64," + imageBuffer.toString("base64")
+            }
+          }
+        ]
+      }]
+    }),
+    signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS)
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = String(payload?.error?.message || payload?.message || "Vision request failed").slice(0, 400);
+    throw new Error("OPENROUTER_VISION_HTTP_" + response.status + ": " + detail);
+  }
+
+  const raw = String(payload?.choices?.[0]?.message?.content || "").trim();
+  if (!raw) throw new Error("OPENROUTER_VISION_EMPTY_RESPONSE");
+  const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  const parsed = JSON.parse(start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("OPENROUTER_VISION_INVALID_RESULT");
+  }
+
+  const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
+  return {
+    isPaymentProof: parsed.is_payment_proof === true && confidence >= 0.75,
+    confidence,
+    payment: parsed.payment && typeof parsed.payment === "object" ? parsed.payment : {},
+    order: parsed.order && typeof parsed.order === "object" ? parsed.order : {},
+    notes: String(parsed.notes || "").slice(0, 500),
+    model: visionModel
+  };
+}
+
 export async function createAIBusinessReply(telegramId, sessionId, message, history = []) {
   requirePremium30Days(telegramId);
   const profile = getAIBusinessProfile(telegramId, sessionId);
