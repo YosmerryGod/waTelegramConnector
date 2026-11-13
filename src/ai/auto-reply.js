@@ -183,7 +183,8 @@ export async function handleIncomingAIAutoReply({
       .filter((item) =>
         item.message_type === "text" &&
         item.body?.trim() &&
-        !item.is_deleted
+        !item.is_deleted &&
+        String(item.whatsapp_message_id) !== incomingId
       )
       .reverse()
       .map((item) => ({
