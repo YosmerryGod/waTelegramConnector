@@ -190,7 +190,15 @@ export async function handleIncomingManagerReply({ telegramId, sessionId, chatId
   const managerJid = String(chatId || "");
   const profile = getAIBusinessProfile(ownerId, accountId);
   const managerDigits = normalizeManagerPhone(profile?.settings?.manager?.phone);
-  if (!managerDigits || managerJid.replace(/\D/g, "") !== managerDigits) return { handled: false };
+  const key = message?.key || {};
+  const senderCandidates = [
+    managerJid,
+    key.remoteJidAlt,
+    key.remoteJidPn,
+    message?.remoteJidAlt,
+    message?.remoteJidPn
+  ].map((value) => normalizeManagerPhone(value));
+  if (!managerDigits || !senderCandidates.includes(managerDigits)) return { handled: false };
   const content = message?.message || {};
   const context = content.extendedTextMessage?.contextInfo ||
     content.imageMessage?.contextInfo || content.videoMessage?.contextInfo ||
