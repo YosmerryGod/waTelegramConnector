@@ -232,6 +232,22 @@ db.exec(`
 `);
 
 // [ADDED] Persist the administrator's Free-tier pause mode across restarts.
+// [ADDED] Link replacement WhatsApp sessions to the original data identity by verified phone number.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS whatsapp_session_aliases (
+    telegram_id TEXT NOT NULL,
+    alias_session_id TEXT NOT NULL,
+    canonical_session_id TEXT NOT NULL,
+    phone_number TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (telegram_id, alias_session_id),
+    CHECK (alias_session_id <> canonical_session_id),
+    FOREIGN KEY (telegram_id) REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_whatsapp_session_alias_canonical
+    ON whatsapp_session_aliases(telegram_id, canonical_session_id);
+`);
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS app_settings (
     setting_key TEXT PRIMARY KEY,
@@ -438,16 +454,33 @@ if (!callColumns.includes("is_archived")) {
 }
 
 // [ADDED] Keep legacy primary-session keys intact while namespacing extra accounts.
+// [ADDED] Resolve replacement session IDs to the original persistent data identity.
+export function canonicalWhatsAppSessionId(telegramId, sessionId = telegramId) {
+  const ownerId = String(telegramId);
+  let accountId = String(sessionId || ownerId);
+  const visited = new Set();
+  while (!visited.has(accountId)) {
+    visited.add(accountId);
+    const alias = db.prepare(`
+      SELECT canonical_session_id FROM whatsapp_session_aliases
+      WHERE telegram_id = ? AND alias_session_id = ? LIMIT 1
+    `).get(ownerId, accountId);
+    if (!alias?.canonical_session_id) break;
+    accountId = String(alias.canonical_session_id);
+  }
+  return accountId;
+}
+
 function scopeSessionKey(telegramId, sessionId, value) {
   const ownerId = String(telegramId);
-  const accountId = String(sessionId || ownerId);
+  const accountId = canonicalWhatsAppSessionId(ownerId, sessionId || ownerId);
   const rawValue = String(value ?? "");
   return accountId === ownerId ? rawValue : `${accountId}::${rawValue}`;
 }
 
 function unScopeSessionKey(telegramId, sessionId, value) {
   const ownerId = String(telegramId);
-  const accountId = String(sessionId || ownerId);
+  const accountId = canonicalWhatsAppSessionId(ownerId, sessionId || ownerId);
   const prefix = accountId === ownerId ? "" : `${accountId}::`;
   const rawValue = String(value ?? "");
   return prefix && rawValue.startsWith(prefix) ? rawValue.slice(prefix.length) : rawValue;
@@ -1018,6 +1051,35 @@ export function createWhatsAppAccount(telegramId, label = null) {
 }
 
 // [ADDED] Persist status updates for a non-primary WhatsApp account.
+// [ADDED] Preserve existing business data when the same WhatsApp number is paired in a replacement session.
+export function linkWhatsAppSessionByPhone(telegramId, sessionId, phoneNumber) {
+  const ownerId = String(telegramId);
+  const newSessionId = String(sessionId);
+  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  if (!normalizedPhone) return null;
+  return db.transaction(() => {
+    const candidates = db.prepare(`
+      SELECT session_id, phone_number, is_primary, created_at
+      FROM whatsapp_accounts
+      WHERE telegram_id = ? AND phone_number IS NOT NULL AND session_id <> ?
+      ORDER BY is_primary DESC, created_at ASC
+    `).all(ownerId, newSessionId);
+    const existing = candidates.find((row) => normalizePhoneNumber(row.phone_number) === normalizedPhone);
+    if (!existing) return null;
+    const canonical = canonicalWhatsAppSessionId(ownerId, existing.session_id);
+    if (canonical === newSessionId) return null;
+    db.prepare(`
+      INSERT INTO whatsapp_session_aliases (
+        telegram_id, alias_session_id, canonical_session_id, phone_number, created_at
+      ) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(telegram_id, alias_session_id) DO UPDATE SET
+        canonical_session_id = excluded.canonical_session_id,
+        phone_number = excluded.phone_number
+    `).run(ownerId, newSessionId, canonical, normalizedPhone, Date.now());
+    return { canonicalSessionId: canonical, aliasSessionId: newSessionId, phoneNumber: normalizedPhone };
+  })();
+}
+
 export function updateWhatsAppAccountSession(telegramId, sessionId, status, phoneNumber = null) {
   const allowedStatuses = new Set([
     "disconnected", "connecting", "connected", "qr", "logged_out", "paused"
@@ -2020,7 +2082,7 @@ export function getAIBusinessProfile(telegramId, sessionId = telegramId) {
     SELECT settings_json, prompt_template, intent_config_json, fallback_config_json, updated_at
     FROM ai_business_profiles
     WHERE telegram_id = ? AND session_id = ?
-  `).get(String(telegramId), String(sessionId || telegramId));
+  `).get(String(telegramId), canonicalWhatsAppSessionId(telegramId, sessionId || telegramId));
   if (!row) return null;
   const parse = (value, fallback) => {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -2036,7 +2098,7 @@ export function getAIBusinessProfile(telegramId, sessionId = telegramId) {
 
 export function saveAIBusinessProfile(telegramId, sessionId = telegramId, profile = {}) {
   const ownerId = String(telegramId);
-  const scopedSessionId = String(sessionId || telegramId);
+  const scopedSessionId = canonicalWhatsAppSessionId(ownerId, sessionId || telegramId);
   const now = Date.now();
   const current = getAIBusinessProfile(ownerId, scopedSessionId);
   const settings = profile.settings && typeof profile.settings === "object" ? profile.settings : current?.settings || {};
