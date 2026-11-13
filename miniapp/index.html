@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261114-premium-proof-preview-ring-v1">
+  <link rel="stylesheet" href="style.css?v=20261114-premium-proof-error-details-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -756,7 +756,7 @@
           </span>
         </label>
         <input id="premiumProofInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
-        <p id="premiumProofError" class="premium-proof-error" aria-live="polite"></p>
+        <div id="premiumProofError" class="premium-proof-error hidden" aria-live="polite"></div> <!-- [MODIFIED] -->
         <div class="premium-proof-actions">
           <button type="button" id="premiumProofCancelButton" class="premium-proof-cancel">Cancel</button>
           <button type="button" id="premiumProofConfirmButton" class="premium-proof-confirm" disabled>Confirm</button>
