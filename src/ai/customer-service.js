@@ -511,6 +511,23 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
   `).all(owner.telegramId, owner.sessionId);
   const examples = selectRelevantCustomerServiceExamples(latest.body, candidates);
 
+  // [ADDED] Include owner-approved AI Business training answers as first-class
+  // style examples, so auto replies learn from both historical chats and training.
+  const ownerTrainingExamples = findAIBusinessExamples(
+    owner.telegramId,
+    owner.sessionId,
+    null,
+    3
+  );
+  const relevantTrainingExamples = selectRelevantCustomerServiceExamples(
+    latest.body,
+    ownerTrainingExamples.map((example) => ({
+      customer_message: example.question,
+      admin_reply: example.idealAnswer
+    })),
+    3
+  );
+
   // [ADDED] Supply verified business facts while excluding internal payment payloads
   // and manager contact details that should not be exposed automatically.
   const profile = getAIBusinessProfile(owner.telegramId, owner.sessionId);
@@ -545,11 +562,19 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
 
   const examplesText = examples.length
     ? examples.map((example, index) =>
-        "Contoh " + (index + 1) + " (relevansi " + example.relevance.toFixed(2) + ")\nPelanggan: " +
-        String(example.customer_message).slice(0, 700) + "\nAdmin: " +
+        "Contoh chat " + (index + 1) + " (relevansi " + example.relevance.toFixed(2) + ")\\nPelanggan: " +
+        String(example.customer_message).slice(0, 700) + "\\nAdmin: " +
         String(example.admin_reply).slice(0, 700)
-      ).join("\n\n")
-    : "Belum ada contoh balasan yang relevan. Gunakan gaya layanan yang ramah, jelas, dan natural.";
+      ).join("\\n\\n")
+    : "Belum ada contoh balasan historis yang relevan.";
+
+  const trainingExamplesText = relevantTrainingExamples.length
+    ? relevantTrainingExamples.map((example, index) =>
+        "Contoh training " + (index + 1) + " (relevansi " + example.relevance.toFixed(2) + ")\\nPelanggan: " +
+        String(example.customer_message).slice(0, 700) + "\\nJawaban pemilik: " +
+        String(example.admin_reply).slice(0, 700)
+      ).join("\\n\\n")
+    : "Belum ada contoh training pemilik yang tersimpan.";
 
   const prompt = [
     "IDENTITAS: Kamu adalah asisten customer service untuk bisnis pemilik akun ini.",
@@ -572,8 +597,11 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     "DATA BISNIS TERSEDIA:",
     JSON.stringify(businessContext),
     "",
-    "CONTOH ADMIN PALING RELEVAN (hanya untuk meniru gaya):",
+    "CONTOH ADMIN DARI LOG CHAT (gunakan untuk meniru gaya komunikasi):",
     examplesText,
+    "",
+    "CONTOH TRAINING PEMILIK (prioritaskan pola jawaban yang telah disetujui pemilik):",
+    trainingExamplesText,
     "",
     "RIWAYAT PERCAKAPAN TERBARU:",
     JSON.stringify(conversation),
@@ -587,7 +615,7 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
   return {
     draft: await openRouterGenerateText(prompt),
     model: OPENROUTER_MODEL,
-    basedOnExamples: examples.length,
+    basedOnExamples: examples.length + relevantTrainingExamples.length,
     createdAt: Date.now()
   };
 }
