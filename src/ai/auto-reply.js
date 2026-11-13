@@ -14,6 +14,17 @@ import {
 // A claimed job is never automatically retried: this prevents duplicate sends
 // after reconnects, repeated Baileys events, or a process restart.
 db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_customer_image_context (
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    chat_id TEXT NOT NULL,
+    image_message_id TEXT NOT NULL,
+    image_type TEXT NOT NULL,
+    image_description TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (telegram_id, session_id, chat_id)
+  );
+
   CREATE TABLE IF NOT EXISTS ai_auto_reply_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     telegram_id TEXT NOT NULL,
@@ -117,6 +128,43 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// [ADDED] Keep the latest recognized customer image as short-lived conversation context.
+function saveCustomerImageContext(telegramId, sessionId, chatId, messageId, analysis) {
+  const description = String(analysis?.imageDescription || analysis?.notes || "").trim().slice(0, 700);
+  if (!description) return;
+  db.prepare(`
+    INSERT INTO ai_customer_image_context (
+      telegram_id, session_id, chat_id, image_message_id, image_type, image_description, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(telegram_id, session_id, chat_id) DO UPDATE SET
+      image_message_id = excluded.image_message_id,
+      image_type = excluded.image_type,
+      image_description = excluded.image_description,
+      created_at = excluded.created_at
+  `).run(
+    String(telegramId), String(sessionId || telegramId), String(chatId), String(messageId),
+    String(analysis?.imageType || "unclear"), description, Date.now()
+  );
+}
+
+function getCustomerImageContext(telegramId, sessionId, chatId) {
+  const row = db.prepare(`
+    SELECT image_type, image_description, created_at
+    FROM ai_customer_image_context
+    WHERE telegram_id = ? AND session_id = ? AND chat_id = ?
+  `).get(String(telegramId), String(sessionId || telegramId), String(chatId));
+  if (!row || Date.now() - Number(row.created_at || 0) > 30 * 60 * 1000) return null;
+  return row;
+}
+
+async function sendImageFallback(socket, chatId, quotedMessage, isPaymentProof) {
+  const fallback = isPaymentProof
+    ? "Makasih, Kak. Gambarnya sudah kami terima 😊 Pembayarannya belum bisa dipastikan dulu, ya. Kami bantu cek ke pengelola."
+    : "Hehe, gambarnya sudah masuk, Kak 😄 Boleh tahu bagian mana yang ingin ditanyakan?";
+  await socket.sendMessage(chatId, { text: fallback }, quotedMessage ? { quoted: quotedMessage } : {});
+  return fallback;
+}
+
 export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,messageId,phoneNumber,customerName,imageBuffer,mimetype,socket,quotedMessage}) {
   const ownerId=String(telegramId||""), accountId=String(sessionId||telegramId), chat=String(chatId||""), incomingId=String(messageId||"");
   if (!ownerId||!accountId||!chat||!incomingId) return {handled:false,reason:"invalid_input"};
@@ -129,7 +177,16 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     const result=await analyzeAIPaymentProofImage({imageBuffer,mimetype,conversation,products});
     if (!socket||typeof socket.sendMessage!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
     if (!result.isPaymentProof) {
-      const customerReply = await createAIBusinessImageCustomerReply(ownerId, accountId, chat, result);
+      saveCustomerImageContext(ownerId, accountId, chat, incomingId, result);
+      let customerReply;
+      try {
+        customerReply = await createAIBusinessImageCustomerReply(ownerId, accountId, chat, result);
+      } catch (generationError) {
+        console.error("[WAGRAM AI Image Reply] Generation failed, using safe fallback:", generationError.message);
+        customerReply = await sendImageFallback(socket, chat, quotedMessage, false);
+        updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply,status:"sent",error:generationError.message});
+        return {handled:true,forwarded:false,imageType:result.imageType,fallback:true};
+      }
       updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
       await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
       updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
@@ -154,7 +211,13 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
       mimetype:mimetype||"image/jpeg",
       caption
     });
-    const customerReply=await createAIPaymentProofCustomerReply(ownerId,accountId,chat,result);
+    let customerReply;
+    try {
+      customerReply = await createAIPaymentProofCustomerReply(ownerId,accountId,chat,result);
+    } catch (generationError) {
+      console.error("[WAGRAM AI Payment Proof] Customer reply generation failed, using safe fallback:",generationError.message);
+      customerReply = "Terima kasih, Kak. Bukti pembayaran sudah kami terima 😊 Kami bantu cek dulu ke pengelola, ya. Pembayaran belum dinyatakan berhasil sebelum terverifikasi.";
+    }
     updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
     await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
@@ -243,6 +306,17 @@ export async function handleIncomingAIAutoReply({
         role: item.direction === "outgoing" ? "assistant" : "user",
         content: String(item.body || "").trim().slice(0, 1000)
       }));
+    const recentImageContext = getCustomerImageContext(ownerId, accountId, whatsappChatId);
+    if (recentImageContext) {
+      conversationHistory.push({
+        role: "user",
+        content: "[KONTEKS FOTO PELANGGAN TERAKHIR, dikirim " +
+          new Date(Number(recentImageContext.created_at)).toISOString() +
+          "]: Jenis gambar: " + recentImageContext.image_type +
+          ". Deskripsi: " + recentImageContext.image_description +
+          ". Gunakan konteks ini untuk memahami pertanyaan pelanggan berikutnya."
+      });
+    }
 
     const suggestion = useBusinessAI
       ? await createAIBusinessReply(
