@@ -8,6 +8,7 @@ on:
       - "src/ai/auto-reply.js"
       - "src/ai/customer-service.js"
       - "src/telegram.js"
+      - "src/database.js"
       - ".github/scripts/wagram-ai-auto-reply-idempotency-test.mjs"
       - ".github/workflows/wagram-ai-auto-reply-checks.yml"
   pull_request:
@@ -40,6 +41,7 @@ jobs:
           node --check src/ai/auto-reply.js
           node --check src/ai/customer-service.js
           node --check src/telegram.js
+          node --check src/database.js
           node --check .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
 
       - name: Test durable auto-reply idempotency
