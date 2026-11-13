@@ -2555,16 +2555,25 @@
       preview.classList.remove("hidden");
       preview.classList.add("is-loading");
       placeholder?.classList.add("hidden");
-      preview.onload = () => {
+      const finishUploadPreview = (loaded) => {
         loading.classList.add("hidden");
         preview.classList.remove("is-loading");
+        if (!loaded) {
+          preview.classList.add("hidden");
+          placeholder?.classList.remove("hidden");
+        }
         URL.revokeObjectURL(objectUrl);
       };
-      preview.onerror = () => {
-        loading.classList.add("hidden");
-        preview.classList.remove("is-loading");
-        URL.revokeObjectURL(objectUrl);
+      preview.onload = async () => {
+        try {
+          if (typeof preview.decode === "function") await preview.decode();
+          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          finishUploadPreview(true);
+        } catch {
+          finishUploadPreview(false);
+        }
       };
+      preview.onerror = () => finishUploadPreview(false);
       preview.src = objectUrl;
     });
 
@@ -2730,7 +2739,10 @@
       const qrisPreview = $("#aiBusinessQrisPreview");
       const qrisLoading = $("#aiBusinessQrisLoading");
       if (qrisPreview && qrisLoading) {
+        let qrisPreviewFinished = false;
         const finishQrisPreview = (loaded) => {
+          if (qrisPreviewFinished) return;
+          qrisPreviewFinished = true;
           qrisLoading.classList.add("hidden");
           qrisPreview.classList.remove("is-loading");
           if (!loaded) {
@@ -2738,9 +2750,25 @@
             $("#aiBusinessQrisPlaceholder")?.classList.remove("hidden");
           }
         };
-        qrisPreview.addEventListener("load", () => finishQrisPreview(true), { once: true });
+        // [MODIFIED] Keep the ring visible until the browser has fully decoded the image, not merely received its bytes.
+        const decodeQrisPreview = async () => {
+          if (!qrisPreview.naturalWidth) {
+            finishQrisPreview(false);
+            return;
+          }
+          try {
+            if (typeof qrisPreview.decode === "function") {
+              await qrisPreview.decode();
+            }
+            await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            finishQrisPreview(true);
+          } catch {
+            finishQrisPreview(false);
+          }
+        };
+        qrisPreview.addEventListener("load", decodeQrisPreview, { once: true });
         qrisPreview.addEventListener("error", () => finishQrisPreview(false), { once: true });
-        if (qrisPreview.complete) finishQrisPreview(qrisPreview.naturalWidth > 0);
+        if (qrisPreview.complete) decodeQrisPreview();
       }
     } else if (section === "products") {
       const products = settings.products.length ? settings.products : [{ name: "", price: "", stock: "" }];
