@@ -365,12 +365,30 @@ export async function getWhatsAppProfile(telegramId, whatsappJid) {
     }
 
     const picture = metadata?.picture;
-    const pictureUrl = typeof picture === "string"
+    let pictureUrl = typeof picture === "string"
       ? picture
-      : picture?.url || picture?.directPath || null;
+      : picture?.url || null;
+
+    if (!pictureUrl) {
+      try {
+        pictureUrl = await withTimeout(
+          socket.profilePictureUrl(jid, "image", 10000),
+          11000
+        );
+      } catch {
+        try {
+          pictureUrl = await withTimeout(
+            socket.profilePictureUrl(jid, "preview", 7000),
+            8000
+          );
+        } catch {
+          pictureUrl = null;
+        }
+      }
+    }
 
     return {
-      pictureUrl,
+      pictureUrl: pictureUrl || null,
       aboutText: metadata?.description || null,
       statusSetAt: null
     };
