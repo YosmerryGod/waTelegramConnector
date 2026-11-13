@@ -256,14 +256,6 @@ function getCustomerImageContext(telegramId, sessionId, chatId) {
   return row;
 }
 
-async function sendImageFallback(socket, chatId, quotedMessage, isPaymentProof) {
-  const fallback = isPaymentProof
-    ? "Makasih, Kak. Gambarnya sudah kami terima 😊 Pembayarannya belum bisa dipastikan dulu, ya. Kami bantu cek ke pengelola."
-    : "Hehe, gambarnya sudah masuk, Kak 😄 Boleh tahu bagian mana yang ingin ditanyakan?";
-  await socket.sendMessage(chatId, { text: fallback }, quotedMessage ? { quoted: quotedMessage } : {});
-  return fallback;
-}
-
 export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,messageId,phoneNumber,customerName,imageBuffer,mimetype,socket,quotedMessage}) {
   const ownerId=String(telegramId||""), accountId=String(sessionId||telegramId), chat=String(chatId||""), incomingId=String(messageId||"");
   if (!ownerId||!accountId||!chat||!incomingId) return {handled:false,reason:"invalid_input"};
@@ -277,15 +269,8 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     if (!socket||typeof socket.sendMessage!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
     if (!result.isPaymentProof) {
       saveCustomerImageContext(ownerId, accountId, chat, incomingId, result);
-      let customerReply;
-      try {
-        customerReply = await createAIBusinessImageCustomerReply(ownerId, accountId, chat, result);
-      } catch (generationError) {
-        console.error("[WAGRAM AI Image Reply] Generation failed, using safe fallback:", generationError.message);
-        customerReply = await sendImageFallback(socket, chat, quotedMessage, false);
-        updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply,status:"sent",error:generationError.message});
-        return {handled:true,forwarded:false,imageType:result.imageType,fallback:true};
-      }
+      const customerReply = await createAIBusinessImageCustomerReply(ownerId, accountId, chat, result);
+      if (!customerReply) throw new Error("AI_IMAGE_REPLY_EMPTY");
       updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
       await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
       updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
@@ -310,30 +295,18 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
       mimetype:mimetype||"image/jpeg",
       caption
     });
-    let customerReply;
-    try {
-      customerReply = await createAIPaymentProofCustomerReply(ownerId,accountId,chat,result);
-    } catch (generationError) {
-      console.error("[WAGRAM AI Payment Proof] Customer reply generation failed, using safe fallback:",generationError.message);
-      customerReply = "Terima kasih, Kak. Bukti pembayaran sudah kami terima 😊 Kami bantu cek dulu ke pengelola, ya. Pembayaran belum dinyatakan berhasil sebelum terverifikasi.";
-    }
+    const customerReply = await createAIPaymentProofCustomerReply(ownerId,accountId,chat,result);
+    if (!customerReply) throw new Error("AI_PAYMENT_PROOF_REPLY_EMPTY");
     updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
     await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
     return {handled:true,forwarded:true};
   } catch(error) {
-    console.error("[WAGRAM AI Image] Processing failed:",JSON.stringify({telegramId:ownerId,sessionId:accountId,messageId:incomingId,error:error.message}));
-    try {
-      if (socket && typeof socket.sendMessage === "function") {
-        const fallback = await sendImageFallback(socket, chat, quotedMessage, false);
-        updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:fallback,status:"sent",error:error.message||"IMAGE_ANALYSIS_FAILED"});
-        return {handled:true,reason:"fallback_reply_sent",fallback:true};
-      }
-    } catch (fallbackError) {
-      console.error("[WAGRAM AI Image] Fallback reply failed:",fallbackError.message);
-    }
+    // [MODIFIED] Never send a hardcoded customer-facing reply when AI generation fails.
+    // Keep the failure visible for diagnosis instead of pretending an AI response was generated.
+    console.error("[WAGRAM AI Image] Processing failed; no canned reply sent:",JSON.stringify({telegramId:ownerId,sessionId:accountId,messageId:incomingId,error:error.message}));
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"failed",error:error.message||"IMAGE_ANALYSIS_FAILED"});
-    return {handled:false,reason:"failed"};
+    return {handled:false,reason:"ai_processing_failed"};
   }
 }
 
@@ -443,7 +416,8 @@ export async function handleIncomingAIAutoReply({
 
     if (useBusinessAI && suggestion?.needsManager) {
       const managerQuestion = String(suggestion.managerQuestion || latest.body || "").trim();
-      const managerNotice = reply || "Sebentar ya, Kak. Saya tanyakan dulu ke pengelola 😊";
+      if (!reply) throw new Error("AI_MANAGER_NOTICE_EMPTY");
+      const managerNotice = reply;
       await socket.sendMessage(whatsappChatId, { text: managerNotice }, quotedMessage ? { quoted: quotedMessage } : {});
       await escalateToManager({
         telegramId: ownerId,
