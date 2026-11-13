@@ -1366,7 +1366,7 @@ export function markWhatsAppMessageDeleted(telegramId, whatsappChatId, messageId
 // Ambil daftar chat milik satu pengguna Telegram.
 export function listChats(telegramId, options = {}) {
   const ownerId = String(telegramId);
-  const sessionId = String(options.sessionId || ownerId);
+  const sessionId = canonicalWhatsAppSessionId(ownerId, options.sessionId || ownerId);
   const limit = Math.min(100, Math.max(1, Number(options.limit) || 50));
   const offset = Math.max(0, Number(options.offset) || 0);
   return statements.listChats.all({
