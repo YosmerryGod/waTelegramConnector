@@ -6714,6 +6714,35 @@ body.in-chat #topbar {
 .ai-business-page .ai-business-messages:empty {
   display: block;
 }
+/* [ADDED] Minimal mascot-only welcome state before the first WAMO AI message. */
+.ai-business-page .ai-business-empty-state {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.ai-business-page .ai-business-mascot {
+  display: block;
+  width: min(220px, 62vw);
+  max-height: 34vh;
+  height: auto;
+  object-fit: contain;
+}
+.ai-business-page .ai-business-messages:empty {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-business-page .ai-business-mascot {
+    animation: none;
+  }
+}
+
 
 
 /* [ADDED] Centered business setup menu and responsive form cards. */
