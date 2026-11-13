@@ -223,8 +223,17 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
     return {handled:true,forwarded:true};
   } catch(error) {
-    updateAutoReply(ownerId,accountId,chat,incomingId,{status:"failed",error:error.message||"PAYMENT_PROOF_FAILED"});
-    console.error("[WAGRAM AI Payment Proof] Failed:",JSON.stringify({telegramId:ownerId,sessionId:accountId,messageId:incomingId,error:error.message}));
+    console.error("[WAGRAM AI Image] Processing failed:",JSON.stringify({telegramId:ownerId,sessionId:accountId,messageId:incomingId,error:error.message}));
+    try {
+      if (socket && typeof socket.sendMessage === "function") {
+        const fallback = await sendImageFallback(socket, chat, quotedMessage, false);
+        updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:fallback,status:"sent",error:error.message||"IMAGE_ANALYSIS_FAILED"});
+        return {handled:true,reason:"fallback_reply_sent",fallback:true};
+      }
+    } catch (fallbackError) {
+      console.error("[WAGRAM AI Image] Fallback reply failed:",fallbackError.message);
+    }
+    updateAutoReply(ownerId,accountId,chat,incomingId,{status:"failed",error:error.message||"IMAGE_ANALYSIS_FAILED"});
     return {handled:false,reason:"failed"};
   }
 }
