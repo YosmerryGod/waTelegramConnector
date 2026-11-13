@@ -1,6 +1,15 @@
 name: WAGRAM AI Auto Reply Checks
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/ai/auto-reply.js"
+      - "src/ai/customer-service.js"
+      - "src/telegram.js"
+      - ".github/scripts/wagram-ai-auto-reply-idempotency-test.mjs"
+      - ".github/workflows/wagram-ai-auto-reply-checks.yml"
   pull_request:
     paths:
       - "src/ai/auto-reply.js"
