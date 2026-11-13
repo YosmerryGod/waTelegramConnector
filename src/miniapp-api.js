@@ -15,9 +15,9 @@ import {
   setAICustomerServiceEnabled,
   learnAICustomerServiceHistory,
   createAICustomerServiceSuggestion,
-  createAIBusinessReply, // [MODIFIED] WAGRAM AI Business chat powered by Gemini.
-  createAIBusinessTrainingQuestion, // [ADDED] Gemini-generated simulated customer for owner training.
-  checkGeminiHealth
+  createAIBusinessReply, // [MODIFIED] WAGRAM AI Business chat powered by OpenRouter.
+  createAIBusinessTrainingQuestion, // [MODIFIED] OpenRouter-generated simulated customer for owner training.
+  checkOpenRouterHealth
 } from "./ai/customer-service.js";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
@@ -1629,12 +1629,12 @@ router.post("/ai/learn", async (req, res) => {
 
 router.get("/ai/health", async (_req, res) => {
   try {
-    return res.json({ ok: true, gemini: await checkGeminiHealth() });
-  } catch {
+    return res.json({ ok: true, openrouter: await checkOpenRouterHealth() });
+  } catch (error) {
     return res.status(503).json({
       ok: false,
-      error: "GEMINI_UNAVAILABLE",
-      message: "Layanan Gemini belum tersedia."
+      error: "OPENROUTER_UNAVAILABLE",
+      message: "Layanan OpenRouter belum tersedia."
     });
   }
 });
@@ -1811,7 +1811,7 @@ router.post("/ai-business/chat", async (req, res) => {
       error: error.message || "AI_BUSINESS_FAILED",
       message: status === 403
         ? "WAGRAM AI Business membutuhkan Premium 30 hari yang masih aktif."
-        : "WAGRAM AI belum dapat menjawab. Periksa konfigurasi Gemini API di VPS."
+        : "WAGRAM AI belum dapat menjawab. Periksa konfigurasi OPENROUTER_API_KEY di VPS."
     });
   }
 });
