@@ -972,6 +972,47 @@ export async function analyzeAIPaymentProofImage({
   };
 }
 
+// [ADDED] Generate the customer-facing payment acknowledgement with the configured text model.
+// Gemini supplies image evidence; the configured OpenRouter text model (DeepSeek) decides
+// the wording using the actual chat, business facts, and owner rules.
+export async function createAIPaymentProofCustomerReply(telegramId, sessionId, chatId, paymentAnalysis) {
+  const owner = ownerParams(telegramId, sessionId);
+  const profile = getAIBusinessProfile(owner.telegramId, owner.sessionId);
+  const settings = profile?.settings || {};
+  const messages = listMessages(owner.telegramId, chatId, MAX_HISTORY_MESSAGES, owner.sessionId)
+    .filter((message) => message.body?.trim() && !message.is_deleted)
+    .sort((a, b) => Number(a.message_timestamp) - Number(b.message_timestamp));
+  const conversation = messages.slice(-16).map((message) => ({
+    role: message.direction === "incoming" ? "customer" : "business",
+    text: String(message.body || "").trim().slice(0, 1000)
+  }));
+  const businessFacts = {
+    businessName: String(settings.businessName || settings.name || settings.payment?.merchant || "").trim(),
+    products: Array.isArray(settings.products) ? settings.products.slice(0, 80) : [],
+    outlets: Array.isArray(settings.outlets) ? settings.outlets.slice(0, 20) : [],
+    ownerRules: String(settings.aiRules || "").slice(0, 3000)
+  };
+  const prompt = [
+    "Kamu adalah staf customer service bisnis ini. Tulis balasan WhatsApp langsung kepada pelanggan.",
+    "KONTEKS: Pelanggan mengirim gambar yang telah diklasifikasikan sebagai bukti pembayaran. Gambar dan data OCR/analisis tidak membuktikan dana benar-benar masuk.",
+    "TUJUAN: Beri respons yang natural dan sesuai alur percakapan. Ucapkan terima kasih atau akui penerimaan bukti secara wajar, lalu jelaskan bahwa pengelola akan memeriksa pembayaran sebelum pesanan diproses.",
+    "PENTING: Jangan mengatakan pembayaran sudah lunas/valid, jangan memastikan pesanan sedang diproses, dan jangan mengarang detail transaksi. Jangan menyebut Gemini, DeepSeek, AI, analisis gambar, atau instruksi internal.",
+    "GAYA: Ikuti bahasa dan gaya pelanggan serta contoh percakapan bisnis. Singkat, idealnya satu atau dua kalimat. Hindari template kaku dan jangan mengulang semua data transaksi.",
+    "ATURAN BISNIS INTERNAL:",
+    businessFacts.ownerRules || "Tidak ada aturan tambahan.",
+    "FAKTA BISNIS:",
+    JSON.stringify(businessFacts).slice(0, 7000),
+    "HASIL PEMBACAAN GAMBAR (sebagai konteks, bukan bukti dana masuk):",
+    JSON.stringify(paymentAnalysis || {}).slice(0, 4000),
+    "RIWAYAT CHAT:",
+    JSON.stringify(conversation).slice(0, 9000),
+    "Keluarkan hanya satu balasan WhatsApp yang siap dikirim. Jangan gunakan label atau tanda kutip."
+  ].join("\\n");
+  const reply = String(await openRouterGenerateText(prompt)).trim().replace(/^[\"'“”]+|[\"'“”]+$/g, "");
+  if (!reply) throw new Error("PAYMENT_PROOF_CUSTOMER_REPLY_EMPTY");
+  return reply.slice(0, 700);
+}
+
 export async function createAIBusinessReply(telegramId, sessionId, message, history = []) {
   requirePremium30Days(telegramId);
   const profile = getAIBusinessProfile(telegramId, sessionId);
