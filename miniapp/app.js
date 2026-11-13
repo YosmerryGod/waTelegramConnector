@@ -3218,7 +3218,7 @@
     } finally {
       form.dataset.sending = "false";
       if (button) button.disabled = false;
-      input?.focus();
+      // [REMOVED] Do not refocus the composer after AI replies; this reopens the mobile keyboard.
     }
   }
 
