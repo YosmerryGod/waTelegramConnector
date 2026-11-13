@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261114-premium-proof-error-details-v1">
+  <link rel="stylesheet" href="style.css?v=20261114-premium-proof-file-upload-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -735,24 +735,22 @@
         <h2 id="premiumProofTitle">Bukti Pembayaran</h2>
         <p class="premium-proof-description">Pilih screenshot bukti pembayaran dari DANA atau galeri perangkat.</p>
         <label class="premium-proof-picker" for="premiumProofInput">
-          <img id="premiumProofPreview" class="premium-proof-preview hidden" alt="Pratinjau bukti pembayaran">
-          <!-- [ADDED] Ring loader while the selected image is being decoded for preview. -->
+          <span id="premiumProofPlaceholder" class="premium-proof-placeholder">
+            <span class="premium-proof-icon">＋</span>
+            <strong id="premiumProofFileName">Belum ada file dipilih</strong>
+            <small id="premiumProofFileSize">JPG, PNG, atau WEBP · Maks. 5 MB</small>
+            <span class="premium-proof-change-label">Pilih gambar dari galeri</span>
+          </span>
           <span id="premiumProofPreviewLoading" class="premium-proof-preview-loading hidden" role="status" aria-live="polite">
             <span class="premium-proof-reading-ring" aria-hidden="true"></span>
-            <strong>Memproses gambar...</strong>
-            <small>Menyiapkan pratinjau bukti pembayaran</small>
+            <strong>Memproses file...</strong>
+            <small>Menyiapkan bukti pembayaran</small>
           </span>
-          <!-- [ADDED] Visible upload progress overlay while the proof image is being sent. -->
           <span id="premiumProofUploadState" class="premium-proof-upload-overlay hidden" role="status" aria-live="polite" aria-hidden="true">
             <span class="premium-proof-upload-spinner" aria-hidden="true"></span>
             <strong>Mengirim bukti pembayaran</strong>
-            <small>Gambar sedang diunggah, jangan tutup halaman.</small>
+            <small>File sedang dikirim ke admin.</small>
             <span class="premium-proof-upload-track" aria-hidden="true"><span></span></span>
-          </span>
-          <span id="premiumProofPlaceholder" class="premium-proof-placeholder">
-            <span class="premium-proof-icon">＋</span>
-            <strong>Pilih gambar</strong>
-            <small>JPG, PNG, atau WEBP · Maks. 5 MB</small>
           </span>
         </label>
         <input id="premiumProofInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
