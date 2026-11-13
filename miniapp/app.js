@@ -2540,41 +2540,143 @@
     $("#aiBusinessSettingsModal")?.addEventListener("click", handleAIBusinessSettingsClick);
     $("#aiBusinessSettingsModal")?.addEventListener("submit", handleAIBusinessSettingsSubmit);
     // [ADDED] Show the selected QRIS immediately with a lightweight local object URL.
+    // [MODIFIED] Let users crop QRIS before it becomes the preview and saved image.
+    let aiBusinessCropState = null;
+    const closeAIBusinessCrop = () => {
+      const modal = $("#aiBusinessQrisCropModal");
+      if (modal) modal.remove();
+      if (aiBusinessCropState?.imageUrl) URL.revokeObjectURL(aiBusinessCropState.imageUrl);
+      aiBusinessCropState = null;
+    };
+    const drawAIBusinessCrop = () => {
+      const state = aiBusinessCropState;
+      const canvas = $("#aiBusinessQrisCropCanvas");
+      if (!state || !canvas) return;
+      const ctx = canvas.getContext("2d");
+      const size = canvas.width;
+      const side = Math.min(state.image.naturalWidth, state.image.naturalHeight) / state.zoom;
+      const maxX = Math.max(0, (state.image.naturalWidth - side) / 2);
+      const maxY = Math.max(0, (state.image.naturalHeight - side) / 2);
+      state.offsetX = Math.max(-maxX, Math.min(maxX, state.offsetX));
+      state.offsetY = Math.max(-maxY, Math.min(maxY, state.offsetY));
+      const sx = (state.image.naturalWidth - side) / 2 + state.offsetX;
+      const sy = (state.image.naturalHeight - side) / 2 + state.offsetY;
+      ctx.clearRect(0, 0, size, size);
+      ctx.drawImage(state.image, sx, sy, side, side, 0, 0, size, size);
+    };
+    const openAIBusinessCrop = (file, input) => {
+      const imageUrl = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        const modal = document.createElement("div");
+        modal.id = "aiBusinessQrisCropModal";
+        modal.className = "ai-business-qris-crop-modal";
+        modal.innerHTML = `
+          <div class="ai-business-qris-crop-panel" role="dialog" aria-modal="true" aria-labelledby="aiBusinessQrisCropTitle">
+            <div class="ai-business-qris-crop-heading">
+              <div><span>EDIT GAMBAR</span><h3 id="aiBusinessQrisCropTitle">Potong gambar QRIS</h3></div>
+              <button type="button" data-crop-cancel aria-label="Batal">×</button>
+            </div>
+            <p>Geser gambar untuk mengatur posisi, lalu sesuaikan zoom.</p>
+            <div class="ai-business-qris-crop-stage"><canvas id="aiBusinessQrisCropCanvas" width="640" height="640"></canvas></div>
+            <label class="ai-business-qris-crop-zoom">Zoom <input id="aiBusinessQrisCropZoom" type="range" min="1" max="3" step="0.01" value="1"></label>
+            <div class="ai-business-qris-crop-actions">
+              <button type="button" data-crop-cancel class="ai-business-crop-cancel">Batal</button>
+              <button type="button" data-crop-apply class="ai-business-save-button">Gunakan gambar</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        aiBusinessCropState = { image, imageUrl, zoom: 1, offsetX: 0, offsetY: 0, dragging: false, lastX: 0, lastY: 0, input };
+        drawAIBusinessCrop();
+        const canvas = $("#aiBusinessQrisCropCanvas");
+        canvas.addEventListener("pointerdown", (event) => {
+          const state = aiBusinessCropState;
+          state.dragging = true;
+          state.lastX = event.clientX;
+          state.lastY = event.clientY;
+          canvas.setPointerCapture(event.pointerId);
+        });
+        canvas.addEventListener("pointermove", (event) => {
+          const state = aiBusinessCropState;
+          if (!state?.dragging) return;
+          const side = Math.min(state.image.naturalWidth, state.image.naturalHeight) / state.zoom;
+          const scale = side / canvas.clientWidth;
+          state.offsetX -= (event.clientX - state.lastX) * scale;
+          state.offsetY -= (event.clientY - state.lastY) * scale;
+          state.lastX = event.clientX;
+          state.lastY = event.clientY;
+          drawAIBusinessCrop();
+        });
+        const stopDrag = () => { if (aiBusinessCropState) aiBusinessCropState.dragging = false; };
+        canvas.addEventListener("pointerup", stopDrag);
+        canvas.addEventListener("pointercancel", stopDrag);
+        $("#aiBusinessQrisCropZoom").addEventListener("input", (event) => {
+          aiBusinessCropState.zoom = Number(event.target.value);
+          drawAIBusinessCrop();
+        });
+        modal.querySelectorAll("[data-crop-cancel]").forEach((button) => button.addEventListener("click", closeAIBusinessCrop));
+        modal.querySelector("[data-crop-apply]").addEventListener("click", async () => {
+          const cropCanvas = document.createElement("canvas");
+          cropCanvas.width = 1200;
+          cropCanvas.height = 1200;
+          const sourceSide = Math.min(image.naturalWidth, image.naturalHeight) / aiBusinessCropState.zoom;
+          const sx = (image.naturalWidth - sourceSide) / 2 + aiBusinessCropState.offsetX;
+          const sy = (image.naturalHeight - sourceSide) / 2 + aiBusinessCropState.offsetY;
+          cropCanvas.getContext("2d").drawImage(image, sx, sy, sourceSide, sourceSide, 0, 0, 1200, 1200);
+          const blob = await new Promise((resolve) => cropCanvas.toBlob(resolve, "image/webp", 0.86));
+          if (!blob) {
+            showToast("Gambar gagal dipotong. Coba gambar lain.");
+            return;
+          }
+          const croppedFile = new File([blob], "qris-cropped.webp", { type: "image/webp" });
+          const transfer = new DataTransfer();
+          transfer.items.add(croppedFile);
+          input.files = transfer.files;
+          const preview = $("#aiBusinessQrisPreview");
+          const loading = $("#aiBusinessQrisLoading");
+          const placeholder = $("#aiBusinessQrisPlaceholder");
+          const previewUrl = URL.createObjectURL(croppedFile);
+          loading?.classList.remove("hidden");
+          preview?.classList.remove("hidden");
+          preview?.classList.add("is-loading");
+          placeholder?.classList.add("hidden");
+          if (preview) {
+            preview.onload = async () => {
+              try {
+                if (typeof preview.decode === "function") await preview.decode();
+                preview.classList.remove("is-loading");
+                loading?.classList.add("hidden");
+              } finally { URL.revokeObjectURL(previewUrl); }
+            };
+            preview.onerror = () => {
+              preview.classList.remove("is-loading");
+              loading?.classList.add("hidden");
+              URL.revokeObjectURL(previewUrl);
+            };
+            preview.src = previewUrl;
+          }
+          const label = $("#aiBusinessQrisFileLabel");
+          if (label) label.textContent = "Ganti gambar QRIS";
+          closeAIBusinessCrop();
+        });
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(imageUrl);
+        showToast("Gambar tidak dapat dibuka.");
+      };
+      image.src = imageUrl;
+    };
     $("#aiBusinessSettingsModal")?.addEventListener("change", (event) => {
       const input = event.target.closest("#aiBusinessQrisImageInput");
       if (!input) return;
       const file = input.files?.[0];
       if (!file) return;
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 1024 * 1024) return;
-      const preview = $("#aiBusinessQrisPreview");
-      const loading = $("#aiBusinessQrisLoading");
-      const placeholder = $("#aiBusinessQrisPlaceholder");
-      if (!preview || !loading) return;
-      const objectUrl = URL.createObjectURL(file);
-      loading.classList.remove("hidden");
-      preview.classList.remove("hidden");
-      preview.classList.add("is-loading");
-      placeholder?.classList.add("hidden");
-      const finishUploadPreview = (loaded) => {
-        loading.classList.add("hidden");
-        preview.classList.remove("is-loading");
-        if (!loaded) {
-          preview.classList.add("hidden");
-          placeholder?.classList.remove("hidden");
-        }
-        URL.revokeObjectURL(objectUrl);
-      };
-      preview.onload = async () => {
-        try {
-          if (typeof preview.decode === "function") await preview.decode();
-          await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-          finishUploadPreview(true);
-        } catch {
-          finishUploadPreview(false);
-        }
-      };
-      preview.onerror = () => finishUploadPreview(false);
-      preview.src = objectUrl;
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 1024 * 1024) {
+        input.value = "";
+        showToast("Pilih JPG, PNG, atau WEBP maksimal 1 MB.");
+        return;
+      }
+      openAIBusinessCrop(file, input);
     });
 
     // [ADDED] AI Business settings are stored per active WhatsApp session on this device.
