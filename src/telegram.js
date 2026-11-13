@@ -541,6 +541,24 @@ function getMediaInfo(content) {
   return null;
 }
 
+// [ADDED] Check that a media payload contains a usable decryption key.
+function hasMediaKey(content) {
+  const media =
+    content?.imageMessage ||
+    content?.videoMessage ||
+    content?.ptvMessage ||
+    content?.audioMessage ||
+    content?.stickerMessage ||
+    content?.documentMessage;
+  const mediaKey = media?.mediaKey;
+
+  if (Buffer.isBuffer(mediaKey) || mediaKey instanceof Uint8Array) {
+    return mediaKey.length > 0;
+  }
+
+  return typeof mediaKey === "string" && mediaKey.trim().length > 0;
+}
+
 // [ADDED] Format a WhatsApp call-log message.
 const CALL_OUTCOMES = [
   "Connected",
@@ -927,6 +945,18 @@ function extractTelegramFile(sent) {
 async function forwardMedia({ chatId, socket, message, info, header, text }) {
   const escapedChunks = splitEscaped(text, MESSAGE_LIMIT - 200);
   const escapedText = escapedChunks.join("");
+
+  // [ADDED] Skip media that cannot be decrypted instead of invoking Baileys.
+  const content = unwrapMessage(message?.message || {});
+  if (!hasMediaKey(content)) {
+    console.warn("WhatsApp media skipped: missing mediaKey before Telegram forwarding.");
+    await sendHtml(
+      chatId,
+      `${header}\\n\\n⚠️ Media cannot be downloaded because its decryption key is unavailable.` +
+        (escapedText ? `\\n\\n${escapedText}` : "")
+    );
+    return;
+  }
 
   // Skip oversized files before downloading them.
   if (info.size && info.size > MAX_MEDIA_BYTES) {
@@ -1410,7 +1440,12 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           // [ADDED] Download WhatsApp media once and keep it privately on this VPS.
           if (saved && info) {
             try {
-              if (info.size && info.size > MAX_MEDIA_BYTES) {
+              // [ADDED] Keep the message metadata but skip download when the media key is absent.
+              if (!hasMediaKey(content)) {
+                console.warn(
+                  `WhatsApp media skipped for Mini App: missing mediaKey (type=${info.kind}, messageId=${messageId}).`
+                );
+              } else if (info.size && info.size > MAX_MEDIA_BYTES) {
                 console.warn(
                   `WhatsApp media skipped for Mini App: ${info.fileName} exceeds ${MAX_MEDIA_BYTES} bytes.`
                 );
