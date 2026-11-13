@@ -309,11 +309,16 @@
     }
 
     if (!response.ok || data?.ok === false) {
-      throw new Error(
+      const apiError = new Error(
         ERROR_TEXT[data?.error] ||
         data?.message ||
-        `Permintaan gagal (${response.status}).`
+        (response.status === 413
+          ? "Server menolak ukuran data yang dikirim."
+          : `Permintaan gagal (${response.status}).`)
       );
+      apiError.status = response.status; // [ADDED]
+      apiError.code = data?.error || ""; // [ADDED]
+      throw apiError;
     }
 
     return data;
@@ -3274,6 +3279,7 @@
       $("#premiumProofUploadState").setAttribute("aria-hidden", "true"); // [ADDED]
       proofModal.removeAttribute("aria-busy"); // [ADDED]
       $("#premiumProofError").textContent = "";
+      $("#premiumProofError").classList.add("hidden"); // [ADDED]
       proofModal.classList.remove("hidden");
     });
 
@@ -3449,7 +3455,31 @@
         paidButton.textContent = "Konfirmasi terkirim";
         $("#premiumPaymentConfirmation").textContent = "Bukti pembayaran terkirim. Premium aktif setelah diverifikasi admin.";
       } catch (error) {
-        $("#premiumProofError").textContent = error.message || "Bukti pembayaran gagal dikirim.";
+        const errorBox = $("#premiumProofError"); // [ADDED]
+        const statusCode = Number(error?.status || 0); // [ADDED]
+        const errorTitle = statusCode === 413
+          ? "Ukuran permintaan terlalu besar"
+          : statusCode === 502
+            ? "Bukti belum berhasil diteruskan"
+            : statusCode >= 500
+              ? "Server sedang mengalami kendala"
+              : "Bukti pembayaran gagal dikirim";
+        const errorDescription = statusCode === 413
+          ? "Server atau proxy menolak data gambar yang dikirim. Coba gunakan screenshot yang sudah dipotong atau beresolusi lebih kecil. Jika tetap terjadi, batas ukuran request di server perlu diperiksa."
+          : statusCode === 502
+            ? "Bukti mungkin sudah diterima sistem, tetapi notifikasi ke admin gagal. Periksa status pesanan sebelum mengirim ulang."
+            : statusCode >= 500
+              ? "Terjadi kendala saat memproses bukti pembayaran. Tunggu sebentar lalu coba lagi."
+              : (error?.message || "Periksa koneksi dan file bukti pembayaran, lalu coba lagi.");
+        errorBox.innerHTML = `<div class="premium-proof-error-card" role="alert">
+          <span class="premium-proof-error-icon" aria-hidden="true">!</span>
+          <div class="premium-proof-error-copy">
+            <strong>${escapeHTML(errorTitle)}</strong>
+            <span>${escapeHTML(errorDescription)}</span>
+            <small>${statusCode ? `Kode kesalahan: HTTP ${statusCode}` : "Silakan coba kembali."}</small>
+          </div>
+        </div>`; // [ADDED]
+        errorBox.classList.remove("hidden"); // [ADDED]
       } finally {
         proofModal.classList.remove("is-uploading"); // [ADDED]
         proofModal.removeAttribute("aria-busy"); // [ADDED]
