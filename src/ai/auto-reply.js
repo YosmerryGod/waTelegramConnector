@@ -115,7 +115,7 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,messageId,phoneNumber,customerName,imageBuffer,mimetype,socket,quotedMessage,notifyManager}) {
+export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,messageId,phoneNumber,customerName,imageBuffer,mimetype,socket,quotedMessage}) {
   const ownerId=String(telegramId||""), accountId=String(sessionId||telegramId), chat=String(chatId||""), incomingId=String(messageId||"");
   if (!ownerId||!accountId||!chat||!incomingId) return {handled:false,reason:"invalid_input"};
   const profile=getAIBusinessProfile(ownerId,accountId);
@@ -126,11 +126,24 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     const products=Array.isArray(profile.settings?.products)?profile.settings.products.slice(0,100):[];
     const result=await analyzeAIPaymentProofImage({imageBuffer,mimetype,conversation,products});
     if (!result.isPaymentProof) { updateAutoReply(ownerId,accountId,chat,incomingId,{status:"skipped",error:"not_payment_proof"}); return {handled:false,reason:"not_payment_proof"}; }
-    if (typeof notifyManager!=="function"||!socket||typeof socket.sendMessage!=="function") throw new Error("PAYMENT_PROOF_DELIVERY_UNAVAILABLE");
+    if (!socket||typeof socket.sendMessage!=="function"||typeof socket.onWhatsApp!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
+    const manager=profile.settings?.manager && typeof profile.settings.manager==="object" ? profile.settings.manager : {};
+    if (!manager.phone) throw new Error("PAYMENT_MANAGER_PHONE_NOT_CONFIGURED");
+    const managerDigits=manager.phone.replace(/\\D/g,"");
+    const managerInternational=managerDigits.startsWith("0") ? "62"+managerDigits.slice(1) : managerDigits.startsWith("8") ? "62"+managerDigits : managerDigits;
+    if (!/^62\\d{8,13}$/.test(managerInternational)) throw new Error("PAYMENT_MANAGER_PHONE_INVALID");
+    if (managerInternational===String(phoneNumber||"").replace(/\\D/g,"").replace(/^0/,"62")) throw new Error("PAYMENT_MANAGER_IS_CUSTOMER_NUMBER");
+    const managerLookup=await socket.onWhatsApp(managerInternational);
+    const managerJid=managerLookup?.find((entry)=>entry?.exists&&entry?.jid)?.jid;
+    if (!managerJid) throw new Error("PAYMENT_MANAGER_WHATSAPP_NOT_REGISTERED");
     const val=(v)=>v===null||v===undefined||String(v).trim()===""?"Belum terbaca":String(v).trim();
     const p=result.payment||{}, o=result.order||{};
     const caption=["BUKTI PEMBAYARAN BARU — PERLU VERIFIKASI","Pelanggan: "+val(customerName),"WhatsApp: "+val(phoneNumber?"+"+phoneNumber:chat),"DETAIL PESANAN","Produk: "+val(o.product),"Jumlah: "+val(o.quantity),"Harga satuan: "+val(o.unit_price),"Total pesanan: "+val(o.total),"INFORMASI BUKTI","Nominal: "+val(p.amount)+" "+val(p.currency),"Tanggal/waktu: "+val(p.date)+" "+val(p.time),"Pengirim: "+val(p.payer),"Penerima: "+val(p.recipient),"Metode: "+val(p.method),"Referensi: "+val(p.reference),"Status tertulis: "+val(p.status_text),"Keyakinan klasifikasi: "+Math.round(result.confidence*100)+"%","PERLU VERIFIKASI MUTASI. Gambar bukan bukti dana sudah masuk."].join("\n").slice(0,1024);
-    await notifyManager(imageBuffer,caption,mimetype);
+    await socket.sendMessage(managerJid,{
+      image:imageBuffer,
+      mimetype:mimetype||"image/jpeg",
+      caption
+    });
     const customerReply="Terima kasih, bukti pembayaran sudah kami terima. Pesanan akan segera diproses setelah verifikasi pengelola.";
     updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
     await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
@@ -138,7 +151,7 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     return {handled:true,forwarded:true};
   } catch(error) {
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"failed",error:error.message||"PAYMENT_PROOF_FAILED"});
-    console.error("[WAGRAM AI Payment Proof] Failed:",error.message);
+    console.error("[WAGRAM AI Payment Proof] Failed:",JSON.stringify({telegramId:ownerId,sessionId:accountId,messageId:incomingId,error:error.message}));
     return {handled:false,reason:"failed"};
   }
 }
