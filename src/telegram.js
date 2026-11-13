@@ -1327,8 +1327,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             mediaMimetype: info?.mimetype || null,
             mediaFileName: info?.fileName || null,
             messageTimestamp,
-            // [MODIFIED] Key-only View Once events have no media payload to persist.
-            messageContent: message.message
+            // [MODIFIED] Never persist the raw View Once envelope or its media key.
+            // Keep only the message metadata and a non-sensitive placeholder for AI context.
+            messageContent: message.message && !viewOnceInfo
               ? proto.Message.encode(message.message).finish().toString("base64")
               : null
           });
