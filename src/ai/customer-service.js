@@ -250,7 +250,13 @@ async function openRouterGenerate(contents, options = {}) {
     }
     const message = payload?.choices?.[0]?.message || {};
     const parts = [];
-    if (typeof message.content === "string" && message.content.trim()) parts.push({ text: message.content.trim() });
+    // [MODIFIED] OpenRouter providers may return content as either plain text or text blocks.
+    const responseText = typeof message.content === "string"
+      ? message.content
+      : Array.isArray(message.content)
+        ? message.content.map((item) => typeof item === "string" ? item : String(item?.text || "")).join("\n")
+        : "";
+    if (responseText.trim()) parts.push({ text: responseText.trim() });
     for (const call of Array.isArray(message.tool_calls) ? message.tool_calls : []) {
       let args = {};
       try { args = JSON.parse(String(call?.function?.arguments || "{}")); }
@@ -668,14 +674,59 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Riwayat: " + JSON.stringify(recentHistory),
     "Pesan terbaru: " + String(message || "").slice(0, 4000)
   ].join("\n");
-  const recognitionResult = await openRouterGenerate([{ role: "user", parts: [{ text: recognitionPrompt }] }], {
-    temperature: 0.1, maxOutputTokens: 300, responseMimeType: "application/json"
-  });
-  if (!recognitionResult.text) throw new Error("OPENROUTER_RECOGNITION_EMPTY");
-  let recognition;
-  try { recognition = JSON.parse(recognitionResult.text); }
-  catch { throw new Error("OPENROUTER_RECOGNITION_INVALID_JSON"); }
-  if (!recognition || typeof recognition !== "object" || Array.isArray(recognition)) throw new Error("OPENROUTER_RECOGNITION_INVALID_RESULT");
+  // [MODIFIED] Recognition is an enhancement, not a hard dependency for answering.
+  // Some OpenRouter providers return an empty content field when JSON mode is requested.
+  // Retry without response_format and with a larger token budget before using a safe fallback.
+  let recognition = null;
+  let recognitionFailure = "";
+  for (let attempt = 0; attempt < 2 && !recognition; attempt += 1) {
+    try {
+      const recognitionResult = await openRouterGenerate(
+        [{ role: "user", parts: [{ text: recognitionPrompt }] }],
+        { temperature: 0.1, maxOutputTokens: attempt === 0 ? 600 : 800 }
+      );
+      const rawText = String(recognitionResult.text || "").trim()
+        .replace(/^\`\`\`(?:json)?\s*/i, "")
+        .replace(/\s*\`\`\`$/i, "");
+      if (!rawText) {
+        recognitionFailure = "empty_content";
+        continue;
+      }
+      const jsonStart = rawText.indexOf("{");
+      const jsonEnd = rawText.lastIndexOf("}");
+      const jsonText = jsonStart >= 0 && jsonEnd > jsonStart
+        ? rawText.slice(jsonStart, jsonEnd + 1)
+        : rawText;
+      const parsed = JSON.parse(jsonText);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) recognition = parsed;
+      else recognitionFailure = "invalid_result";
+    } catch (error) {
+      recognitionFailure = String(error?.message || "recognition_failed").slice(0, 180);
+    }
+  }
+  if (!recognition) {
+    // [ADDED] Continue with the actual user message and business database instead of
+    // failing the entire WAGRAM AI request because the optional classifier returned blank.
+    console.warn("[WAGRAM AI] Recognition fallback used:", recognitionFailure || "unknown");
+    const normalizedMessage = String(message || "").trim();
+    const lowerMessage = normalizedMessage.toLocaleLowerCase("id-ID");
+    const requestedFields = [];
+    if (/harga|berapa|price|biaya|tarif/.test(lowerMessage)) requestedFields.push("price");
+    if (/stok|tersedia|ready|available/.test(lowerMessage)) requestedFields.push("stock");
+    if (/menu|produk|jualan|daftar/.test(lowerMessage)) requestedFields.push("product_list");
+    if (/alamat|lokasi|dimana|di mana|outlet|cabang/.test(lowerMessage)) requestedFields.push("outlet_address");
+    if (/qris|qr|bayar|pembayaran|transfer/.test(lowerMessage)) requestedFields.push("payment");
+    recognition = {
+      intent: "business_question",
+      entity: null,
+      requested_fields: requestedFields,
+      needs_business_data: true,
+      confidence: 0.35,
+      clarification_needed: false,
+      clarification_question: null,
+      interpretation: normalizedMessage.slice(0, 500) || "Pertanyaan umum pengguna"
+    };
+  }
   recognition.intent = String(recognition.intent || "unknown").slice(0, 120);
   recognition.entity = recognition.entity == null ? null : String(recognition.entity).slice(0, 160);
   recognition.requested_fields = Array.isArray(recognition.requested_fields) ? recognition.requested_fields.map((field) => String(field).slice(0, 60)).slice(0, 10) : [];
