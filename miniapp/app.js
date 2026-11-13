@@ -3249,6 +3249,7 @@
     const proofInput = $("#premiumProofInput");
     const proofPreview = $("#premiumProofPreview");
     const proofPlaceholder = $("#premiumProofPlaceholder");
+    const proofPreviewLoading = $("#premiumProofPreviewLoading"); // [ADDED]
     const proofConfirmButton = $("#premiumProofConfirmButton");
 
     $("#premiumPaymentPaidButton").addEventListener("click", () => {
@@ -3258,6 +3259,7 @@
       proofPreview.removeAttribute("src");
       proofPreview.classList.add("hidden");
       proofPlaceholder.classList.remove("hidden");
+      proofPreviewLoading.classList.add("hidden"); // [ADDED]
       proofConfirmButton.disabled = true;
       proofModal.classList.remove("is-uploading"); // [ADDED]
       proofInput.disabled = false; // [ADDED]
@@ -3272,6 +3274,7 @@
       const file = proofInput.files?.[0] || null;
       selectedPremiumProof = null;
       proofConfirmButton.disabled = true;
+      proofPreviewLoading.classList.add("hidden"); // [ADDED]
       $("#premiumProofError").textContent = "";
       if (!file) return;
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
@@ -3285,14 +3288,17 @@
         return;
       }
       const reader = new FileReader();
+      proofPreviewLoading.classList.remove("hidden"); // [ADDED]
       reader.onload = () => {
         selectedPremiumProof = String(reader.result || "");
         proofPreview.src = selectedPremiumProof;
         proofPreview.classList.remove("hidden");
         proofPlaceholder.classList.add("hidden");
+        proofPreviewLoading.classList.add("hidden"); // [ADDED]
         proofConfirmButton.disabled = false;
       };
       reader.onerror = () => {
+        proofPreviewLoading.classList.add("hidden"); // [ADDED]
         $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
       };
       reader.readAsDataURL(file);
