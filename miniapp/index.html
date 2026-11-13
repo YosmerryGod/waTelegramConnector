@@ -659,8 +659,7 @@
         </header>
 
         <section class="premium-comparison" aria-labelledby="premiumComparisonTitle">
-          
-          <div class="premium-comparison-scroll">
+          <div class="premium-comparison-scroll" id="premiumFreeComparison">
             <table class="premium-comparison-table">
               <thead>
                 <tr><th>Fitur</th><th>Free</th><th>Premium</th></tr>
@@ -674,6 +673,25 @@
                 <tr><td>Pause otomatis</td><td>07.00 WIB</td><td><span class="premium-table-dash">—</span></td></tr>
                 <tr><td>Connect ulang</td><td>Manual</td><td>Tetap aktif</td></tr>
                 <tr><td>WhatsApp session</td><td>1</td><td id="premiumTableSessions">2</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <!-- [ADDED] Feature list for existing Premium members. -->
+          <div class="premium-comparison-scroll hidden" id="premiumMemberFeatures">
+            <table class="premium-comparison-table">
+              <thead>
+                <tr><th>Fitur Premium</th><th id="premiumMemberFeatureHeading">Tersedia</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Pesan pribadi</td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Panggilan WhatsApp</td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Grup WhatsApp</td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Saluran WhatsApp</td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Media &amp; dokumen</td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Tanpa pause otomatis</td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>Connect tetap aktif</td><td><span class="premium-table-check">✓</span></td></tr>
+                <tr><td>WhatsApp session</td><td id="premiumMemberFeatureSessions">2 akun</td></tr>
+                <tr id="premiumWamoBusinessFeature" class="hidden"><td>WAMO AI Business</td><td><span class="premium-table-check">✓</span></td></tr>
               </tbody>
             </table>
           </div>
