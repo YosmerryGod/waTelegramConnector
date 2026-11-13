@@ -7327,3 +7327,12 @@ body.in-chat #topbar {
 @keyframes premiumProofSpin{to{transform:rotate(360deg)}}
 @keyframes premiumProofProgress{0%{transform:translateX(-110%)}100%{transform:translateX(280%)}}
 @media(prefers-reduced-motion:reduce){.premium-proof-upload-spinner,.premium-proof-upload-track span{animation:none}.premium-proof-upload-track span{width:100%}}
+
+
+/* [MODIFIED] Keep the proof picker instructions readable inside Telegram's dark WebView. */
+.premium-proof-picker{color:var(--text,#edf7ef)}
+.premium-proof-placeholder{width:100%;min-height:160px;box-sizing:border-box;color:#edf7ef!important;visibility:visible;opacity:1}
+.premium-proof-placeholder strong{display:block;color:#edf7ef!important;font-size:14px;font-weight:800}
+.premium-proof-placeholder small{display:block;color:#a6b5aa!important;font-size:11px;line-height:1.5}
+.premium-proof-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:14px;background:rgba(37,211,102,.12);color:#25d366!important;font-size:30px;line-height:1}
+.premium-proof-upload-overlay{color:#fff!important}
