@@ -2539,6 +2539,31 @@
     });
     $("#aiBusinessSettingsModal")?.addEventListener("click", handleAIBusinessSettingsClick);
     $("#aiBusinessSettingsModal")?.addEventListener("submit", handleAIBusinessSettingsSubmit);
+    // [ADDED] Show the selected QRIS immediately with a lightweight local object URL.
+    $("#aiBusinessSettingsModal")?.addEventListener("change", (event) => {
+      const input = event.target.closest("#aiBusinessQrisImageInput");
+      if (!input) return;
+      const file = input.files?.[0];
+      if (!file) return;
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 1024 * 1024) return;
+      const preview = $("#aiBusinessQrisPreview");
+      const loading = $("#aiBusinessQrisLoading");
+      const placeholder = $("#aiBusinessQrisPlaceholder");
+      if (!preview || !loading) return;
+      const objectUrl = URL.createObjectURL(file);
+      loading.classList.remove("hidden");
+      preview.classList.remove("hidden");
+      placeholder?.classList.add("hidden");
+      preview.onload = () => {
+        loading.classList.add("hidden");
+        URL.revokeObjectURL(objectUrl);
+      };
+      preview.onerror = () => {
+        loading.classList.add("hidden");
+        URL.revokeObjectURL(objectUrl);
+      };
+      preview.src = objectUrl;
+    });
 
     // [ADDED] AI Business settings are stored per active WhatsApp session on this device.
   const AI_BUSINESS_SETTINGS_KEY = "wagram-ai-business-settings-v1";
@@ -2681,7 +2706,8 @@
         <form data-ai-settings-form="payment" class="ai-business-data-form">
           <div class="ai-business-qris-upload">
             <div class="ai-business-qris-preview-wrap">
-              <img id="aiBusinessQrisPreview" class="ai-business-qris-preview ${qrisImage ? "" : "hidden"}" src="${escapeHTML(qrisImage)}" alt="QRIS pembayaran usaha">
+              <span class="ai-business-qris-loading-ring ${qrisImage ? "is-visible" : "hidden"}" id="aiBusinessQrisLoading" role="status" aria-label="Memuat gambar QRIS"></span>
+              <img id="aiBusinessQrisPreview" class="ai-business-qris-preview ${qrisImage ? "" : "hidden"}" src="${escapeHTML(qrisImage)}" alt="QRIS pembayaran usaha" decoding="async">
               <div id="aiBusinessQrisPlaceholder" class="ai-business-qris-placeholder ${qrisImage ? "hidden" : ""}">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v2M17 20h4M20 18v3"/></svg>
                 <strong>Belum ada gambar QRIS</strong>
@@ -2697,6 +2723,14 @@
           </div>
           <button class="ai-business-save-button" type="submit">Simpan QRIS</button>
         </form>`;
+      // [ADDED] Hide the loading ring as soon as the saved QRIS image is decoded.
+      const qrisPreview = $("#aiBusinessQrisPreview");
+      const qrisLoading = $("#aiBusinessQrisLoading");
+      if (qrisPreview && qrisLoading) {
+        qrisPreview.addEventListener("load", () => qrisLoading.classList.add("hidden"), { once: true });
+        qrisPreview.addEventListener("error", () => qrisLoading.classList.add("hidden"), { once: true });
+        if (qrisPreview.complete) qrisLoading.classList.add("hidden");
+      }
     } else if (section === "products") {
       const products = settings.products.length ? settings.products : [{ name: "", price: "", stock: "" }];
       host.innerHTML = `
@@ -2811,11 +2845,22 @@
           return;
         }
         try {
+          // [MODIFIED] Resize and encode QRIS before storing it to reduce preview and sync cost.
+          const optimizedImage = await createImageBitmap(imageFile);
+          const maxDimension = 1200;
+          const scale = Math.min(1, maxDimension / Math.max(optimizedImage.width, optimizedImage.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(optimizedImage.width * scale));
+          canvas.height = Math.max(1, Math.round(optimizedImage.height * scale));
+          canvas.getContext("2d").drawImage(optimizedImage, 0, 0, canvas.width, canvas.height);
+          optimizedImage.close();
+          const optimizedBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
+          const imageToRead = optimizedBlob || imageFile;
           settings.payment = { ...settings.payment, qrisImage: await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(String(reader.result || ""));
             reader.onerror = () => reject(new Error("Gambar QRIS gagal dibaca."));
-            reader.readAsDataURL(imageFile);
+            reader.readAsDataURL(imageToRead);
           }) };
         } catch (error) {
           showToast(error.message || "Gambar QRIS gagal dibaca.");
