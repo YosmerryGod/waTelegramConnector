@@ -3054,6 +3054,23 @@
       }
     };
 
+    // [ADDED] Only offer durations longer than the user's current Premium package.
+    function getAvailablePremiumPeriods() {
+      const membership = state.membership;
+      const isPremium = Boolean(
+        membership?.plan &&
+        membership.plan !== "free" &&
+        (!membership.plan_expires_at || Number(membership.plan_expires_at) > Date.now())
+      );
+
+      if (!isPremium) return ["3d", "7d", "30d"];
+      if (membership.plan === "premium-a") return ["7d", "30d"];
+      if (membership.plan === "premium-b") return ["30d"];
+      if (membership.plan === "premium-c") return ["30d"];
+
+      return ["3d", "7d", "30d"];
+    }
+
     function renderPremiumPlan(period) {
       selectedPremiumPeriod = period;
       const plan = premiumPlans[period];
@@ -3061,22 +3078,52 @@
       $("#premiumOldPrice").textContent = plan.oldPrice;
       $("#premiumOldPrice").hidden = !plan.oldPrice;
       $("#premiumCurrentPrice").textContent = plan.price;
-      $("#premiumPriceNote").textContent = plan.note;
+      const isPremium = getAvailablePremiumPeriods().length !== 3;
+      $("#premiumPriceNote").textContent = isPremium
+        ? "Masa aktif baru ditambahkan setelah pembayaran diverifikasi."
+        : plan.note;
       $("#premiumSessionCount").textContent = `${plan.sessions} WhatsApp session`;
       $("#premiumSessionDescription").textContent = plan.sessionDescription;
       $("#premiumTableSessions").textContent = String(plan.sessions);
       $("#premiumButtonOldPrice").textContent = plan.oldPrice;
       $("#premiumButtonOldPrice").hidden = !plan.oldPrice;
-      $("#premiumButtonCurrentPrice").textContent = `Lanjutkan · ${plan.price}`;
+      $("#premiumButtonCurrentPrice").textContent = `${isPremium && period === "30d" && state.membership?.plan === "premium-c" ? "Perpanjang 30 Hari" : isPremium ? "Upgrade · " + plan.price : "Lanjutkan · " + plan.price}`;
       document.querySelectorAll("[data-period]").forEach((tab) => {
         const active = tab.dataset.period === period;
+        tab.hidden = !getAvailablePremiumPeriods().includes(tab.dataset.period);
         tab.classList.toggle("active", active);
         tab.setAttribute("aria-selected", String(active));
       });
     }
 
     function openPremiumSheet() {
-      renderPremiumPlan("3d");
+      const membership = state.membership;
+      const availablePeriods = getAvailablePremiumPeriods();
+      const isPremium = availablePeriods.length !== 3;
+      const comparison = $(".premium-comparison");
+      const heading = $("#premiumSheetTitle");
+      const subtitle = $(".premium-subtitle");
+      const tabs = $("#premiumDurationTabs");
+
+      // [ADDED] Premium members see upgrade options instead of the Free-vs-Premium comparison.
+      comparison?.classList.toggle("hidden", isPremium);
+      heading.innerHTML = isPremium
+        ? 'WAGRAM <span>Premium</span>'
+        : 'WAGRAM <span>Premium</span>';
+
+      if (isPremium) {
+        const expiry = membership?.plan_expires_at ? new Date(Number(membership.plan_expires_at)) : null;
+        const expiryText = expiry && !Number.isNaN(expiry.getTime())
+          ? "Aktif sampai " + expiry.toLocaleString("id-ID", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Makassar" }) + " WITA."
+          : "Masa Premium aktif.";
+        subtitle.textContent = expiryText + " Pilih durasi upgrade atau perpanjangan.";
+      } else {
+        subtitle.textContent = "Lebih banyak akses. Tanpa batasan yang mengganggu.";
+      }
+
+      tabs?.classList.toggle("premium-renewal-tabs", isPremium);
+      const initialPeriod = availablePeriods[0] || "3d";
+      renderPremiumPlan(initialPeriod);
       setPage("premium");
       tg?.BackButton?.show?.();
     }
