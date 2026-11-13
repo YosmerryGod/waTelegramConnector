@@ -282,32 +282,46 @@ export async function checkOpenRouterHealth() {
   return { ok: true, model: OPENROUTER_MODEL };
 }
 
+// [MODIFIED] Learn complete customer turns, not only adjacent message pairs.
+// Consecutive customer fragments and consecutive admin messages are grouped so
+// the model sees the full question and the complete human answer.
 function buildConversationPairs(messages) {
   const ordered = [...messages].sort((a, b) =>
     Number(a.message_timestamp) - Number(b.message_timestamp) || Number(a.id) - Number(b.id)
   );
   const pairs = [];
+  let customerMessages = [];
+  let adminMessages = [];
 
-  for (let index = 0; index < ordered.length - 1; index += 1) {
-    const customer = ordered[index];
-    const reply = ordered[index + 1];
-    if (
-      customer.direction === "incoming" &&
-      reply.direction === "outgoing" &&
-      customer.message_type === "text" &&
-      reply.message_type === "text" &&
-      customer.body?.trim() &&
-      reply.body?.trim() &&
-      !customer.is_deleted &&
-      !reply.is_deleted
-    ) {
+  const flushPair = () => {
+    if (customerMessages.length && adminMessages.length) {
       pairs.push({
-        customer: customer.body.trim().slice(0, 1200),
-        reply: reply.body.trim().slice(0, 1200)
+        customer: customerMessages.map((item) => item.body.trim()).join("\n").slice(0, 1200),
+        reply: adminMessages.map((item) => item.body.trim()).join("\n").slice(0, 1200)
       });
+    }
+    customerMessages = [];
+    adminMessages = [];
+  };
+
+  for (const message of ordered) {
+    if (
+      message.message_type !== "text" ||
+      !message.body?.trim() ||
+      message.is_deleted
+    ) {
+      continue;
+    }
+
+    if (message.direction === "incoming") {
+      if (adminMessages.length) flushPair();
+      customerMessages.push(message);
+    } else if (message.direction === "outgoing" && customerMessages.length) {
+      adminMessages.push(message);
     }
   }
 
+  flushPair();
   return pairs;
 }
 
@@ -380,6 +394,7 @@ export async function learnAICustomerServiceHistory(telegramId, sessionId) {
 }
 
 // [ADDED] Incrementally learn new customer/admin message pairs while AI is enabled.
+// [MODIFIED] Incrementally learn complete customer/admin turns as they appear.
 export function recordAICustomerServiceMessage(telegramId, sessionId, chatId) {
   try {
     const owner = ownerParams(telegramId, sessionId);
@@ -388,15 +403,16 @@ export function recordAICustomerServiceMessage(telegramId, sessionId, chatId) {
       return 0;
     }
 
-    const recent = listMessages(owner.telegramId, chatId, 10, owner.sessionId)
-      .filter((message) => message.message_type === "text" && message.body?.trim() && !message.is_deleted)
-      .sort((a, b) => Number(a.message_timestamp) - Number(b.message_timestamp));
+    const recent = listMessages(owner.telegramId, chatId, 20, owner.sessionId)
+      .filter((message) =>
+        message.message_type === "text" &&
+        message.body?.trim() &&
+        !message.is_deleted
+      );
+    const pairs = buildConversationPairs(recent);
 
     let learned = 0;
-    for (let index = 0; index < recent.length - 1; index += 1) {
-      const customer = recent[index];
-      const reply = recent[index + 1];
-      if (customer.direction !== "incoming" || reply.direction !== "outgoing") continue;
+    for (const pair of pairs) {
       learned += db.prepare(`
         INSERT OR IGNORE INTO ai_customer_service_examples (
           telegram_id, session_id, chat_id, customer_message, admin_reply, created_at
@@ -405,11 +421,12 @@ export function recordAICustomerServiceMessage(telegramId, sessionId, chatId) {
         owner.telegramId,
         owner.sessionId,
         chatId,
-        customer.body.trim().slice(0, 1200),
-        reply.body.trim().slice(0, 1200),
+        pair.customer,
+        pair.reply,
         Date.now()
       ).changes;
     }
+
     if (learned > 0) {
       db.prepare(`
         UPDATE ai_customer_service_settings
