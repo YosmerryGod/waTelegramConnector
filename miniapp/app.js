@@ -2640,9 +2640,6 @@
     } catch (error) {
       showToast(error.message || "Pengaturan AI tidak dapat dimuat dari server.");
     }
-    // [MODIFIED] Restore the saved escalation rules after server synchronization.
-    $("#aiBusinessRulesInput").value = getAIBusinessSettings().aiRules || "";
-    $("#aiBusinessPromptTemplateInput").value = getAIBusinessSettings().aiPromptTemplate || "";
   }
 
   function closeAIBusinessSettings() {
@@ -2652,7 +2649,7 @@
   function renderAIBusinessSettingsSection(section) {
     const settings = getAIBusinessSettings();
     const host = $("#aiBusinessSettingsFormHost");
-    const titles = { manager: "Manager", outlets: "Outlet", payment: "Pembayaran QRIS", products: "Produk" };
+    const titles = { manager: "Manager", outlets: "Outlet", payment: "Pembayaran QRIS", products: "Produk", ai: "Konfigurasi AI" };
     $("#aiBusinessSettingsTitle").textContent = titles[section] || "Kelola bisnis";
     $("#aiBusinessSettingsMenu").classList.add("hidden");
     $("#aiBusinessSettingsDetail").classList.remove("hidden");
@@ -2713,18 +2710,25 @@
           <button type="button" class="ai-business-add-button" data-add-product>+ Tambah produk</button>
           <button class="ai-business-save-button" type="submit">Simpan produk</button>
         </form>`;
+    } else if (section === "ai") {
+      host.innerHTML = `
+        <form data-ai-settings-form="ai" class="ai-business-data-form ai-business-rules">
+          <div class="ai-business-rule-field">
+            <label for="aiBusinessPromptTemplateInput">Instruksi AI</label>
+            <p>Atur cara WAMO AI memahami dan menjawab pelanggan.</p>
+            <textarea id="aiBusinessPromptTemplateInput" name="promptTemplate" rows="5" maxlength="6000" placeholder="Tulis instruksi dasar untuk WAMO AI...">${escapeHTML(settings.aiPromptTemplate || "")}</textarea>
+          </div>
+          <div class="ai-business-rule-field">
+            <label for="aiBusinessRulesInput">Aturan &amp; Batasan</label>
+            <p>Tentukan hal yang tidak boleh ditangani AI dan kapan harus menghubungi manager.</p>
+            <textarea id="aiBusinessRulesInput" name="aiRules" rows="4" maxlength="3000" placeholder="Contoh: Untuk komplain serius, arahkan pelanggan ke manager.">${escapeHTML(settings.aiRules || "")}</textarea>
+          </div>
+          <button class="ai-business-save-button" type="submit">Simpan konfigurasi AI</button>
+        </form>`;
     }
   }
 
   function handleAIBusinessSettingsClick(event) {
-    // [ADDED] Save AI escalation rules separately from the four setup sections.
-    if (event.target.closest("#saveAIBusinessRulesButton")) {
-      const settings = getAIBusinessSettings();
-      settings.aiRules = $("#aiBusinessRulesInput").value.trim();
-      settings.aiPromptTemplate = $("#aiBusinessPromptTemplateInput").value.trim();
-      saveAIBusinessSettings(settings);
-      return;
-    }
     if (event.target.closest("[data-close-ai-settings]")) {
       closeAIBusinessSettings();
       return;
@@ -2784,7 +2788,10 @@
     const settings = getAIBusinessSettings();
     const section = form.dataset.aiSettingsForm;
 
-    if (section === "manager") {
+    if (section === "ai") {
+      settings.aiPromptTemplate = String(data.get("promptTemplate") || "").trim();
+      settings.aiRules = String(data.get("aiRules") || "").trim();
+    } else if (section === "manager") {
       settings.manager = { name: String(data.get("name") || "").trim(), phone: String(data.get("phone") || "").trim() };
     } else if (section === "outlets") {
       const names = data.getAll("outletName");
