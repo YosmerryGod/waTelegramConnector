@@ -906,10 +906,13 @@ export async function analyzeAIPaymentProofImage({
     "Tentukan apakah gambar benar-benar tampak seperti bukti pembayaran/transfer/QRIS, bukan sekadar gambar uang, QR pembayaran kosong, invoice, tagihan, atau screenshot percakapan.",
     "Bukti pembayaran dapat berupa struk transfer bank/e-wallet/QRIS yang menampilkan indikasi transaksi telah berhasil.",
     "Jangan menyatakan pembayaran valid atau uang sudah diterima. Gambar dapat dipalsukan dan harus diverifikasi pengelola.",
-    "Jika bukan bukti pembayaran, is_payment_proof=false.",
+    "Jangan menganggap setiap gambar sebagai bukti pembayaran. Kenali juga foto produk, makanan, barang, katalog, screenshot, dokumen, QR kosong, dan gambar umum lainnya.",
+    "Tentukan image_type seperti payment_proof, product, food, document, screenshot, qr_code, other, atau unclear; berikan image_description singkat berdasarkan hal yang benar-benar terlihat.",
+    "is_payment_proof hanya true jika gambar tampak jelas seperti struk transaksi yang sudah berhasil, bukan foto produk, QR kosong, invoice, tagihan, gambar uang, atau screenshot percakapan.",
+    "Jangan menyatakan pembayaran valid atau uang sudah diterima. Gambar dapat dipalsukan dan harus diverifikasi pengelola.",
     "Ekstrak hanya informasi yang benar-benar terbaca. Gunakan null untuk data yang tidak terbaca.",
     "Gunakan konteks percakapan untuk menyusun detail pesanan. Jangan mengarang produk, jumlah, harga, atau total. Jika tidak ada, gunakan null.",
-    "Balas JSON valid saja dengan struktur: {is_payment_proof:boolean, confidence:number, payment:{amount:string|null,currency:string|null,date:string|null,time:string|null,payer:string|null,recipient:string|null,reference:string|null,status_text:string|null,method:string|null}, order:{product:string|null,quantity:string|null,unit_price:string|null,total:string|null}, notes:string}.",
+    "Balas JSON valid saja dengan struktur: {is_payment_proof:boolean, image_type:string, image_description:string, confidence:number, payment:{amount:string|null,currency:string|null,date:string|null,time:string|null,payer:string|null,recipient:string|null,reference:string|null,status_text:string|null,method:string|null}, order:{product:string|null,quantity:string|null,unit_price:string|null,total:string|null}, notes:string}.",
     "",
     "DAFTAR PRODUK BISNIS:",
     JSON.stringify(products).slice(0, 7000),
@@ -965,6 +968,8 @@ export async function analyzeAIPaymentProofImage({
   const confidence = Math.max(0, Math.min(1, Number(parsed.confidence) || 0));
   return {
     isPaymentProof: parsed.is_payment_proof === true && confidence >= 0.75,
+    imageType: String(parsed.image_type || "unclear").slice(0, 40),
+    imageDescription: String(parsed.image_description || parsed.notes || "Gambar diterima, tetapi detail visual belum dapat dikenali.").slice(0, 700),
     confidence,
     payment: parsed.payment && typeof parsed.payment === "object" ? parsed.payment : {},
     order: parsed.order && typeof parsed.order === "object" ? parsed.order : {},
@@ -1011,6 +1016,44 @@ export async function createAIPaymentProofCustomerReply(telegramId, sessionId, c
   ].join("\n");
   const reply = String(await openRouterGenerateText(prompt)).trim().replace(/^[\"'“”]+|[\"'“”]+$/g, "");
   if (!reply) throw new Error("PAYMENT_PROOF_CUSTOMER_REPLY_EMPTY");
+  return reply.slice(0, 700);
+}
+
+// [ADDED] Let the business AI respond naturally to any customer image that is not a payment proof.
+export async function createAIBusinessImageCustomerReply(telegramId, sessionId, chatId, imageAnalysis) {
+  const owner = ownerParams(telegramId, sessionId);
+  const profile = getAIBusinessProfile(owner.telegramId, owner.sessionId);
+  const settings = profile?.settings || {};
+  const messages = listMessages(owner.telegramId, chatId, MAX_HISTORY_MESSAGES, owner.sessionId)
+    .filter((message) => message.body?.trim() && !message.is_deleted)
+    .sort((a, b) => Number(a.message_timestamp) - Number(b.message_timestamp));
+  const conversation = messages.slice(-16).map((message) => ({
+    role: message.direction === "incoming" ? "customer" : "business",
+    text: String(message.body || "").trim().slice(0, 1000)
+  }));
+  const prompt = [
+    "Kamu adalah admin WhatsApp bisnis yang ramah, santai, dan peka konteks.",
+    "Pelanggan baru saja mengirim gambar. Gambar ini TIDAK diklasifikasikan sebagai bukti pembayaran.",
+    "Jangan menyebut gambar ini bukti pembayaran, jangan meminta bukti transfer kecuali pelanggan memang sedang membahas pembayaran.",
+    "Pahami apakah pelanggan mengirim foto produk, makanan, barang, referensi, atau gambar lain. Tanggapi sesuai konteks chat dan deskripsi visual.",
+    "Jika foto produk, tanggapi produk yang terlihat dan hubungkan dengan pertanyaan/keperluan pelanggan. Jangan mengarang detail yang tidak terlihat atau tidak ada di data bisnis.",
+    "Jika maksud gambar belum jelas, tanyakan dengan ramah gambar tersebut ingin ditanyakan apa. Boleh sedikit bercanda secara natural bila cocok.",
+    "Balasan singkat, idealnya satu atau dua kalimat. Ikuti bahasa pelanggan. Hindari template kaku, bahasa robot, dan penjelasan panjang.",
+    "FAKTA BISNIS:",
+    JSON.stringify({
+      businessName: settings.businessName || settings.name || "",
+      products: Array.isArray(settings.products) ? settings.products.slice(0, 80) : [],
+      outlets: Array.isArray(settings.outlets) ? settings.outlets.slice(0, 20) : [],
+      ownerRules: String(settings.aiRules || "").slice(0, 3000)
+    }).slice(0, 7000),
+    "ANALISIS GAMBAR:",
+    JSON.stringify(imageAnalysis || {}).slice(0, 2500),
+    "RIWAYAT CHAT:",
+    JSON.stringify(conversation).slice(0, 9000),
+    "Keluarkan hanya balasan WhatsApp siap kirim."
+  ].join("\n");
+  const reply = String(await openRouterGenerateText(prompt)).trim().replace(/^[\"'“”]+|[\"'“”]+$/g, "");
+  if (!reply) throw new Error("BUSINESS_IMAGE_CUSTOMER_REPLY_EMPTY");
   return reply.slice(0, 700);
 }
 
