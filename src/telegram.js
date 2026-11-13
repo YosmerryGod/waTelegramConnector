@@ -1434,13 +1434,6 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                       mimetype: info.mimetype || "image/jpeg",
                       socket,
                       quotedMessage: message,
-                      notifyManager: (imageBuffer, caption, mimetype) =>
-                        bot.sendPhoto(
-                          id,
-                          imageBuffer,
-                          { caption },
-                          { filename: info.fileName || "payment-proof.jpg", contentType: mimetype || "image/jpeg" }
-                        )
                     }).catch((paymentError) => {
                       console.error("[WAGRAM AI Payment Proof] Worker crashed:", paymentError.message);
                     });
