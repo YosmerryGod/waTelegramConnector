@@ -458,7 +458,7 @@ function selectRelevantCustomerServiceExamples(message, examples, limit = MAX_EX
   return relevant.length ? relevant : ranked.slice(0, Math.min(3, limit));
 }
 
-export async function createAICustomerServiceSuggestion(telegramId, sessionId, chatId) {
+export async function createAICustomerServiceSuggestion(telegramId, sessionId, chatId, options = {}) {
   assertEnabled(telegramId, sessionId);
   const owner = ownerParams(telegramId, sessionId);
   const messages = listMessages(owner.telegramId, chatId, MAX_HISTORY_MESSAGES, owner.sessionId)
@@ -468,6 +468,17 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
   const latest = messages[messages.length - 1];
   if (!latest || latest.direction !== "incoming") {
     const error = new Error("LATEST_MESSAGE_IS_NOT_FROM_CUSTOMER");
+    error.status = 409;
+    throw error;
+  }
+
+  // [ADDED] Prevent an auto-reply worker from answering a message that has
+  // already been superseded by a newer incoming message.
+  if (
+    options.expectedMessageId &&
+    String(latest.whatsapp_message_id) !== String(options.expectedMessageId)
+  ) {
+    const error = new Error("LATEST_MESSAGE_SUPERSEDED");
     error.status = 409;
     throw error;
   }
@@ -525,7 +536,9 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
 
   const prompt = [
     "IDENTITAS: Kamu adalah asisten customer service untuk bisnis pemilik akun ini.",
-    "TUJUAN: Siapkan draft balasan WhatsApp untuk diperiksa manusia. Jangan mengirim pesan.",
+    options.autoReply
+      ? "TUJUAN: Tulis satu balasan final yang siap dikirim langsung kepada pelanggan melalui WhatsApp. Jangan menyebut bahwa ini draft, AI, atau hasil training."
+      : "TUJUAN: Siapkan draft balasan WhatsApp untuk diperiksa manusia. Jangan mengirim pesan.",
     "GAYA: Tulis seperti staf layanan pelanggan yang ramah dan memahami percakapan. Natural, hangat, santai-sopan, jelas, tidak kaku, dan tidak terdengar seperti template AI.",
     "BAHASA: Ikuti bahasa pelanggan. Untuk Bahasa Indonesia, gunakan bahasa percakapan yang sopan. Gunakan sapaan Kak hanya jika terasa wajar.",
     "KONTEKS: Pahami maksud, emosi, typo, singkatan, dan rujukan seperti 'yang tadi'. Jangan meminta ulang informasi yang sudah diberikan.",
