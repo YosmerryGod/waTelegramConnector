@@ -3,8 +3,10 @@ import db from "../database.js";
 import { listMessages } from "../database.js";
 import {
   getAICustomerServiceStatus,
-  createAICustomerServiceSuggestion
+  createAICustomerServiceSuggestion,
+  createAIBusinessReply
 } from "./customer-service.js";
+import { getAIBusinessProfile } from "../database.js";
 
 // [ADDED] Durable at-most-once processing guard for WhatsApp auto replies.
 // A claimed job is never automatically retried: this prevents duplicate sends
@@ -133,8 +135,13 @@ export async function handleIncomingAIAutoReply({
     return { sent: false, reason: "invalid_input" };
   }
 
-  const aiStatus = getAICustomerServiceStatus(ownerId, accountId);
-  if (!aiStatus.eligible || !aiStatus.enabled) {
+  // [ADDED] Prefer the configured AI Business profile for this WhatsApp session.
+  // The AI Business API previously generated text for Mini App only; this worker
+  // now connects that answer to the live Baileys socket.sendMessage() path.
+  const businessProfile = getAIBusinessProfile(ownerId, accountId);
+  const useBusinessAI = Boolean(businessProfile);
+  const aiStatus = useBusinessAI ? null : getAICustomerServiceStatus(ownerId, accountId);
+  if (!useBusinessAI && (!aiStatus?.eligible || !aiStatus?.enabled)) {
     return { sent: false, reason: "ai_disabled" };
   }
 
@@ -171,13 +178,34 @@ export async function handleIncomingAIAutoReply({
       throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
     }
 
-    const suggestion = await createAICustomerServiceSuggestion(
-      ownerId,
-      accountId,
-      whatsappChatId,
-      { autoReply: true, expectedMessageId: incomingId }
-    );
-    const reply = String(suggestion?.draft || "").trim();
+    // [ADDED] Build chronological conversation history for the AI Business agent.
+    // listMessages returns newest-first, while the model expects oldest-first.
+    const conversationHistory = listMessages(ownerId, whatsappChatId, 12, accountId)
+      .filter((item) =>
+        item.message_type === "text" &&
+        item.body?.trim() &&
+        !item.is_deleted
+      )
+      .reverse()
+      .map((item) => ({
+        role: item.direction === "outgoing" ? "assistant" : "user",
+        content: String(item.body || "").trim().slice(0, 1000)
+      }));
+
+    const suggestion = useBusinessAI
+      ? await createAIBusinessReply(
+          ownerId,
+          accountId,
+          String(latest.body || "").trim(),
+          conversationHistory
+        )
+      : await createAICustomerServiceSuggestion(
+          ownerId,
+          accountId,
+          whatsappChatId,
+          { autoReply: true, expectedMessageId: incomingId }
+        );
+    const reply = String(suggestion?.reply || suggestion?.draft || "").trim();
 
     if (!reply) {
       throw new Error("AI_REPLY_EMPTY");
@@ -220,11 +248,28 @@ export async function handleIncomingAIAutoReply({
     });
 
     const sendOptions = quotedMessage ? { quoted: quotedMessage } : {};
-    const sentMessage = await socket.sendMessage(
-      whatsappChatId,
-      { text: reply },
-      sendOptions
-    );
+    // [ADDED] Send the generated AI Business/Customer Service answer through Baileys.
+    // Attach the saved QRIS image when the AI Business response explicitly includes it.
+    let sentMessage;
+    const qrisDataUri = String(suggestion?.qrisImage || "");
+    const qrisMatch = qrisDataUri.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
+    if (useBusinessAI && qrisMatch) {
+      sentMessage = await socket.sendMessage(
+        whatsappChatId,
+        {
+          image: Buffer.from(qrisMatch[2], "base64"),
+          mimetype: qrisMatch[1] === "jpg" ? "image/jpeg" : `image/${qrisMatch[1]}`,
+          caption: reply
+        },
+        sendOptions
+      );
+    } else {
+      sentMessage = await socket.sendMessage(
+        whatsappChatId,
+        { text: reply },
+        sendOptions
+      );
+    }
 
     updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
       status: "sent",
@@ -238,7 +283,8 @@ export async function handleIncomingAIAutoReply({
         telegramId: ownerId,
         sessionId: accountId,
         messageId: incomingId,
-        model: suggestion.model || aiStatus.model
+        mode: useBusinessAI ? "business" : "customer_service",
+        model: suggestion.model || aiStatus?.model || null
       })
     );
 
