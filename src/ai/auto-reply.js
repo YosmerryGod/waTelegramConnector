@@ -377,7 +377,7 @@ export async function handleIncomingAIAutoReply({
     // listMessages returns newest-first, while the model expects oldest-first.
     const conversationHistory = listMessages(ownerId, whatsappChatId, 12, accountId)
       .filter((item) =>
-        item.message_type === "text" &&
+        ["text", "view_once"].includes(item.message_type) &&
         item.body?.trim() &&
         !item.is_deleted &&
         String(item.whatsapp_message_id) !== incomingId
