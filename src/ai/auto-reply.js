@@ -35,7 +35,7 @@ const AUTO_REPLY_SETTLE_MS = Math.max(
   Math.min(5000, Number(process.env.WAGRAM_AUTO_REPLY_SETTLE_MS || 1200))
 );
 
-function claimAutoReply(telegramId, sessionId, chatId, messageId) {
+export function claimAIAutoReplyJob(telegramId, sessionId, chatId, messageId) {
   const now = Date.now();
   return db.prepare(`
     INSERT OR IGNORE INTO ai_auto_reply_jobs (
@@ -136,7 +136,7 @@ export async function handleIncomingAIAutoReply({
     return { sent: false, reason: "ai_disabled" };
   }
 
-  if (!claimAutoReply(ownerId, accountId, whatsappChatId, incomingId)) {
+  if (!claimAIAutoReplyJob(ownerId, accountId, whatsappChatId, incomingId)) {
     return { sent: false, reason: "duplicate" };
   }
 
