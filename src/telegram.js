@@ -19,6 +19,7 @@ import {
   setFreePauseDate, // [ADDED] Prevent the daily scheduler from pausing the same user twice.
   updateSession,
   updateWhatsAppAccountSession, // [ADDED] Persist independent WhatsApp account status.
+  linkWhatsAppSessionByPhone, // [ADDED] Restore prior data identity when the same WhatsApp number is paired again.
   markSessionDisconnected,
   reserveForwardedMessage,
   saveWhatsAppMessage, // [ADDED] Persist messages for the Mini App.
@@ -1062,6 +1063,12 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             status === "replaced" ? "disconnected" : status,
             phoneNumber || null
           );
+          if (status === "connected" && phoneNumber) {
+            const relink = linkWhatsAppSessionByPhone(id, sessionId, phoneNumber);
+            if (relink) {
+              console.info("[WAGRAM Session Recovery] Re-linked same WhatsApp number to previous data:", JSON.stringify(relink));
+            }
+          }
         } else {
           updateSession(
             id,
