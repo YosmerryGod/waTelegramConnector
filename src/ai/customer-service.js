@@ -766,6 +766,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Jawab hanya hal yang ditanyakan. Jangan menambahkan penawaran bantuan, salam pembuka, penutup, rangkuman, atau informasi lain yang tidak diminta.",
     "Jangan mengulang pertanyaan pelanggan atau mengulang fakta yang sama dengan kata berbeda.",
     "Jika pelanggan bertanya bisa pesan, jawab bisa/tidak sesuai data dan tanyakan jumlah pesanan. Jangan otomatis memberikan nomor pengelola, alamat, stok, atau prosedur pemesanan kecuali diminta.",
+    "Jika konteks pesan terakhir menyatakan pelanggan mengirim foto/video sekali lihat (View Once), pahami bahwa isi medianya tidak dapat dilihat oleh WAGRAM. Tentukan balasan berdasarkan konteks percakapan; bila isi media diperlukan untuk menjawab, minta pelanggan mengirim ulang sebagai foto/video biasa dengan ramah. Jangan mengklaim sudah melihat atau mengenali isi media, dan jangan memprosesnya sebagai bukti pembayaran.",
     "Jika pelanggan hanya menyapa, balas sapaan singkat dan tanyakan apa yang dibutuhkan. Jangan sertakan katalog, harga, stok, dan kontak.",
     "Jika pelanggan menanyakan harga, sebutkan nama produk dan harga saja; tanyakan jumlah hanya jika relevan.",
     "Jika pelanggan menanyakan ketersediaan atau ingin memesan, jawab secara natural dan langsung sesuai kondisi produk.",
