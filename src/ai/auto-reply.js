@@ -5,7 +5,8 @@ import {
   getAICustomerServiceStatus,
   createAICustomerServiceSuggestion,
   createAIBusinessReply,
-  analyzeAIPaymentProofImage
+  analyzeAIPaymentProofImage,
+  createAIPaymentProofCustomerReply
 } from "./customer-service.js";
 
 // [ADDED] Durable at-most-once processing guard for WhatsApp auto replies.
@@ -144,7 +145,7 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
       mimetype:mimetype||"image/jpeg",
       caption
     });
-    const customerReply="Terima kasih, bukti pembayaran sudah kami terima. Pesanan akan segera diproses setelah verifikasi pengelola.";
+    const customerReply=await createAIPaymentProofCustomerReply(ownerId,accountId,chat,result);
     updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
     await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
