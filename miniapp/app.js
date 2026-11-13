@@ -3445,9 +3445,15 @@
           contentType: "image/jpeg" // [ADDED]
         });
         proofModal.classList.add("hidden");
+        selectedPremiumProof = null; // [ADDED] Release the selected proof after successful submission.
+        selectedPremiumProofName = ""; // [ADDED]
+        closePremiumPaymentModal(); // [ADDED] Close the QRIS payment dialog after admin notification succeeds.
+        activePremiumOrderId = null; // [ADDED] Clear the completed order from the active payment flow.
         paidButton.disabled = true;
         paidButton.textContent = "Konfirmasi terkirim";
         $("#premiumPaymentConfirmation").textContent = "Bukti pembayaran terkirim. Premium aktif setelah diverifikasi admin.";
+        setPage("chats"); // [ADDED] Return to the main Chats page after successful submission.
+        tg?.BackButton?.hide?.(); // [ADDED] Reset Telegram's back button on the main page.
       } catch (error) {
         const errorBox = $("#premiumProofError"); // [ADDED]
         const statusCode = Number(error?.status || 0); // [ADDED]
