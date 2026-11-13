@@ -6525,11 +6525,17 @@ html[data-theme="dark"] .premium-payment-download {
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-qr img { width:100%; max-width:360px; border-radius:18px; background:#fff; }
 .whatsapp-pairing-cancel { width:100%; min-height:48px; margin-top:4px; }
 
-/* [ADDED] WAGRAM brand mark centered over the WhatsApp pairing QR. */
-.whatsapp-qr-brand-frame { position:relative; display:inline-flex; width:100%; max-width:360px; align-items:center; justify-content:center; overflow:hidden; border-radius:18px; background:#fff; }
-.whatsapp-qr-brand-frame > #whatsappSessionQrImage { display:block; width:100%; height:auto; border-radius:18px; }
-.whatsapp-qr-center-logo { position:absolute; z-index:2; left:50%; top:50%; display:grid; place-items:center; width:21%; aspect-ratio:1; padding:2.2%; transform:translate(-50%,-50%); border:3px solid #fff; border-radius:17px; background:#fff; box-shadow:0 1px 8px rgba(0,0,0,.16); }
+/* [MODIFIED] WhatsApp pairing QR stays hidden behind a loader until the image is decoded. */
+.whatsapp-qr-brand-frame { position:relative; display:inline-flex; width:100%; max-width:360px; min-height:280px; align-items:center; justify-content:center; overflow:hidden; border-radius:18px; background:#fff; }
+.whatsapp-qr-brand-frame > #whatsappSessionQrImage { display:block; width:100%; height:auto; border-radius:18px; background:#fff; opacity:0; visibility:hidden; }
+.whatsapp-qr-brand-frame.is-ready > #whatsappSessionQrImage { opacity:1; visibility:visible; }
+.whatsapp-qr-center-logo { position:absolute; z-index:2; left:50%; top:50%; display:grid; place-items:center; width:21%; aspect-ratio:1; padding:2.2%; transform:translate(-50%,-50%); border:3px solid #fff; border-radius:17px; background:#fff; box-shadow:0 1px 8px rgba(0,0,0,.16); opacity:0; visibility:hidden; transition:opacity .18s ease,visibility .18s ease; }
+.whatsapp-qr-brand-frame.is-ready .whatsapp-qr-center-logo { opacity:1; visibility:visible; }
 .whatsapp-qr-center-logo img { display:block; width:100%; height:100%; object-fit:contain; }
+.whatsapp-qr-loader { position:absolute; inset:0; z-index:3; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; border-radius:18px; background:#fff; color:#26352c; font-size:13px; font-weight:650; }
+.whatsapp-qr-brand-frame.is-loading .whatsapp-qr-loader { display:flex; }
+.whatsapp-qr-loader-ring { width:42px; height:42px; border:4px solid rgba(0,169,79,.16); border-top-color:#08a94f; border-right-color:#08a94f; border-radius:50%; animation:whatsapp-qr-ring-spin .75s linear infinite; }
+@keyframes whatsapp-qr-ring-spin { to { transform:rotate(360deg); } }
 .whatsapp-sessions-modal.is-pairing .whatsapp-session-qr img { width:100%; max-width:none; }
 
 
