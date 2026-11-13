@@ -2141,13 +2141,14 @@ export function saveAIBusinessProfile(telegramId, sessionId = telegramId, profil
   return getAIBusinessProfile(ownerId, scopedSessionId);
 }
 
+// [MODIFIED] Store training examples under the canonical data session after relinking.
 export function addAIBusinessExample(telegramId, sessionId, example) {
   const result = db.prepare(`
     INSERT INTO ai_business_examples (
       telegram_id, session_id, question, data_json, ideal_answer, intent, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
-    String(telegramId), String(sessionId || telegramId),
+    String(telegramId), canonicalWhatsAppSessionId(telegramId, sessionId || telegramId),
     String(example.question || "").slice(0, 4000),
     JSON.stringify(example.data || {}),
     String(example.idealAnswer || "").slice(0, 2000),
@@ -2166,7 +2167,7 @@ export function findAIBusinessExamples(telegramId, sessionId, intent, limit = 3)
     ORDER BY created_at DESC
     LIMIT ?
   `).all(
-    String(telegramId), String(sessionId || telegramId),
+    String(telegramId), canonicalWhatsAppSessionId(telegramId, sessionId || telegramId),
     intent || null, intent || null, Math.max(1, Math.min(3, Number(limit) || 3))
   ).map((row) => {
     let data = {};
