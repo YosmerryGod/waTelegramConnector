@@ -2267,6 +2267,22 @@
     $("#whatsappSessionsTitle").textContent = "Tambah WhatsApp";
     $("#closeWhatsAppSessions").setAttribute("aria-label", "Cancel pairing");
     $("#whatsappSessionQrWrap").classList.remove("hidden");
+    // [ADDED] Reset QR artwork and hide the brand mark until a fresh QR is decoded.
+    const qrImage = $("#whatsappSessionQrImage");
+    const qrFrame = $("#whatsappQrBrandFrame");
+    qrImage.onload = () => {
+      qrFrame?.classList.remove("is-loading");
+      qrFrame?.classList.add("is-ready");
+    };
+    qrImage.onerror = () => {
+      qrFrame?.classList.add("is-loading");
+      qrFrame?.classList.remove("is-ready");
+      $("#whatsappSessionQrStatus").textContent = "QR gagal dimuat. Menyiapkan ulang…";
+    };
+    qrImage.removeAttribute("src");
+    delete qrImage.dataset.qr;
+    qrFrame?.classList.add("is-loading");
+    qrFrame?.classList.remove("is-ready");
     const refreshQr = async () => {
       try {
         const data = await api("/sessions/" + enc(sessionId) + "/connection");
@@ -2287,10 +2303,20 @@
           return;
         }
         if (data.qr) {
-          const image = $("#whatsappSessionQrImage");
-          if (image.src !== data.qr) image.src = data.qr;
+          if (qrImage.dataset.qr !== data.qr) {
+            // [ADDED] Keep the loader visible while the new QR image is being decoded.
+            qrFrame?.classList.add("is-loading");
+            qrFrame?.classList.remove("is-ready");
+            qrImage.dataset.qr = data.qr;
+            qrImage.src = data.qr;
+          }
           $("#whatsappSessionQrStatus").textContent = "Pindai QR melalui WhatsApp → Perangkat tertaut";
         } else {
+          // [ADDED] Do not leave a previous QR or its logo visible while a new QR is generated.
+          qrImage.removeAttribute("src");
+          delete qrImage.dataset.qr;
+          qrFrame?.classList.add("is-loading");
+          qrFrame?.classList.remove("is-ready");
           $("#whatsappSessionQrStatus").textContent = "QR sedang disiapkan. Tunggu beberapa detik.";
         }
       } catch (error) { $("#whatsappSessionQrStatus").textContent = error.message; }
