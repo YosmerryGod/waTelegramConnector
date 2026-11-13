@@ -633,7 +633,10 @@ router.post("/sessions/:sessionId/connect", async (req, res) => {
 
     await connectWhatsApp(
       req.telegramId,
-      createWhatsAppCallbacks(req.telegramId, { sessionId: session.session_id }),
+      createWhatsAppCallbacks(req.telegramId, {
+        sessionId: session.session_id,
+        notifyQrToTelegram: false // [ADDED] Pairing QR is shown only inside the Mini App.
+      }),
       { sessionId: session.session_id }
     );
 
