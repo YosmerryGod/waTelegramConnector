@@ -132,7 +132,7 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     const caption=["BUKTI PEMBAYARAN BARU — PERLU VERIFIKASI","Pelanggan: "+val(customerName),"WhatsApp: "+val(phoneNumber?"+"+phoneNumber:chat),"DETAIL PESANAN","Produk: "+val(o.product),"Jumlah: "+val(o.quantity),"Harga satuan: "+val(o.unit_price),"Total pesanan: "+val(o.total),"INFORMASI BUKTI","Nominal: "+val(p.amount)+" "+val(p.currency),"Tanggal/waktu: "+val(p.date)+" "+val(p.time),"Pengirim: "+val(p.payer),"Penerima: "+val(p.recipient),"Metode: "+val(p.method),"Referensi: "+val(p.reference),"Status tertulis: "+val(p.status_text),"Keyakinan klasifikasi: "+Math.round(result.confidence*100)+"%","PERLU VERIFIKASI MUTASI. Gambar bukan bukti dana sudah masuk."].join("\n").slice(0,1024);
     await notifyManager(imageBuffer,caption,mimetype);
     await socket.sendMessage(chat,{text:"Terima kasih, bukti pembayaran sudah kami terima. Pesanan akan segera diproses setelah verifikasi pengelola."},quotedMessage?{quoted:quotedMessage}:{});
-    updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent",generatedReply:"[payment proof forwarded]"});
+    updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent",generatedReply:"Terima kasih, bukti pembayaran sudah kami terima. Pesanan akan segera diproses setelah verifikasi pengelola."});
     return {handled:true,forwarded:true};
   } catch(error) {
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"failed",error:error.message||"PAYMENT_PROOF_FAILED"});
