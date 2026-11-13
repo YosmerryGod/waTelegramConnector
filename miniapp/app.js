@@ -3245,6 +3245,9 @@
 
     // [ADDED] Require an image proof before the user can report a Premium payment.
     let selectedPremiumProof = null;
+    let proofPreviewObjectUrl = null; // [ADDED]
+    let proofPreviewReady = false; // [ADDED]
+    let proofReadToken = 0; // [ADDED]
     const proofModal = $("#premiumProofModal");
     const proofInput = $("#premiumProofInput");
     const proofPreview = $("#premiumProofPreview");
@@ -3255,6 +3258,10 @@
     $("#premiumPaymentPaidButton").addEventListener("click", () => {
       if (!activePremiumOrderId) return;
       selectedPremiumProof = null;
+      proofReadToken += 1; // [ADDED]
+      proofPreviewReady = false; // [ADDED]
+      if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
+      proofPreviewObjectUrl = null; // [ADDED]
       proofInput.value = "";
       proofPreview.removeAttribute("src");
       proofPreview.classList.add("hidden");
@@ -3272,10 +3279,14 @@
 
     proofInput.addEventListener("change", () => {
       const file = proofInput.files?.[0] || null;
+      const readToken = ++proofReadToken; // [ADDED]
       selectedPremiumProof = null;
+      proofPreviewReady = false; // [ADDED]
       proofConfirmButton.disabled = true;
       proofPreviewLoading.classList.add("hidden"); // [ADDED]
       $("#premiumProofError").textContent = "";
+      if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
+      proofPreviewObjectUrl = null; // [ADDED]
       if (!file) return;
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
         $("#premiumProofError").textContent = "Format gambar harus JPG, PNG, atau WEBP.";
@@ -3287,45 +3298,41 @@
         proofInput.value = "";
         return;
       }
-      const reader = new FileReader();
+
       proofPreviewLoading.classList.remove("hidden"); // [ADDED]
-      reader.onload = async () => {
+      proofPreviewObjectUrl = URL.createObjectURL(file); // [ADDED]
+      proofPreview.onload = () => { // [ADDED]
+        if (readToken !== proofReadToken) return;
+        proofPreviewReady = true;
+        proofPreview.classList.remove("hidden");
+        proofPlaceholder.classList.add("hidden");
+        proofPreviewLoading.classList.add("hidden");
+        proofConfirmButton.disabled = !selectedPremiumProof;
+      };
+      proofPreview.onerror = () => { // [ADDED]
+        if (readToken !== proofReadToken) return;
+        proofPreviewReady = false;
+        proofPreviewLoading.classList.add("hidden");
+        $("#premiumProofError").textContent = "Gambar gagal ditampilkan. Silakan pilih ulang.";
+      };
+      proofPreview.src = proofPreviewObjectUrl; // [ADDED]
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (readToken !== proofReadToken) return; // [ADDED]
         const imageData = String(reader.result || "");
         if (!imageData) {
-          proofPreviewLoading.classList.add("hidden"); // [ADDED]
+          proofPreviewLoading.classList.add("hidden");
           $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
           return;
         }
-
         selectedPremiumProof = imageData;
-        proofPreview.onload = async () => { // [ADDED]
-          try {
-            if (typeof proofPreview.decode === "function") {
-              await proofPreview.decode();
-            }
-            proofPreview.classList.remove("hidden");
-            proofPlaceholder.classList.add("hidden");
-            proofPreviewLoading.classList.add("hidden");
-            proofConfirmButton.disabled = false;
-          } catch {
-            selectedPremiumProof = null;
-            proofPreviewLoading.classList.add("hidden");
-            $("#premiumProofError").textContent = "Gambar gagal ditampilkan. Silakan pilih ulang.";
-          }
-        };
-        proofPreview.onerror = () => { // [ADDED]
-          selectedPremiumProof = null;
-          proofPreviewLoading.classList.add("hidden");
-          $("#premiumProofError").textContent = "Gambar gagal ditampilkan. Silakan pilih ulang.";
-        };
-        proofPreview.src = imageData;
-
-        if (proofPreview.complete && proofPreview.naturalWidth > 0) { // [ADDED]
-          proofPreview.onload();
-        }
+        proofConfirmButton.disabled = !proofPreviewReady; // [ADDED]
       };
       reader.onerror = () => {
-        proofPreviewLoading.classList.add("hidden"); // [ADDED]
+        if (readToken !== proofReadToken) return; // [ADDED]
+        selectedPremiumProof = null;
+        proofPreviewLoading.classList.add("hidden");
         $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
       };
       reader.readAsDataURL(file);
@@ -3335,12 +3342,20 @@
       if (proofModal.classList.contains("is-uploading")) return; // [ADDED]
       proofModal.classList.add("hidden");
       selectedPremiumProof = null;
+      proofReadToken += 1; // [ADDED]
+      proofPreviewReady = false; // [ADDED]
+      if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
+      proofPreviewObjectUrl = null; // [ADDED]
     });
 
     proofModal.addEventListener("click", (event) => {
       if (event.target === proofModal && !proofModal.classList.contains("is-uploading")) { // [MODIFIED]
         proofModal.classList.add("hidden");
         selectedPremiumProof = null;
+        proofReadToken += 1; // [ADDED]
+        proofPreviewReady = false; // [ADDED]
+        if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
+        proofPreviewObjectUrl = null; // [ADDED]
       }
     });
 
