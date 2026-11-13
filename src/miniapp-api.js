@@ -912,14 +912,20 @@ router.get("/chats", async (req, res) => {
         const jid = String(chat.whatsapp_chat_id || "");
         const isGroupOrChannel = chat.chat_type === "group" || jid.endsWith("@newsletter");
         const cached = getWhatsAppProfileCache(req.telegramId, jid, req.sessionId);
-        return isGroupOrChannel && !cached?.picture_url;
+        const cacheExpired = !cached || Date.now() - Number(cached.fetched_at || 0) > 24 * 60 * 60 * 1000;
+        return isGroupOrChannel && cacheExpired;
       })
       .slice(0, 8);
 
     if (avatarTargets.length) {
       await Promise.allSettled(avatarTargets.map(async (chat) => {
         const jid = String(chat.whatsapp_chat_id || "");
-        const remote = await getWhatsAppProfile(req.sessionId, jid);
+        let remote = { pictureUrl: null, aboutText: null, statusSetAt: null };
+        try {
+          remote = await getWhatsAppProfile(req.sessionId, jid);
+        } catch {
+          // [ADDED] Cache an unavailable result briefly to avoid retrying on every list refresh.
+        }
         saveWhatsAppProfileCache({
           telegramId: req.telegramId,
           sessionId: req.sessionId,
