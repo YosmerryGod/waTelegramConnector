@@ -3153,7 +3153,13 @@
       const plan = premiumPlans[selectedPremiumPeriod];
       const button = $("#premiumContinueButton");
       const canvas = $("#premiumPaymentQr");
+      const qrWrap = $("#premiumPaymentQrWrap");
+      const qrContext = canvas.getContext("2d");
       button.disabled = true;
+      // [ADDED] Keep the logo hidden and show a loader until the QR image is drawn.
+      qrWrap?.classList.add("is-loading");
+      qrWrap?.classList.remove("is-ready");
+      qrContext?.clearRect(0, 0, canvas.width, canvas.height);
       $("#premiumPaymentPlan").textContent = plan.label;
       $("#premiumPaymentAmount").textContent = "Menyiapkan…";
       $("#premiumPaymentUniqueCode").textContent = "Membuat pesanan pembayaran";
@@ -3191,10 +3197,15 @@
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.drawImage(qrImage, 0, 0, canvas.width, canvas.height);
+        // [ADDED] Reveal the centered WAGRAM logo only after the QR canvas is ready.
+        qrWrap?.classList.remove("is-loading");
+        qrWrap?.classList.add("is-ready");
         $("#premiumPaymentStatus").textContent = "QRIS siap dipindai";
       } catch (error) {
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
+        // [ADDED] Never reveal the brand logo when QR rendering fails.
+        qrWrap?.classList.remove("is-loading", "is-ready");
         activePremiumOrderId = null;
         $("#premiumPaymentDownloadButton").disabled = true;
         $("#premiumPaymentPaidButton").disabled = true;
