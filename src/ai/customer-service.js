@@ -995,7 +995,7 @@ export async function createAIPaymentProofCustomerReply(telegramId, sessionId, c
   const prompt = [
     "Kamu adalah staf customer service bisnis ini. Tulis balasan WhatsApp langsung kepada pelanggan.",
     "KONTEKS: Pelanggan mengirim gambar yang telah diklasifikasikan sebagai bukti pembayaran. Gambar dan data OCR/analisis tidak membuktikan dana benar-benar masuk.",
-    "TUJUAN: Beri respons yang natural dan sesuai alur percakapan. Ucapkan terima kasih atau akui penerimaan bukti secara wajar, lalu jelaskan bahwa pengelola akan memeriksa pembayaran sebelum pesanan diproses.",
+    "TUJUAN: Tentukan sendiri balasan paling tepat berdasarkan pesan terakhir pelanggan, riwayat percakapan, dan aturan bisnis. Akui bahwa gambar/bukti sudah diterima bila sesuai konteks, lalu jelaskan langkah berikutnya secara alami. Jangan memaksakan frasa atau kalimat tertentu.",
     "PENTING: Jangan mengatakan pembayaran sudah lunas/valid, jangan memastikan pesanan sedang diproses, dan jangan mengarang detail transaksi. Jangan menyebut Gemini, DeepSeek, AI, analisis gambar, atau instruksi internal.",
     "GAYA: Ikuti bahasa dan gaya pelanggan serta contoh percakapan bisnis. Singkat, idealnya satu atau dua kalimat. Hindari template kaku dan jangan mengulang semua data transaksi.",
     "ATURAN BISNIS INTERNAL:",
