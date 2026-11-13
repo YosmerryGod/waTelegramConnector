@@ -1015,9 +1015,15 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
   const stateKey = sessionId;
   const isAdditionalSession = sessionId !== id;
   const silentStartup = options.silentStartup === true;
+  // [ADDED] Mini App pairing keeps QR delivery inside the Mini App, never Telegram chat.
+  const notifyQrToTelegram = options.notifyQrToTelegram === true ||
+    (options.notifyQrToTelegram !== false && !isAdditionalSession);
 
   return {
     onQr: async (qr) => {
+      // [ADDED] Do not send QR photos to Telegram for additional Mini App sessions.
+      if (!notifyQrToTelegram) return;
+
       const now = Date.now();
       const lastSent = lastQrSentAt.get(sessionId) || 0;
 
