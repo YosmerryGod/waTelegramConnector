@@ -403,11 +403,27 @@ export function recordAICustomerServiceMessage(telegramId, sessionId, chatId) {
       return 0;
     }
 
+    // [ADDED] Exclude AI-generated replies from the human training corpus,
+    // including the brief window before their send status is finalized.
+    const generatedReplies = new Set(
+      db.prepare(`
+        SELECT generated_reply
+        FROM ai_auto_reply_jobs
+        WHERE telegram_id = ?
+          AND session_id = ?
+          AND chat_id = ?
+          AND generated_reply IS NOT NULL
+          AND status IN ('processing', 'sent')
+      `).all(owner.telegramId, owner.sessionId, chatId)
+        .map((row) => String(row.generated_reply || "").trim())
+    );
+
     const recent = listMessages(owner.telegramId, chatId, 20, owner.sessionId)
       .filter((message) =>
         message.message_type === "text" &&
         message.body?.trim() &&
-        !message.is_deleted
+        !message.is_deleted &&
+        !(message.direction === "outgoing" && generatedReplies.has(message.body.trim()))
       );
     const pairs = buildConversationPairs(recent);
 
