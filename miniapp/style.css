@@ -7599,3 +7599,11 @@ body.in-chat #topbar {
     animation-duration: 1.8s;
   }
 }
+
+/* [MODIFIED] Keep QRIS preview hidden until decoding completes; loading ring remains visible meanwhile. */
+.ai-business-qris-preview.is-loading {
+  opacity: 0;
+}
+.ai-business-qris-preview {
+  transition: opacity .16s ease;
+}
