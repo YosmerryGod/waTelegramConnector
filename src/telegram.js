@@ -1362,7 +1362,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             !managerReplyResult?.handled &&
             !isOutgoing &&
             !isGroup &&
-            messageType === "text" &&
+            ["text", "view_once"].includes(messageType) &&
             String(body || "").trim()
           ) {
             void handleIncomingAIAutoReply({
