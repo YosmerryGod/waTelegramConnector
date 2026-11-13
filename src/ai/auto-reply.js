@@ -127,7 +127,7 @@ export async function handleIncomingAIAutoReply({
   const whatsappChatId = String(chatId || "");
   const incomingId = String(messageId || "");
 
-  if (!/^\\d+$/.test(ownerId) || !accountId || !whatsappChatId || !incomingId) {
+  if (!/^\d+$/.test(ownerId) || !accountId || !whatsappChatId || !incomingId) {
     return { sent: false, reason: "invalid_input" };
   }
 
