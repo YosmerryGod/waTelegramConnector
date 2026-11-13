@@ -3317,25 +3317,93 @@
       };
       proofPreview.src = proofPreviewObjectUrl; // [ADDED]
 
-      const reader = new FileReader();
-      reader.onload = () => {
+      // [ADDED] Compress payment proof before Base64 encoding to avoid HTTP 413 payload limits.
+      const compressPaymentProof = async (sourceFile) => {
+        let bitmap;
+        try {
+          bitmap = await createImageBitmap(sourceFile);
+        } catch {
+          throw new Error("Gambar tidak dapat diproses. Coba pilih gambar lain.");
+        }
+
+        try {
+          const maxDimension = 1600;
+          const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+          canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+          const context = canvas.getContext("2d", { alpha: false });
+          if (!context) throw new Error("Browser tidak mendukung pemrosesan gambar.");
+
+          context.fillStyle = "#ffffff";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+          const toJpegBlob = (quality) => new Promise((resolve, reject) => {
+            canvas.toBlob(
+              (blob) => blob ? resolve(blob) : reject(new Error("Gambar gagal dikompres.")),
+              "image/jpeg",
+              quality
+            );
+          });
+
+          let compressed = await toJpegBlob(0.78);
+          if (compressed.size > 1200 * 1024) compressed = await toJpegBlob(0.65);
+          if (compressed.size > 1800 * 1024) {
+            const smallerCanvas = document.createElement("canvas");
+            smallerCanvas.width = Math.max(1, Math.round(canvas.width * 0.75));
+            smallerCanvas.height = Math.max(1, Math.round(canvas.height * 0.75));
+            const smallerContext = smallerCanvas.getContext("2d", { alpha: false });
+            if (!smallerContext) throw new Error("Browser tidak mendukung pemrosesan gambar.");
+            smallerContext.fillStyle = "#ffffff";
+            smallerContext.fillRect(0, 0, smallerCanvas.width, smallerCanvas.height);
+            smallerContext.drawImage(canvas, 0, 0, smallerCanvas.width, smallerCanvas.height);
+            compressed = await new Promise((resolve, reject) => {
+              smallerCanvas.toBlob(
+                (blob) => blob ? resolve(blob) : reject(new Error("Gambar gagal dikompres.")),
+                "image/jpeg",
+                0.62
+              );
+            });
+          }
+          if (compressed.size > 2 * 1024 * 1024) {
+            throw new Error("Ukuran gambar masih terlalu besar setelah dikompres. Pilih gambar lain.");
+          }
+          return compressed;
+        } finally {
+          bitmap.close?.();
+        }
+      };
+
+      compressPaymentProof(file).then((compressedFile) => {
         if (readToken !== proofReadToken) return; // [ADDED]
-        const imageData = String(reader.result || "");
-        if (!imageData) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (readToken !== proofReadToken) return; // [ADDED]
+          const imageData = String(reader.result || "");
+          if (!imageData) {
+            selectedPremiumProof = null;
+            proofPreviewLoading.classList.add("hidden");
+            $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
+            return;
+          }
+          selectedPremiumProof = imageData;
+          proofConfirmButton.disabled = !proofPreviewReady; // [ADDED]
+          proofPreviewLoading.classList.add("hidden"); // [ADDED]
+        };
+        reader.onerror = () => {
+          if (readToken !== proofReadToken) return; // [ADDED]
+          selectedPremiumProof = null;
           proofPreviewLoading.classList.add("hidden");
           $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
-          return;
-        }
-        selectedPremiumProof = imageData;
-        proofConfirmButton.disabled = !proofPreviewReady; // [ADDED]
-      };
-      reader.onerror = () => {
+        };
+        reader.readAsDataURL(compressedFile);
+      }).catch((error) => {
         if (readToken !== proofReadToken) return; // [ADDED]
         selectedPremiumProof = null;
         proofPreviewLoading.classList.add("hidden");
-        $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
-      };
-      reader.readAsDataURL(file);
+        $("#premiumProofError").textContent = error.message || "Gambar gagal diproses.";
+      });
     });
 
     $("#premiumProofCancelButton").addEventListener("click", () => {
