@@ -345,7 +345,7 @@
     $("#bottomNav").classList.toggle("hidden", page === "premium" || page === "aiBusiness");
     document.body.classList.toggle("premium-page-active", page === "premium");
     closeConversationUI();
-    // [ADDED] WAGRAM AI uses the same full-screen conversation layout as WhatsApp chats.
+    // [ADDED] WAMO AI uses the same full-screen conversation layout as WhatsApp chats.
     $("#topbar").classList.toggle("hidden", page === "aiBusiness");
     document.body.classList.toggle("in-chat", page === "aiBusiness");
 
@@ -388,7 +388,7 @@
   function updateTopbarTitle() {
     const titles = {
       chats: "Pesan",
-      aiBusiness: "WAGRAM AI", // [ADDED] Title for the WAGRAM AI conversation.
+      aiBusiness: "WAMO AI", // [ADDED] Title for the WAMO AI conversation.
       calls: "Panggilan",
       contacts: "Kontak",
       account: "Profil",
@@ -766,7 +766,7 @@
     return Number.isFinite(expiry) && expiry > Date.now();
   }
 
-  // [ADDED] Update the permanently pinned WAGRAM AI row with the current access state.
+  // [ADDED] Update the permanently pinned WAMO AI row with the current access state.
   function renderWagramAiPinnedRow() {
     const eligible = isAIBusinessEligible();
     const planLabel = $("#wagramAiPlanLabel");
@@ -2428,11 +2428,11 @@
     });
 
     $("#backButton").addEventListener("click", () => setPage("chats"));
-    // [ADDED] Return from the WAGRAM AI page to the chat list.
+    // [ADDED] Return from the WAMO AI page to the chat list.
     $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
-    // [ADDED] Restore the current session's training indicator when opening WAGRAM AI.
+    // [ADDED] Restore the current session's training indicator when opening WAMO AI.
     renderAIBusinessTrainingState();
-    // [MODIFIED] Restore chat and migrate legacy local settings to the server when opening WAGRAM AI.
+    // [MODIFIED] Restore chat and migrate legacy local settings to the server when opening WAMO AI.
     $("#openAIBusinessButton")?.addEventListener("click", async () => {
       renderAIBusinessHistory();
       try { await syncAIBusinessSettingsFromServer(); }
@@ -2447,7 +2447,7 @@
 
     // [MODIFIED] Open the centered AI Business settings menu.
     $("#aiBusinessSettingsButton")?.addEventListener("click", openAIBusinessSettings);
-    // [ADDED] Toggle the WAGRAM AI conversation actions menu.
+    // [ADDED] Toggle the WAMO AI conversation actions menu.
     $("#aiBusinessMoreButton")?.addEventListener("click", (event) => {
       event.stopPropagation();
       const menu = $("#aiBusinessMoreMenu");
@@ -2456,7 +2456,7 @@
       menu?.classList.toggle("hidden", isOpen);
       button?.setAttribute("aria-expanded", String(!isOpen));
     });
-    // [MODIFIED] Toggle AI training in the existing WAGRAM AI chat, with OpenRouter simulating customers.
+    // [MODIFIED] Toggle AI training in the existing WAMO AI chat, with OpenRouter simulating customers.
     $("#toggleAIBusinessTrainingButton")?.addEventListener("click", async () => {
       $("#aiBusinessMoreMenu")?.classList.add("hidden");
       $("#aiBusinessMoreButton")?.setAttribute("aria-expanded", "false");
@@ -2491,11 +2491,11 @@
         showToast("Riwayat chat masih kosong.");
         return;
       }
-      const confirmed = await confirmAction("Bersihkan seluruh riwayat chat WAGRAM AI untuk akun WhatsApp ini?");
+      const confirmed = await confirmAction("Bersihkan seluruh riwayat chat WAMO AI untuk akun WhatsApp ini?");
       if (!confirmed) return;
       saveAIBusinessHistory([]);
       renderAIBusinessHistory();
-      showToast("Riwayat chat WAGRAM AI berhasil dibersihkan.");
+      showToast("Riwayat chat WAMO AI berhasil dibersihkan.");
     });
     // [ADDED] Close the actions menu when tapping outside it.
     document.addEventListener("click", (event) => {
@@ -2796,7 +2796,7 @@
     closeAIBusinessSettings();
   }
 
-  // [ADDED] Keep WAGRAM AI conversation history locally per WhatsApp session.
+  // [ADDED] Keep WAMO AI conversation history locally per WhatsApp session.
   const AI_BUSINESS_HISTORY_KEY = "wagram-ai-business-history-v1";
 
   function getAIBusinessHistory() {
@@ -2956,7 +2956,7 @@
     const typingId = `ai-business-typing-${Date.now()}`;
     messages.insertAdjacentHTML("beforeend", `
       <div class="message ai-business-reply" id="${typingId}">
-        <div class="message-text">WAGRAM AI sedang berpikir…</div>
+        <div class="message-text">WAMO AI sedang berpikir…</div>
       </div>`);
     messages.scrollTop = messages.scrollHeight;
 
@@ -2973,7 +2973,7 @@
           })
         });
         const reply = String(result.reply || "").trim();
-        if (!reply) throw new Error("WAGRAM AI mengirim jawaban kosong.");
+        if (!reply) throw new Error("WAMO AI mengirim jawaban kosong.");
         const updated = getAIBusinessHistory();
         updated.push({ role: "assistant", content: reply, qrisImage: Boolean(result.qrisImage), time: timeOnly(Date.now()), trace: result.trace || null });
         saveAIBusinessHistory(updated);
@@ -2983,7 +2983,7 @@
       document.getElementById(typingId)?.remove();
       messages.insertAdjacentHTML("beforeend", `
         <div class="message ai-business-reply ai-business-error">
-          <div class="message-text">${escapeHTML(error.message || "WAGRAM AI belum dapat menjawab.")}</div>
+          <div class="message-text">${escapeHTML(error.message || "WAMO AI belum dapat menjawab.")}</div>
           <div class="message-time">${escapeHTML(timeOnly(Date.now()))}</div>
         </div>`);
       messages.scrollTop = messages.scrollHeight;
@@ -2994,7 +2994,7 @@
     }
   }
 
-  // [MODIFIED] Send the owner's message to the authenticated WAGRAM AI Business API.
+  // [MODIFIED] Send the owner's message to the authenticated WAMO AI Business API.
   $("#aiBusinessComposer")?.addEventListener("submit", (event) => {
     event.preventDefault();
     sendAIBusinessMessage($("#aiBusinessInput")?.value || "");
