@@ -3289,13 +3289,40 @@
       }
       const reader = new FileReader();
       proofPreviewLoading.classList.remove("hidden"); // [ADDED]
-      reader.onload = () => {
-        selectedPremiumProof = String(reader.result || "");
-        proofPreview.src = selectedPremiumProof;
-        proofPreview.classList.remove("hidden");
-        proofPlaceholder.classList.add("hidden");
-        proofPreviewLoading.classList.add("hidden"); // [ADDED]
-        proofConfirmButton.disabled = false;
+      reader.onload = async () => {
+        const imageData = String(reader.result || "");
+        if (!imageData) {
+          proofPreviewLoading.classList.add("hidden"); // [ADDED]
+          $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
+          return;
+        }
+
+        selectedPremiumProof = imageData;
+        proofPreview.onload = async () => { // [ADDED]
+          try {
+            if (typeof proofPreview.decode === "function") {
+              await proofPreview.decode();
+            }
+            proofPreview.classList.remove("hidden");
+            proofPlaceholder.classList.add("hidden");
+            proofPreviewLoading.classList.add("hidden");
+            proofConfirmButton.disabled = false;
+          } catch {
+            selectedPremiumProof = null;
+            proofPreviewLoading.classList.add("hidden");
+            $("#premiumProofError").textContent = "Gambar gagal ditampilkan. Silakan pilih ulang.";
+          }
+        };
+        proofPreview.onerror = () => { // [ADDED]
+          selectedPremiumProof = null;
+          proofPreviewLoading.classList.add("hidden");
+          $("#premiumProofError").textContent = "Gambar gagal ditampilkan. Silakan pilih ulang.";
+        };
+        proofPreview.src = imageData;
+
+        if (proofPreview.complete && proofPreview.naturalWidth > 0) { // [ADDED]
+          proofPreview.onload();
+        }
       };
       reader.onerror = () => {
         proofPreviewLoading.classList.add("hidden"); // [ADDED]
