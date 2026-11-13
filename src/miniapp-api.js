@@ -889,7 +889,7 @@ router.get("/profile/:jid", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/miniapp/chats?limit=50&offset=0&archived=false
-router.get("/chats", async (req, res) => {
+router.get("/chats", (req, res) => {
   try {
     const limit = parseLimit(req.query.limit, 50, MAX_LIMIT);
     const offset = Math.max(
@@ -899,50 +899,13 @@ router.get("/chats", async (req, res) => {
 
     const archived = parseBoolean(req.query.archived);
 
-    let chats = listChats(req.telegramId, {
+    // [MODIFIED] Return local chat rows immediately; never wait for WhatsApp profile/avatar lookups.
+    const chats = listChats(req.telegramId, {
       limit,
       offset,
       includeArchived: archived === true,
       sessionId: req.sessionId
     });
-
-    // [ADDED] Hydrate missing group/channel avatars once and cache them for future list loads.
-    const avatarTargets = chats
-      .filter((chat) => {
-        const jid = String(chat.whatsapp_chat_id || "");
-        const isGroupOrChannel = chat.chat_type === "group" || jid.endsWith("@newsletter");
-        const cached = getWhatsAppProfileCache(req.telegramId, jid, req.sessionId);
-        const cacheExpired = !cached || Date.now() - Number(cached.fetched_at || 0) > 24 * 60 * 60 * 1000;
-        return isGroupOrChannel && cacheExpired;
-      })
-      .slice(0, 8);
-
-    if (avatarTargets.length) {
-      await Promise.allSettled(avatarTargets.map(async (chat) => {
-        const jid = String(chat.whatsapp_chat_id || "");
-        let remote = { pictureUrl: null, aboutText: null, statusSetAt: null };
-        try {
-          remote = await getWhatsAppProfile(req.sessionId, jid);
-        } catch {
-          // [ADDED] Cache an unavailable result briefly to avoid retrying on every list refresh.
-        }
-        saveWhatsAppProfileCache({
-          telegramId: req.telegramId,
-          sessionId: req.sessionId,
-          whatsappJid: jid,
-          displayName: chat.display_name || chat.name || null,
-          aboutText: remote.aboutText,
-          pictureUrl: remote.pictureUrl,
-          statusSetAt: remote.statusSetAt
-        });
-      }));
-      chats = listChats(req.telegramId, {
-        limit,
-        offset,
-        includeArchived: archived === true,
-        sessionId: req.sessionId
-      });
-    }
 
     const filteredChats = archived === true
       ? chats.filter((chat) => Boolean(chat.is_archived))
