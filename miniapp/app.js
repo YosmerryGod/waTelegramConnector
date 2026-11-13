@@ -287,7 +287,7 @@
   async function api(path, options = {}) {
     const headers = {
       "X-Telegram-Init-Data": tg?.initData || "",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.body ? { "Content-Type": options.contentType || "application/json" } : {}), // [MODIFIED]
       ...(state.activeSessionId && path !== "/me" && path !== "/account" && path !== "/sessions" && !path.startsWith("/premium/") ? { "X-WAGRAM-Session-ID": state.activeSessionId } : {}),
       ...options.headers
     };
@@ -3249,7 +3249,8 @@
     });
 
     // [ADDED] Require an image proof before the user can report a Premium payment.
-    let selectedPremiumProof = null;
+    let selectedPremiumProof = null; // [MODIFIED] Stores compressed image Blob, not Base64.
+    let selectedPremiumProofName = ""; // [ADDED]
     let proofPreviewObjectUrl = null; // [ADDED]
     let proofPreviewReady = false; // [ADDED]
     let proofReadToken = 0; // [ADDED]
@@ -3269,6 +3270,10 @@
     $("#premiumPaymentPaidButton").addEventListener("click", () => {
       if (!activePremiumOrderId) return;
       selectedPremiumProof = null;
+      selectedPremiumProofName = ""; // [ADDED]
+      $("#premiumProofFileName").textContent = "Belum ada file dipilih"; // [ADDED]
+      $("#premiumProofFileSize").textContent = "JPG, PNG, atau WEBP · Maks. 5 MB"; // [ADDED]
+      $("#premiumProofPlaceholder").classList.remove("has-file"); // [ADDED]
       proofReadToken += 1; // [ADDED]
       proofPreviewReady = false; // [ADDED]
       if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
@@ -3286,140 +3291,107 @@
       proofModal.removeAttribute("aria-busy"); // [ADDED]
       $("#premiumProofError").textContent = "";
       $("#premiumProofError").classList.add("hidden"); // [ADDED]
+      $("#premiumProofFileName").textContent = "Belum ada file dipilih"; // [ADDED]
+      $("#premiumProofFileSize").textContent = "JPG, PNG, atau WEBP · Maks. 5 MB"; // [ADDED]
+      $("#premiumProofPlaceholder").classList.remove("has-file"); // [ADDED]
       proofModal.classList.remove("hidden");
     });
 
-    proofInput.addEventListener("change", () => {
+    proofInput.addEventListener("change", async () => {
       const file = proofInput.files?.[0] || null;
-      const readToken = ++proofReadToken; // [ADDED]
+      const readToken = ++proofReadToken; // [MODIFIED]
       selectedPremiumProof = null;
-      proofPreviewReady = false; // [ADDED]
+      selectedPremiumProofName = "";
       proofConfirmButton.disabled = true;
-      proofPreviewLoading.classList.add("hidden"); // [ADDED]
+      proofPreviewLoading.classList.add("hidden");
       $("#premiumProofError").textContent = "";
-      $("#premiumProofError").classList.add("hidden"); // [ADDED]
-      if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
-      proofPreviewObjectUrl = null; // [ADDED]
-      if (!file) return;
+      $("#premiumProofError").classList.add("hidden");
+      if (!file) {
+        $("#premiumProofFileName").textContent = "Belum ada file dipilih";
+        $("#premiumProofFileSize").textContent = "JPG, PNG, atau WEBP · Maks. 5 MB";
+        $("#premiumProofPlaceholder").classList.remove("has-file");
+        return;
+      }
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        showPremiumProofInlineError("Format gambar harus JPG, PNG, atau WEBP.");
+        showPremiumProofInlineError("Format file tidak didukung. Pilih JPG, PNG, atau WEBP.");
         proofInput.value = "";
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        showPremiumProofInlineError("Ukuran gambar maksimal 5 MB.");
+        showPremiumProofInlineError("File melebihi batas 5 MB. Pilih file yang lebih kecil.");
         proofInput.value = "";
         return;
       }
 
-      proofPreviewLoading.classList.remove("hidden"); // [ADDED]
-      proofPreviewObjectUrl = URL.createObjectURL(file); // [ADDED]
-      proofPreview.onload = () => { // [ADDED]
-        if (readToken !== proofReadToken) return;
-        proofPreviewReady = true;
-        proofPreview.classList.remove("hidden");
-        proofPlaceholder.classList.add("hidden");
-        proofPreviewLoading.classList.add("hidden");
-        proofConfirmButton.disabled = !selectedPremiumProof;
-      };
-      proofPreview.onerror = () => { // [ADDED]
-        if (readToken !== proofReadToken) return;
-        proofPreviewReady = false;
-        proofPreviewLoading.classList.add("hidden");
-        showPremiumProofInlineError("Gambar gagal ditampilkan. Silakan pilih ulang.");
-      };
-      proofPreview.src = proofPreviewObjectUrl; // [ADDED]
-
-      // [ADDED] Compress payment proof before Base64 encoding to avoid HTTP 413 payload limits.
-      const compressPaymentProof = async (sourceFile) => {
-        let bitmap;
-        try {
-          bitmap = await createImageBitmap(sourceFile);
-        } catch {
-          throw new Error("Gambar tidak dapat diproses. Coba pilih gambar lain.");
+      proofPreviewLoading.classList.remove("hidden");
+      let bitmap;
+      try {
+        bitmap = await createImageBitmap(file);
+        if (readToken !== proofReadToken) {
+          bitmap.close?.();
+          return;
         }
+        const maxDimension = 1600;
+        const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        const context = canvas.getContext("2d", { alpha: false });
+        if (!context) throw new Error("Browser tidak mendukung pemrosesan gambar.");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        bitmap.close?.();
+        bitmap = null;
 
-        try {
-          const maxDimension = 1600;
-          const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-          const canvas = document.createElement("canvas");
-          canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-          canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-          const context = canvas.getContext("2d", { alpha: false });
-          if (!context) throw new Error("Browser tidak mendukung pemrosesan gambar.");
-
-          context.fillStyle = "#ffffff";
-          context.fillRect(0, 0, canvas.width, canvas.height);
-          context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-
-          const toJpegBlob = (quality) => new Promise((resolve, reject) => {
-            canvas.toBlob(
-              (blob) => blob ? resolve(blob) : reject(new Error("Gambar gagal dikompres.")),
+        const toJpegBlob = (quality) => new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => blob ? resolve(blob) : reject(new Error("File gagal diproses.")),
+            "image/jpeg",
+            quality
+          );
+        });
+        let compressed = await toJpegBlob(0.78);
+        if (compressed.size > 1200 * 1024) compressed = await toJpegBlob(0.65);
+        if (compressed.size > 1800 * 1024) {
+          const smallerCanvas = document.createElement("canvas");
+          smallerCanvas.width = Math.max(1, Math.round(canvas.width * 0.75));
+          smallerCanvas.height = Math.max(1, Math.round(canvas.height * 0.75));
+          const smallerContext = smallerCanvas.getContext("2d", { alpha: false });
+          if (!smallerContext) throw new Error("Browser tidak mendukung pemrosesan gambar.");
+          smallerContext.fillStyle = "#ffffff";
+          smallerContext.fillRect(0, 0, smallerCanvas.width, smallerCanvas.height);
+          smallerContext.drawImage(canvas, 0, 0, smallerCanvas.width, smallerCanvas.height);
+          compressed = await new Promise((resolve, reject) => {
+            smallerCanvas.toBlob(
+              (blob) => blob ? resolve(blob) : reject(new Error("File gagal dikompres.")),
               "image/jpeg",
-              quality
+              0.62
             );
           });
-
-          let compressed = await toJpegBlob(0.78);
-          if (compressed.size > 1200 * 1024) compressed = await toJpegBlob(0.65);
-          if (compressed.size > 1800 * 1024) {
-            const smallerCanvas = document.createElement("canvas");
-            smallerCanvas.width = Math.max(1, Math.round(canvas.width * 0.75));
-            smallerCanvas.height = Math.max(1, Math.round(canvas.height * 0.75));
-            const smallerContext = smallerCanvas.getContext("2d", { alpha: false });
-            if (!smallerContext) throw new Error("Browser tidak mendukung pemrosesan gambar.");
-            smallerContext.fillStyle = "#ffffff";
-            smallerContext.fillRect(0, 0, smallerCanvas.width, smallerCanvas.height);
-            smallerContext.drawImage(canvas, 0, 0, smallerCanvas.width, smallerCanvas.height);
-            compressed = await new Promise((resolve, reject) => {
-              smallerCanvas.toBlob(
-                (blob) => blob ? resolve(blob) : reject(new Error("Gambar gagal dikompres.")),
-                "image/jpeg",
-                0.62
-              );
-            });
-          }
-          if (compressed.size > 2 * 1024 * 1024) {
-            throw new Error("Ukuran gambar masih terlalu besar setelah dikompres. Pilih gambar lain.");
-          }
-          return compressed;
-        } finally {
-          bitmap.close?.();
         }
-      };
-
-      compressPaymentProof(file).then((compressedFile) => {
-        if (readToken !== proofReadToken) return; // [ADDED]
-        const reader = new FileReader();
-        reader.onload = () => {
-          if (readToken !== proofReadToken) return; // [ADDED]
-          const imageData = String(reader.result || "");
-          if (!imageData) {
-            selectedPremiumProof = null;
-            proofPreviewLoading.classList.add("hidden");
-            showPremiumProofInlineError("Gambar gagal dibaca. Silakan pilih ulang.");
-            return;
-          }
-          selectedPremiumProof = imageData;
-          proofConfirmButton.disabled = !proofPreviewReady; // [ADDED]
-          proofPreviewLoading.classList.add("hidden"); // [ADDED]
-        };
-        reader.onerror = () => {
-          if (readToken !== proofReadToken) return; // [ADDED]
-          selectedPremiumProof = null;
-          proofPreviewLoading.classList.add("hidden");
-          showPremiumProofInlineError("Gambar gagal dibaca. Silakan pilih ulang.");
-        };
-        reader.readAsDataURL(compressedFile);
-      }).catch((error) => {
-        if (readToken !== proofReadToken) return; // [ADDED]
+        if (readToken !== proofReadToken) return;
+        if (compressed.size > 5 * 1024 * 1024) {
+          throw new Error("File masih terlalu besar setelah diproses. Pilih gambar lain.");
+        }
+        selectedPremiumProof = compressed; // [MODIFIED] Keep raw Blob; no Base64 conversion.
+        selectedPremiumProofName = file.name || "bukti-pembayaran.jpg";
+        $("#premiumProofFileName").textContent = selectedPremiumProofName;
+        $("#premiumProofFileSize").textContent = (compressed.size / 1024).toFixed(0) + " KB · Siap dikirim";
+        $("#premiumProofPlaceholder").classList.add("has-file");
+        proofConfirmButton.disabled = false;
+      } catch (error) {
+        if (readToken !== proofReadToken) return;
         selectedPremiumProof = null;
-        proofPreviewLoading.classList.add("hidden");
+        selectedPremiumProofName = "";
         showPremiumProofInlineError(error.message || "Gambar gagal diproses.");
-      });
+      } finally {
+        bitmap?.close?.();
+        if (readToken === proofReadToken) proofPreviewLoading.classList.add("hidden");
+      }
     });
 
-    $("#premiumProofCancelButton").addEventListener("click", () => {
+        $("#premiumProofCancelButton").addEventListener("click", () => {
       if (proofModal.classList.contains("is-uploading")) return; // [ADDED]
       proofModal.classList.add("hidden");
       selectedPremiumProof = null;
@@ -3455,7 +3427,8 @@
       try {
         await api("/premium/orders/" + encodeURIComponent(activePremiumOrderId) + "/paid", {
           method: "POST",
-          body: JSON.stringify({ proofImage: selectedPremiumProof })
+          body: selectedPremiumProof, // [MODIFIED] Send raw image bytes, not Base64 JSON.
+          contentType: "image/jpeg" // [ADDED]
         });
         proofModal.classList.add("hidden");
         paidButton.disabled = true;
