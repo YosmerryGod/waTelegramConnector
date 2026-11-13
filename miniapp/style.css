@@ -5287,6 +5287,16 @@ body.premium-page-active .premium-comparison-table th {
   font-size: 12px;
   font-weight: 600;
 }
+
+/* [ADDED] Allow the Premium duration column heading to wrap instead of clipping. */
+body.premium-page-active #premiumMemberFeatures .premium-comparison-table th:last-child {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.25;
+  padding-left: 8px;
+  padding-right: 8px;
+}
 body.premium-page-active .premium-comparison-table th:last-child,
 body.premium-page-active .premium-comparison-table td:last-child {
   color: var(--premium-accent, #d9a441);
