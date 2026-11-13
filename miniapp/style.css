@@ -7347,3 +7347,14 @@ body.in-chat #topbar {
 .premium-proof-reading-ring::after{content:"";position:absolute;top:2px;left:50%;width:7px;height:7px;border-radius:50%;background:#eaffbb;box-shadow:0 0 9px 3px rgba(182,233,107,.7);transform:translateX(-50%)}
 @keyframes premiumProofReadingSpin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.premium-proof-reading-ring{animation:none}}
+
+
+/* [ADDED] Structured, accessible payment-proof error details. */
+.premium-proof-error{width:100%;min-width:0}
+.premium-proof-error.hidden{display:none!important}
+.premium-proof-error-card{display:flex;align-items:flex-start;gap:11px;width:100%;box-sizing:border-box;padding:13px;border:1px solid rgba(255,105,105,.28);border-radius:14px;background:rgba(255,82,82,.075);color:#ffe4e4;text-align:left}
+.premium-proof-error-icon{display:grid;place-items:center;flex:0 0 22px;width:22px;height:22px;border-radius:50%;background:rgba(255,95,95,.16);color:#ff8585;font-size:14px;font-weight:900}
+.premium-proof-error-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:5px}
+.premium-proof-error-copy strong{color:#ffb0b0;font-size:12px;font-weight:800;line-height:1.4}
+.premium-proof-error-copy span{color:#e7caca;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.premium-proof-error-copy small{color:#b99c9c;font-size:10px;letter-spacing:.02em}
