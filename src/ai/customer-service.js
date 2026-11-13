@@ -4,6 +4,7 @@ import path from "node:path";
 import db from "../database.js";
 import {
   getMembership,
+  canonicalWhatsAppSessionId,
   listChats,
   listMessages,
   getAIBusinessProfile,
@@ -88,7 +89,7 @@ db.exec(`
 function ownerParams(telegramId, sessionId) {
   return {
     telegramId: String(telegramId),
-    sessionId: String(sessionId || telegramId)
+    sessionId: canonicalWhatsAppSessionId(telegramId, sessionId || telegramId)
   };
 }
 
