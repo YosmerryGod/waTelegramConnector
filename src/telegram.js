@@ -44,7 +44,7 @@ import { saveWhatsAppMedia } from "./media-storage.js";
 import { recordAICustomerServiceMessage } from "./ai/customer-service.js";
 
 // [ADDED] Run one-time AI auto replies for eligible incoming private messages.
-import { handleIncomingAIAutoReply, handleIncomingAIPaymentProof, isAIAutoReplyMessage } from "./ai/auto-reply.js";
+import { handleIncomingAIAutoReply, handleIncomingAIPaymentProof, handleIncomingManagerReply, isAIAutoReplyMessage } from "./ai/auto-reply.js";
 
 import {
   connectWhatsApp,
@@ -1333,6 +1333,21 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
               : null
           });
 
+          // [ADDED] Route a manager's quoted WhatsApp reply to the original customer.
+          // A recognized manager reply must not trigger the normal customer auto-reply.
+          const managerReplyResult = saved && !isOutgoing && !isGroup && messageType === "text"
+            ? await handleIncomingManagerReply({
+                telegramId: id,
+                sessionId,
+                chatId: remoteJid,
+                message,
+                socket
+              }).catch((error) => {
+                console.error("[WAGRAM AI Manager Escalation] Reply routing failed:", error.message);
+                return { handled: false };
+              })
+            : null;
+
           // [ADDED] Incremental AI learning is tenant- and WhatsApp-session-scoped.
           // [MODIFIED] Never learn the AI's own generated replies as human admin examples.
           if (saved && !isAIAutoReplyMessage(id, sessionId, remoteJid, body)) {
@@ -1344,6 +1359,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           // outgoing messages, media, and messages superseded by a newer message.
           if (
             saved &&
+            !managerReplyResult?.handled &&
             !isOutgoing &&
             !isGroup &&
             messageType === "text" &&
