@@ -732,9 +732,14 @@
         <p class="premium-payment-plan" id="premiumPaymentPlan">PREMIUM 3 HARI</p>
         <strong class="premium-payment-amount" id="premiumPaymentAmount">Rp14.000</strong>
         <p class="premium-payment-unique" id="premiumPaymentUniqueCode">Kode unik: 000</p>
-        <div class="premium-payment-qr-wrap">
+        <div class="premium-payment-qr-wrap is-loading" id="premiumPaymentQrWrap">
           <canvas id="premiumPaymentQr" width="280" height="280" aria-label="Pratinjau QR"></canvas>
           <img class="premium-payment-logo" src="./assets/wagram-logo.svg?v=20261107-1235" alt="WAGRAM">
+          <!-- [ADDED] Hide the brand logo until the QR image has finished rendering. -->
+          <div class="premium-payment-qr-loader" id="premiumPaymentQrLoader" role="status" aria-live="polite">
+            <span class="premium-payment-qr-spinner" aria-hidden="true"></span>
+            <span>Menyiapkan QRIS…</span>
+          </div>
         </div>
         <p class="premium-payment-status" id="premiumPaymentStatus" aria-live="polite">QR pratinjau</p>
         <p class="premium-payment-hint">Scan QRIS melalui aplikasi pembayaran dan pastikan nominalnya sesuai.</p>
