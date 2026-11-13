@@ -7712,8 +7712,8 @@ body.in-chat #topbar {
 
 
 /* [MODIFIED] Place the WAMO mascot outside the thinking bubble so the bubble appears to emerge from it. */
-.ai-business-page .ai-business-thinking-row{display:flex;align-self:flex-start;align-items:flex-end;gap:0;width:fit-content;max-width:92%}
-.ai-business-page .ai-business-thinking-mascot{position:relative;z-index:1;display:block;flex:0 0 48px;width:48px;height:48px;margin-right:-5px;object-fit:contain}
+.ai-business-page .ai-business-thinking-row{display:flex;align-self:flex-start;align-items:flex-end;gap:7px;width:fit-content;max-width:92%}
+.ai-business-page .ai-business-thinking-mascot{position:relative;z-index:1;display:block;flex:0 0 48px;width:48px;height:48px;margin-right:0;object-fit:contain}
 .ai-business-page .ai-business-thinking{display:flex;align-items:center;width:fit-content;max-width:calc(100% - 40px);min-height:46px;margin:0;padding:10px 13px 10px 14px;border-radius:16px 16px 16px 4px}
 .ai-business-page .ai-business-thinking-label{display:inline-flex;align-items:baseline;gap:4px;color:var(--text);font-size:13px;line-height:1.35;white-space:nowrap}
 .ai-business-page .ai-business-thinking-dots{display:inline-flex;align-items:center;gap:3px;height:12px}
