@@ -7452,3 +7452,120 @@ body.in-chat #topbar {
 .premium-proof-placeholder strong{max-width:100%;overflow-wrap:anywhere;color:var(--text,#edf7ef);font-size:13px}
 .premium-proof-placeholder.has-file{background:rgba(37,211,102,.055)}
 .premium-proof-change-label{margin-top:5px;padding:8px 12px;border:1px solid rgba(37,211,102,.3);border-radius:10px;color:#25d366;font-size:11px;font-weight:700}
+
+
+/* [ADDED] WAMO AI welcome layout with mascot, greeting, and compact quick-action chips. */
+.ai-business-page .ai-business-empty-state {
+  flex: 1 1 auto;
+  min-height: 0;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px 18px;
+  overflow-y: auto;
+  text-align: center;
+}
+.ai-business-page .ai-business-mascot {
+  flex: 0 1 auto;
+  width: min(220px, 58vw);
+  max-width: 220px;
+  max-height: 29vh;
+  height: auto;
+  object-fit: contain;
+}
+.ai-business-welcome-copy {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  width: 100%;
+}
+.ai-business-page .ai-business-welcome-copy h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(21px, 5.5vw, 27px);
+  font-weight: 850;
+  letter-spacing: -0.7px;
+  line-height: 1.2;
+}
+.ai-business-page .ai-business-welcome-copy h2 span {
+  color: var(--accent);
+}
+.ai-business-page .ai-business-welcome-copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.ai-business-page .ai-business-suggestions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+.ai-business-page .ai-business-suggestions button {
+  display: flex;
+  min-width: 0;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 13%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: normal;
+  transition: transform .16s ease, background .16s ease;
+}
+.ai-business-page .ai-business-suggestions button:active {
+  transform: scale(.97);
+  background: color-mix(in srgb, var(--accent) 17%, var(--surface));
+}
+.ai-business-page .ai-business-suggestions button svg {
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ai-business-page .ai-business-suggestions button span {
+  min-width: 0;
+}
+@media (max-width: 390px) {
+  .ai-business-page .ai-business-empty-state {
+    gap: 11px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .ai-business-page .ai-business-mascot {
+    width: min(190px, 54vw);
+    max-height: 26vh;
+  }
+  .ai-business-page .ai-business-suggestions {
+    gap: 6px;
+  }
+  .ai-business-page .ai-business-suggestions button {
+    min-height: 50px;
+    gap: 5px;
+    padding: 8px 5px;
+    font-size: 10px;
+  }
+  .ai-business-page .ai-business-suggestions button svg {
+    flex-basis: 17px;
+    width: 17px;
+    height: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-business-page .ai-business-suggestions button {
+    transition: none;
+  }
+}
