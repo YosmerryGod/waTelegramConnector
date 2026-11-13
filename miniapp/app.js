@@ -3085,6 +3085,13 @@
       $("#premiumSessionCount").textContent = `${plan.sessions} WhatsApp session`;
       $("#premiumSessionDescription").textContent = plan.sessionDescription;
       $("#premiumTableSessions").textContent = String(plan.sessions);
+      // [ADDED] Keep the Premium feature table in sync with the selected duration.
+      const memberFeatureSessions = $("#premiumMemberFeatureSessions");
+      const memberFeatureHeading = $("#premiumMemberFeatureHeading");
+      const wamoFeature = $("#premiumWamoBusinessFeature");
+      if (memberFeatureSessions) memberFeatureSessions.textContent = `${plan.sessions} akun`;
+      if (memberFeatureHeading) memberFeatureHeading.textContent = period === "30d" ? "Premium 30 Hari" : `Premium ${period === "7d" ? "7" : "3"} Hari`;
+      wamoFeature?.classList.toggle("hidden", period !== "30d");
       $("#premiumButtonOldPrice").textContent = plan.oldPrice;
       $("#premiumButtonOldPrice").hidden = !plan.oldPrice;
       $("#premiumButtonCurrentPrice").textContent = `${isPremium && period === "30d" && state.membership?.plan === "premium-c" ? "Perpanjang 30 Hari" : isPremium ? "Upgrade · " + plan.price : "Lanjutkan · " + plan.price}`;
@@ -3101,15 +3108,17 @@
       const availablePeriods = getAvailablePremiumPeriods();
       const isPremium = availablePeriods.length !== 3;
       const comparison = $(".premium-comparison");
+      const freeComparison = $("#premiumFreeComparison");
+      const memberFeatures = $("#premiumMemberFeatures");
       const heading = $("#premiumSheetTitle");
       const subtitle = $(".premium-subtitle");
       const tabs = $("#premiumDurationTabs");
 
-      // [ADDED] Premium members see upgrade options instead of the Free-vs-Premium comparison.
-      comparison?.classList.toggle("hidden", isPremium);
-      heading.innerHTML = isPremium
-        ? 'WAGRAM <span>Premium</span>'
-        : 'WAGRAM <span>Premium</span>';
+      // [MODIFIED] Premium members see their included features, not a Free comparison.
+      comparison?.classList.remove("hidden");
+      freeComparison?.classList.toggle("hidden", isPremium);
+      memberFeatures?.classList.toggle("hidden", !isPremium);
+      heading.innerHTML = 'WAGRAM <span>Premium</span>';
 
       if (isPremium) {
         const expiry = membership?.plan_expires_at ? new Date(Number(membership.plan_expires_at)) : null;
