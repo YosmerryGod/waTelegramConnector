@@ -2264,7 +2264,7 @@
     openWhatsAppSessions();
     // [MODIFIED] Show a focused QR popup instead of the account manager list.
     $("#whatsappSessionsModal").classList.add("is-pairing");
-    $("#whatsappSessionsTitle").textContent = "Tambah WhatsApp";
+    $("#whatsappSessionsTitle").textContent = "Hubungkan WhatsApp";
     $("#closeWhatsAppSessions").setAttribute("aria-label", "Cancel pairing");
     $("#whatsappSessionQrWrap").classList.remove("hidden");
     // [ADDED] Reset QR artwork and hide the brand mark until a fresh QR is decoded.
@@ -2277,7 +2277,7 @@
     qrImage.onerror = () => {
       qrFrame?.classList.add("is-loading");
       qrFrame?.classList.remove("is-ready");
-      $("#whatsappSessionQrStatus").textContent = "QR gagal dimuat. Menyiapkan ulang…";
+      $("#whatsappSessionQrStatus").textContent = "Memuat ulang QR…";
     };
     qrImage.removeAttribute("src");
     delete qrImage.dataset.qr;
@@ -2310,14 +2310,14 @@
             qrImage.dataset.qr = data.qr;
             qrImage.src = data.qr;
           }
-          $("#whatsappSessionQrStatus").textContent = "Pindai QR melalui WhatsApp → Perangkat tertaut";
+          $("#whatsappSessionQrStatus").textContent = "Buka WhatsApp · Perangkat tertaut";
         } else {
           // [ADDED] Do not leave a previous QR or its logo visible while a new QR is generated.
           qrImage.removeAttribute("src");
           delete qrImage.dataset.qr;
           qrFrame?.classList.add("is-loading");
           qrFrame?.classList.remove("is-ready");
-          $("#whatsappSessionQrStatus").textContent = "QR sedang disiapkan. Tunggu beberapa detik.";
+          $("#whatsappSessionQrStatus").textContent = "Menyiapkan koneksi…";
         }
       } catch (error) { $("#whatsappSessionQrStatus").textContent = error.message; }
     };
