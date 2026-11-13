@@ -3179,11 +3179,13 @@
     if (input) input.value = "";
     const typingId = `ai-business-typing-${Date.now()}`;
     messages.insertAdjacentHTML("beforeend", `
-      <div class="message ai-business-reply ai-business-thinking" id="${typingId}">
+      <div class="ai-business-thinking-row" id="${typingId}">
         <img class="ai-business-thinking-mascot" src="./assets/wamo-thinking-mascot.webp" alt="" aria-hidden="true">
-        <div class="ai-business-thinking-label">
-          <span>WAMO AI sedang berpikir</span>
-          <span class="ai-business-thinking-dots" aria-label="Memproses"><i></i><i></i><i></i></span>
+        <div class="message ai-business-reply ai-business-thinking">
+          <div class="ai-business-thinking-label">
+            <span>WAMO AI sedang berpikir</span>
+            <span class="ai-business-thinking-dots" aria-label="Memproses"><i></i><i></i><i></i></span>
+          </div>
         </div>
       </div>`);
     messages.scrollTop = messages.scrollHeight;
