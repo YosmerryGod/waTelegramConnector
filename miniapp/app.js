@@ -3262,6 +3262,7 @@
       proofModal.classList.remove("is-uploading"); // [ADDED]
       proofInput.disabled = false; // [ADDED]
       $("#premiumProofUploadState").classList.add("hidden"); // [ADDED]
+      $("#premiumProofUploadState").setAttribute("aria-hidden", "true"); // [ADDED]
       proofModal.removeAttribute("aria-busy"); // [ADDED]
       $("#premiumProofError").textContent = "";
       proofModal.classList.remove("hidden");
@@ -3319,6 +3320,7 @@
       proofModal.classList.add("is-uploading"); // [ADDED]
       proofModal.setAttribute("aria-busy", "true"); // [ADDED]
       $("#premiumProofUploadState").classList.remove("hidden"); // [ADDED]
+      $("#premiumProofUploadState").setAttribute("aria-hidden", "false"); // [ADDED]
       proofConfirmButton.textContent = "Mengirim…";
       $("#premiumProofError").textContent = "";
       try {
@@ -3336,6 +3338,7 @@
         proofModal.classList.remove("is-uploading"); // [ADDED]
         proofModal.removeAttribute("aria-busy"); // [ADDED]
         $("#premiumProofUploadState").classList.add("hidden"); // [ADDED]
+        $("#premiumProofUploadState").setAttribute("aria-hidden", "true"); // [ADDED]
         proofInput.disabled = false; // [ADDED]
         proofConfirmButton.disabled = !selectedPremiumProof;
         $("#premiumProofCancelButton").disabled = false;
