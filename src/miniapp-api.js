@@ -400,7 +400,10 @@ router.post("/premium/orders/:orderId/qr-download", (req, res) => {
   }
 });
 // [ADDED] User reports that a Premium QRIS payment has been completed.
-router.post("/premium/orders/:orderId/paid", async (req, res) => {
+router.post(
+  "/premium/orders/:orderId/paid",
+  express.raw({ type: ["image/jpeg"], limit: "8mb" }), // [ADDED] Receive compact binary image payload.
+  async (req, res) => {
   try {
     const orderId = String(req.params.orderId || "");
     if (!/^premium_\d+_[a-z0-9]+$/i.test(orderId)) {
@@ -422,18 +425,18 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
       return res.json({ ok: true, alreadyReported: true });
     }
 
-    // [ADDED] Validate payment proof before accepting the payment report.
-    const proofImage = String(req.body?.proofImage || "");
-    const proofMatch = proofImage.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
-    if (!proofMatch || proofMatch[2].length > 7 * 1024 * 1024) {
+    // [MODIFIED] Validate raw JPEG bytes; avoids Base64 request expansion.
+    const proofBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    if (!proofBuffer.length) {
       return res.status(400).json({
         ok: false,
         error: "PAYMENT_PROOF_REQUIRED",
         message: "Pilih bukti pembayaran JPG, PNG, atau WEBP maksimal 5 MB."
       });
     }
-    const proofBuffer = Buffer.from(proofMatch[2], "base64");
-    if (!proofBuffer.length || proofBuffer.length > 5 * 1024 * 1024) {
+    const isJpeg = proofBuffer.length >= 3 &&
+      proofBuffer[0] === 0xff && proofBuffer[1] === 0xd8 && proofBuffer[2] === 0xff;
+    if (!isJpeg || proofBuffer.length > 5 * 1024 * 1024) {
       return res.status(400).json({
         ok: false,
         error: "INVALID_PAYMENT_PROOF",
@@ -473,7 +476,7 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
       "⚠️ Verifikasi dana masuk di DANA sebelum menyetujui pembayaran."
     ].join("\n");
 
-    const proofExtension = proofMatch[1] === "jpeg" ? "jpg" : proofMatch[1];
+    const proofExtension = "jpg"; // [MODIFIED] Client sends compressed JPEG binary data.
     const results = await Promise.allSettled(
       adminIds.map((adminId) => bot.sendPhoto(
         adminId,
@@ -488,7 +491,7 @@ router.post("/premium/orders/:orderId/paid", async (req, res) => {
             ]]
           }
         },
-        { filename: "bukti-pembayaran-premium." + proofExtension, contentType: "image/" + proofMatch[1] }
+        { filename: "bukti-pembayaran-premium." + proofExtension, contentType: "image/jpeg" } // [MODIFIED]
       ))
     );
     const delivered = results.some((result) => result.status === "fulfilled");
