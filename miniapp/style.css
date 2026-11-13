@@ -7711,5 +7711,15 @@ body.in-chat #topbar {
 }
 
 
-/* [ADDED] Compact WAMO AI thinking indicator with mascot and animated ellipsis. */
-.ai-business-page .ai-business-thinking{display:flex;align-items:center;gap:9px;width:fit-content;max-width:min(88%,360px);min-height:48px;padding:7px 13px 7px 8px}.ai-business-thinking-mascot{display:block;flex:0 0 42px;width:42px;height:42px;object-fit:contain}.ai-business-thinking-label{display:inline-flex;align-items:baseline;gap:4px;color:var(--text);font-size:13px;line-height:1.35;white-space:nowrap}.ai-business-thinking-dots{display:inline-flex;align-items:center;gap:3px;height:12px}.ai-business-thinking-dots i{display:block;width:4px;height:4px;border-radius:50%;background:var(--accent);opacity:.35;animation:ai-business-thinking-dot 1.05s infinite ease-in-out}.ai-business-thinking-dots i:nth-child(2){animation-delay:.15s}.ai-business-thinking-dots i:nth-child(3){animation-delay:.3s}@keyframes ai-business-thinking-dot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}@media(prefers-reduced-motion:reduce){.ai-business-thinking-dots i{animation:none;opacity:.85}}
+/* [MODIFIED] Place the WAMO mascot outside the thinking bubble so the bubble appears to emerge from it. */
+.ai-business-page .ai-business-thinking-row{display:flex;align-self:flex-start;align-items:flex-end;gap:0;width:fit-content;max-width:92%}
+.ai-business-page .ai-business-thinking-mascot{position:relative;z-index:1;display:block;flex:0 0 48px;width:48px;height:48px;margin-right:-5px;object-fit:contain}
+.ai-business-page .ai-business-thinking{display:flex;align-items:center;width:fit-content;max-width:calc(100% - 40px);min-height:46px;margin:0;padding:10px 13px 10px 14px;border-radius:16px 16px 16px 4px}
+.ai-business-page .ai-business-thinking-label{display:inline-flex;align-items:baseline;gap:4px;color:var(--text);font-size:13px;line-height:1.35;white-space:nowrap}
+.ai-business-page .ai-business-thinking-dots{display:inline-flex;align-items:center;gap:3px;height:12px}
+.ai-business-page .ai-business-thinking-dots i{display:block;width:4px;height:4px;border-radius:50%;background:var(--accent);opacity:.35;animation:ai-business-thinking-dot 1.05s infinite ease-in-out}
+.ai-business-page .ai-business-thinking-dots i:nth-child(2){animation-delay:.15s}
+.ai-business-page .ai-business-thinking-dots i:nth-child(3){animation-delay:.3s}
+@keyframes ai-business-thinking-dot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+@media(max-width:380px){.ai-business-page .ai-business-thinking-mascot{flex-basis:44px;width:44px;height:44px}.ai-business-page .ai-business-thinking-label{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.ai-business-page .ai-business-thinking-dots i{animation:none;opacity:.85}}
