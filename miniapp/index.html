@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261114-pairing-polish-v1">
+  <link rel="stylesheet" href="style.css?v=20261114-wamo-mascot-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -329,7 +329,10 @@
           </button>
         </div>
       </div>
-      <!-- [REMOVED] Business assistant welcome card hidden; keep the initial conversation area empty. -->
+      <!-- [ADDED] WAMO mascot welcome state, hidden automatically after the first chat message. -->
+      <div class="ai-business-intro ai-business-empty-state" id="aiBusinessIntro" aria-label="WAMO AI">
+        <img class="ai-business-mascot" src="./assets/wamo-mascot-wave.gif" alt="Mascot WAMO AI melambaikan tangan">
+      </div>
       <!-- [MODIFIED] Start with an empty conversation area; do not show a permanent loading spinner. -->
       <div id="aiBusinessMessages" class="ai-business-messages" aria-live="polite"></div>
       <!-- [MODIFIED] Fixed message composer styled like the WhatsApp chat input. -->
