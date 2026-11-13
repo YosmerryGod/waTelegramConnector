@@ -7195,8 +7195,8 @@ body.in-chat #topbar {
 }
 
 
-/* [ADDED] Align WAGRAM AI message timestamps like WhatsApp message bubbles. */
-.ai-business-reply .message-time {
+/* [MODIFIED] Align timestamps on both owner and WAMO AI bubbles like WhatsApp. */
+.ai-business-page .message-time {
   display: block;
   width: 100%;
   margin-top: 2px;
