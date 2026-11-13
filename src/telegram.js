@@ -42,6 +42,9 @@ import { saveWhatsAppMedia } from "./media-storage.js";
 // [ADDED] Store customer/admin reply examples for the enabled AI assistant.
 import { recordAICustomerServiceMessage } from "./ai/customer-service.js";
 
+// [ADDED] Run one-time AI auto replies for eligible incoming private messages.
+import { handleIncomingAIAutoReply, isAIAutoReplyMessage } from "./ai/auto-reply.js";
+
 import {
   connectWhatsApp,
   disconnectWhatsApp,
@@ -1322,8 +1325,31 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           });
 
           // [ADDED] Incremental AI learning is tenant- and WhatsApp-session-scoped.
-          if (saved) {
+          // [MODIFIED] Never learn the AI's own generated replies as human admin examples.
+          if (saved && !isAIAutoReplyMessage(id, sessionId, remoteJid, body)) {
             recordAICustomerServiceMessage(id, sessionId, remoteJid);
+          }
+
+          // [ADDED] Automatically answer one incoming private text message once.
+          // The worker has a durable SQLite idempotency key and ignores groups,
+          // outgoing messages, media, and messages superseded by a newer message.
+          if (
+            saved &&
+            !isOutgoing &&
+            !isGroup &&
+            messageType === "text" &&
+            String(body || "").trim()
+          ) {
+            void handleIncomingAIAutoReply({
+              telegramId: id,
+              sessionId,
+              chatId: remoteJid,
+              messageId,
+              socket,
+              quotedMessage: message
+            }).catch((error) => {
+              console.error("[WAGRAM AI Auto Reply] Worker crashed:", error.message);
+            });
           }
 
           // [ADDED] Notify Mini App only after the SQLite transaction commits.
