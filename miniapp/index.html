@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261114-premium-proof-upload-v1">
+  <link rel="stylesheet" href="style.css?v=20261114-premium-proof-preview-ring-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -736,6 +736,12 @@
         <p class="premium-proof-description">Pilih screenshot bukti pembayaran dari DANA atau galeri perangkat.</p>
         <label class="premium-proof-picker" for="premiumProofInput">
           <img id="premiumProofPreview" class="premium-proof-preview hidden" alt="Pratinjau bukti pembayaran">
+          <!-- [ADDED] Ring loader while the selected image is being decoded for preview. -->
+          <span id="premiumProofPreviewLoading" class="premium-proof-preview-loading hidden" role="status" aria-live="polite">
+            <span class="premium-proof-reading-ring" aria-hidden="true"></span>
+            <strong>Memproses gambar...</strong>
+            <small>Menyiapkan pratinjau bukti pembayaran</small>
+          </span>
           <!-- [ADDED] Visible upload progress overlay while the proof image is being sent. -->
           <span id="premiumProofUploadState" class="premium-proof-upload-overlay hidden" role="status" aria-live="polite" aria-hidden="true">
             <span class="premium-proof-upload-spinner" aria-hidden="true"></span>
@@ -829,7 +835,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261114-premium-proof-upload-v1"></script>
+  <script src="app.js?v=20261114-premium-proof-preview-ring-v1"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
