@@ -2456,7 +2456,7 @@
       menu?.classList.toggle("hidden", isOpen);
       button?.setAttribute("aria-expanded", String(!isOpen));
     });
-    // [ADDED] Toggle AI training in the existing WAGRAM AI chat, with Gemini simulating customers.
+    // [MODIFIED] Toggle AI training in the existing WAGRAM AI chat, with OpenRouter simulating customers.
     $("#toggleAIBusinessTrainingButton")?.addEventListener("click", async () => {
       $("#aiBusinessMoreMenu")?.classList.add("hidden");
       $("#aiBusinessMoreButton")?.setAttribute("aria-expanded", "false");
