@@ -1083,6 +1083,9 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
   const result = await runOwnerAIAgent({ telegramId, sessionId, message, history, profile });
   return {
     reply: result.reply,
+    // [ADDED] Preserve the escalation decision so auto-reply can notify the manager.
+    needsManager: result.needsManager === true,
+    managerQuestion: String(result.managerQuestion || "").trim(),
     ...(qrisRequested && qrisImage ? { qrisImage } : {}),
     intent: qrisRequested ? "payment" : "agent",
     model: OPENROUTER_MODEL,
