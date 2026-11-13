@@ -681,9 +681,12 @@ async function createSocket(id, ownerId, entry) {
           continue;
         }
 
-        // [MODIFIED] Only "notify" is real-time, except call logs: outgoing
-        // calls may arrive as a call-log message with another upsert type.
-        if (type !== "notify" && !isCallLogMessage(message)) {
+        // [MODIFIED] Process incoming real-time notifications, call logs, and
+        // outgoing "append" events so messages sent by this linked device are
+        // persisted and synchronized to the Mini App conversation.
+        // The Telegram callback still filters fromMe messages out of AI auto-reply.
+        const isOutgoingAppend = type === "append" && message.key.fromMe === true;
+        if (type !== "notify" && !isCallLogMessage(message) && !isOutgoingAppend) {
           continue;
         }
 
