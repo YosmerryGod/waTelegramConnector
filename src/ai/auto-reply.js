@@ -351,7 +351,7 @@ export async function handleIncomingAIAutoReply({
 
     const latestMessages = listMessages(ownerId, whatsappChatId, 10, accountId)
       .filter((item) =>
-        item.message_type === "text" &&
+        ["text", "view_once"].includes(item.message_type) &&
         item.body?.trim() &&
         !item.is_deleted
       );
@@ -445,7 +445,7 @@ export async function handleIncomingAIAutoReply({
     // arrived while OpenRouter was responding, do not send a stale answer.
     const latestAfterGeneration = listMessages(ownerId, whatsappChatId, 10, accountId)
       .filter((item) =>
-        item.message_type === "text" &&
+        ["text", "view_once"].includes(item.message_type) &&
         item.body?.trim() &&
         !item.is_deleted
       )[0];
