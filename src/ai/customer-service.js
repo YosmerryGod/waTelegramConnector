@@ -1007,7 +1007,7 @@ export async function createAIPaymentProofCustomerReply(telegramId, sessionId, c
     "RIWAYAT CHAT:",
     JSON.stringify(conversation).slice(0, 9000),
     "Keluarkan hanya satu balasan WhatsApp yang siap dikirim. Jangan gunakan label atau tanda kutip."
-  ].join("\\n");
+  ].join("\n");
   const reply = String(await openRouterGenerateText(prompt)).trim().replace(/^[\"'“”]+|[\"'“”]+$/g, "");
   if (!reply) throw new Error("PAYMENT_PROOF_CUSTOMER_REPLY_EMPTY");
   return reply.slice(0, 700);
