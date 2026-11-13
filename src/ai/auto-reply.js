@@ -14,6 +14,24 @@ import {
 // A claimed job is never automatically retried: this prevents duplicate sends
 // after reconnects, repeated Baileys events, or a process restart.
 db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_manager_escalations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    customer_chat_id TEXT NOT NULL,
+    customer_phone TEXT,
+    customer_message_id TEXT NOT NULL,
+    manager_chat_id TEXT NOT NULL,
+    manager_message_id TEXT,
+    question TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    answered_at INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ai_manager_escalations_pending
+    ON ai_manager_escalations(telegram_id, session_id, manager_chat_id, status, created_at DESC);
+
   CREATE TABLE IF NOT EXISTS ai_customer_image_context (
     telegram_id TEXT NOT NULL,
     session_id TEXT NOT NULL,
@@ -126,6 +144,79 @@ export function isAIAutoReplyMessage(telegramId, sessionId, chatId, body) {
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeManagerPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.startsWith("0") ? "62" + digits.slice(1) : digits.startsWith("8") ? "62" + digits : digits;
+}
+
+async function escalateToManager({ telegramId, sessionId, customerChatId, customerPhone, customerMessageId, question, socket }) {
+  const profile = getAIBusinessProfile(telegramId, sessionId);
+  const manager = profile?.settings?.manager || {};
+  const managerDigits = normalizeManagerPhone(manager.phone);
+  if (!managerDigits) throw new Error("AI_MANAGER_PHONE_NOT_CONFIGURED");
+  const managerJid = managerDigits + "@s.whatsapp.net";
+  const managerText = [
+    "🔔 *WAGRAM — Butuh Informasi Pengelola*",
+    "",
+    "Pelanggan: " + (customerPhone ? "+" + customerPhone : customerChatId),
+    "Pertanyaan pelanggan:",
+    String(question || "").slice(0, 1000),
+    "",
+    "Silakan balas pesan ini (Reply) dengan jawabannya. WAGRAM akan meneruskan jawaban ke pelanggan."
+  ].join("\n");
+  const sent = await socket.sendMessage(managerJid, { text: managerText });
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO ai_manager_escalations (
+      telegram_id, session_id, customer_chat_id, customer_phone,
+      customer_message_id, manager_chat_id, manager_message_id, question, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+  `).run(
+    String(telegramId), String(sessionId || telegramId), String(customerChatId),
+    customerPhone ? String(customerPhone) : null, String(customerMessageId),
+    managerJid, String(sent?.key?.id || ""), String(question || "").slice(0, 1000), now
+  );
+  return { managerJid, managerMessageId: sent?.key?.id || null };
+}
+
+// Called for incoming private text messages; only a reply to a pending escalation from
+// the configured manager is forwarded to the original customer.
+export async function handleIncomingManagerReply({ telegramId, sessionId, chatId, message, socket }) {
+  const ownerId = String(telegramId || "");
+  const accountId = String(sessionId || ownerId);
+  const managerJid = String(chatId || "");
+  const profile = getAIBusinessProfile(ownerId, accountId);
+  const managerDigits = normalizeManagerPhone(profile?.settings?.manager?.phone);
+  if (!managerDigits || managerJid.replace(/\D/g, "") !== managerDigits) return { handled: false };
+  const content = message?.message || {};
+  const context = content.extendedTextMessage?.contextInfo ||
+    content.imageMessage?.contextInfo || content.videoMessage?.contextInfo ||
+    content.documentMessage?.contextInfo || {};
+  const quotedId = String(context.stanzaId || "");
+  if (!quotedId) return { handled: false };
+  const pending = db.prepare(`
+    SELECT * FROM ai_manager_escalations
+    WHERE telegram_id = ? AND session_id = ? AND manager_chat_id = ?
+      AND manager_message_id = ? AND status = 'pending'
+    ORDER BY created_at DESC LIMIT 1
+  `).get(ownerId, accountId, managerJid, quotedId);
+  if (!pending) return { handled: false };
+  const answer = String(
+    content.conversation || content.extendedTextMessage?.text ||
+    content.imageMessage?.caption || content.documentMessage?.caption || ""
+  ).trim();
+  if (!answer) return { handled: true, forwarded: false, reason: "empty_manager_reply" };
+  await socket.sendMessage(pending.customer_chat_id, {
+    text: answer
+  });
+  db.prepare(`
+    UPDATE ai_manager_escalations SET status = 'answered', answered_at = ?
+    WHERE id = ? AND status = 'pending'
+  `).run(Date.now(), pending.id);
+  return { handled: true, forwarded: true, customerChatId: pending.customer_chat_id };
 }
 
 // [ADDED] Keep the latest recognized customer image as short-lived conversation context.
@@ -341,6 +432,28 @@ export async function handleIncomingAIAutoReply({
           { autoReply: true, expectedMessageId: incomingId }
         );
     const reply = String(suggestion?.reply || suggestion?.draft || "").trim();
+
+    if (useBusinessAI && suggestion?.needsManager) {
+      const managerQuestion = String(suggestion.managerQuestion || latest.body || "").trim();
+      const managerNotice = reply || "Sebentar ya, Kak. Saya tanyakan dulu ke pengelola 😊";
+      await socket.sendMessage(whatsappChatId, { text: managerNotice }, quotedMessage ? { quoted: quotedMessage } : {});
+      await escalateToManager({
+        telegramId: ownerId,
+        sessionId: accountId,
+        customerChatId: whatsappChatId,
+        customerPhone: String(whatsappChatId).replace(/\D/g, ""),
+        customerMessageId: incomingId,
+        question: managerQuestion,
+        socket
+      });
+      updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
+        generatedReply: managerNotice, status: "sent", error: null
+      });
+      console.info("[WAGRAM AI Manager Escalation] Question sent to manager:", JSON.stringify({
+        telegramId: ownerId, sessionId: accountId, customerMessageId: incomingId
+      }));
+      return { sent: true, escalated: true };
+    }
 
     if (!reply) {
       throw new Error("AI_REPLY_EMPTY");
