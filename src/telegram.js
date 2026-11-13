@@ -43,7 +43,7 @@ import { saveWhatsAppMedia } from "./media-storage.js";
 import { recordAICustomerServiceMessage } from "./ai/customer-service.js";
 
 // [ADDED] Run one-time AI auto replies for eligible incoming private messages.
-import { handleIncomingAIAutoReply, isAIAutoReplyMessage } from "./ai/auto-reply.js";
+import { handleIncomingAIAutoReply, handleIncomingAIPaymentProof, isAIAutoReplyMessage } from "./ai/auto-reply.js";
 
 import {
   connectWhatsApp,
@@ -1416,6 +1416,33 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                     publishToMiniApp(id, {
                       type: "media.ready",
                       data: { sessionId, chatId: remoteJid, messageId }
+                    });
+                  }
+
+                  // [ADDED] Analyze incoming private images for payment proof.
+                  // Forward confirmed-looking proofs to the account owner on Telegram,
+                  // then acknowledge the customer on WhatsApp after the manager receives it.
+                  if (!isOutgoing && !isGroup && info.kind === "image") {
+                    void handleIncomingAIPaymentProof({
+                      telegramId: id,
+                      sessionId,
+                      chatId: remoteJid,
+                      messageId,
+                      phoneNumber,
+                      customerName: name,
+                      imageBuffer: buffer,
+                      mimetype: info.mimetype || "image/jpeg",
+                      socket,
+                      quotedMessage: message,
+                      notifyManager: (imageBuffer, caption, mimetype) =>
+                        bot.sendPhoto(
+                          id,
+                          imageBuffer,
+                          { caption },
+                          { filename: info.fileName || "payment-proof.jpg", contentType: mimetype || "image/jpeg" }
+                        )
+                    }).catch((paymentError) => {
+                      console.error("[WAGRAM AI Payment Proof] Worker crashed:", paymentError.message);
                     });
                   }
                 }
