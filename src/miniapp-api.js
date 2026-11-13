@@ -804,7 +804,7 @@ router.get("/profile/:jid", async (req, res) => {
   try {
     const jid = String(req.params.jid || "");
 
-    if (!jid || jid.length > 256 || !/^(?:\d+(?::\d+)?@s\.whatsapp\.net|\d+(?::\d+)?@lid|\d+-\d+@g\.us)$/.test(jid)) {
+    if (!jid || jid.length > 256 || !/^(?:\d+(?::\d+)?@s\.whatsapp\.net|\d+(?::\d+)?@lid|\d+-\d+@g\.us|[A-Za-z0-9_-]+@newsletter)$/.test(jid)) {
       return res.status(400).json({ ok: false, error: "INVALID_WHATSAPP_JID" });
     }
 
@@ -889,7 +889,7 @@ router.get("/profile/:jid", async (req, res) => {
 // ---------------------------------------------------------------------------
 
 // GET /api/miniapp/chats?limit=50&offset=0&archived=false
-router.get("/chats", (req, res) => {
+router.get("/chats", async (req, res) => {
   try {
     const limit = parseLimit(req.query.limit, 50, MAX_LIMIT);
     const offset = Math.max(
@@ -899,12 +899,44 @@ router.get("/chats", (req, res) => {
 
     const archived = parseBoolean(req.query.archived);
 
-    const chats = listChats(req.telegramId, {
+    let chats = listChats(req.telegramId, {
       limit,
       offset,
       includeArchived: archived === true,
       sessionId: req.sessionId
     });
+
+    // [ADDED] Hydrate missing group/channel avatars once and cache them for future list loads.
+    const avatarTargets = chats
+      .filter((chat) => {
+        const jid = String(chat.whatsapp_chat_id || "");
+        const isGroupOrChannel = chat.chat_type === "group" || jid.endsWith("@newsletter");
+        const cached = getWhatsAppProfileCache(req.telegramId, jid, req.sessionId);
+        return isGroupOrChannel && !cached?.picture_url;
+      })
+      .slice(0, 8);
+
+    if (avatarTargets.length) {
+      await Promise.allSettled(avatarTargets.map(async (chat) => {
+        const jid = String(chat.whatsapp_chat_id || "");
+        const remote = await getWhatsAppProfile(req.sessionId, jid);
+        saveWhatsAppProfileCache({
+          telegramId: req.telegramId,
+          sessionId: req.sessionId,
+          whatsappJid: jid,
+          displayName: chat.display_name || chat.name || null,
+          aboutText: remote.aboutText,
+          pictureUrl: remote.pictureUrl,
+          statusSetAt: remote.statusSetAt
+        });
+      }));
+      chats = listChats(req.telegramId, {
+        limit,
+        offset,
+        includeArchived: archived === true,
+        sessionId: req.sessionId
+      });
+    }
 
     const filteredChats = archived === true
       ? chats.filter((chat) => Boolean(chat.is_archived))
