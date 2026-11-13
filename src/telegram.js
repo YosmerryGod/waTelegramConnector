@@ -1201,6 +1201,11 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
 
       const message = messages[status];
 
+      // [ADDED] Additional sessions are paired from the Mini App; keep pairing progress out of Telegram.
+      if (isAdditionalSession && ["connecting", "qr"].includes(status)) {
+        return;
+      }
+
       if (message) {
         await notify(
           message,
