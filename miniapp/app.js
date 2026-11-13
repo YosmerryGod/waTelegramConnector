@@ -3251,13 +3251,9 @@
     // [ADDED] Require an image proof before the user can report a Premium payment.
     let selectedPremiumProof = null; // [MODIFIED] Stores compressed image Blob, not Base64.
     let selectedPremiumProofName = ""; // [ADDED]
-    let proofPreviewObjectUrl = null; // [ADDED]
-    let proofPreviewReady = false; // [ADDED]
     let proofReadToken = 0; // [ADDED]
     const proofModal = $("#premiumProofModal");
     const proofInput = $("#premiumProofInput");
-    const proofPreview = $("#premiumProofPreview");
-    const proofPlaceholder = $("#premiumProofPlaceholder");
     const proofPreviewLoading = $("#premiumProofPreviewLoading"); // [ADDED]
     const proofConfirmButton = $("#premiumProofConfirmButton");
 
@@ -3275,13 +3271,7 @@
       $("#premiumProofFileSize").textContent = "JPG, PNG, atau WEBP · Maks. 5 MB"; // [ADDED]
       $("#premiumProofPlaceholder").classList.remove("has-file"); // [ADDED]
       proofReadToken += 1; // [ADDED]
-      proofPreviewReady = false; // [ADDED]
-      if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
-      proofPreviewObjectUrl = null; // [ADDED]
       proofInput.value = "";
-      proofPreview.removeAttribute("src");
-      proofPreview.classList.add("hidden");
-      proofPlaceholder.classList.remove("hidden");
       proofPreviewLoading.classList.add("hidden"); // [ADDED]
       proofConfirmButton.disabled = true;
       proofModal.classList.remove("is-uploading"); // [ADDED]
@@ -3396,9 +3386,6 @@
       proofModal.classList.add("hidden");
       selectedPremiumProof = null;
       proofReadToken += 1; // [ADDED]
-      proofPreviewReady = false; // [ADDED]
-      if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
-      proofPreviewObjectUrl = null; // [ADDED]
     });
 
     proofModal.addEventListener("click", (event) => {
@@ -3406,9 +3393,6 @@
         proofModal.classList.add("hidden");
         selectedPremiumProof = null;
         proofReadToken += 1; // [ADDED]
-        proofPreviewReady = false; // [ADDED]
-        if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
-        proofPreviewObjectUrl = null; // [ADDED]
       }
     });
 
