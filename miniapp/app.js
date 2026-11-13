@@ -3260,6 +3260,12 @@
     const proofPreviewLoading = $("#premiumProofPreviewLoading"); // [ADDED]
     const proofConfirmButton = $("#premiumProofConfirmButton");
 
+    function showPremiumProofInlineError(message) { // [ADDED]
+      const errorBox = $("#premiumProofError");
+      errorBox.textContent = message;
+      errorBox.classList.remove("hidden");
+    }
+
     $("#premiumPaymentPaidButton").addEventListener("click", () => {
       if (!activePremiumOrderId) return;
       selectedPremiumProof = null;
@@ -3291,16 +3297,17 @@
       proofConfirmButton.disabled = true;
       proofPreviewLoading.classList.add("hidden"); // [ADDED]
       $("#premiumProofError").textContent = "";
+      $("#premiumProofError").classList.add("hidden"); // [ADDED]
       if (proofPreviewObjectUrl) URL.revokeObjectURL(proofPreviewObjectUrl); // [ADDED]
       proofPreviewObjectUrl = null; // [ADDED]
       if (!file) return;
       if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        $("#premiumProofError").textContent = "Format gambar harus JPG, PNG, atau WEBP.";
+        showPremiumProofInlineError("Format gambar harus JPG, PNG, atau WEBP.");
         proofInput.value = "";
         return;
       }
       if (file.size > 5 * 1024 * 1024) {
-        $("#premiumProofError").textContent = "Ukuran gambar maksimal 5 MB.";
+        showPremiumProofInlineError("Ukuran gambar maksimal 5 MB.");
         proofInput.value = "";
         return;
       }
@@ -3319,7 +3326,7 @@
         if (readToken !== proofReadToken) return;
         proofPreviewReady = false;
         proofPreviewLoading.classList.add("hidden");
-        $("#premiumProofError").textContent = "Gambar gagal ditampilkan. Silakan pilih ulang.";
+        showPremiumProofInlineError("Gambar gagal ditampilkan. Silakan pilih ulang.");
       };
       proofPreview.src = proofPreviewObjectUrl; // [ADDED]
 
@@ -3390,7 +3397,7 @@
           if (!imageData) {
             selectedPremiumProof = null;
             proofPreviewLoading.classList.add("hidden");
-            $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
+            showPremiumProofInlineError("Gambar gagal dibaca. Silakan pilih ulang.");
             return;
           }
           selectedPremiumProof = imageData;
@@ -3401,14 +3408,14 @@
           if (readToken !== proofReadToken) return; // [ADDED]
           selectedPremiumProof = null;
           proofPreviewLoading.classList.add("hidden");
-          $("#premiumProofError").textContent = "Gambar gagal dibaca. Silakan pilih ulang.";
+          showPremiumProofInlineError("Gambar gagal dibaca. Silakan pilih ulang.");
         };
         reader.readAsDataURL(compressedFile);
       }).catch((error) => {
         if (readToken !== proofReadToken) return; // [ADDED]
         selectedPremiumProof = null;
         proofPreviewLoading.classList.add("hidden");
-        $("#premiumProofError").textContent = error.message || "Gambar gagal diproses.";
+        showPremiumProofInlineError(error.message || "Gambar gagal diproses.");
       });
     });
 
