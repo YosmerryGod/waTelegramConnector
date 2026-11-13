@@ -2553,13 +2553,16 @@
       const objectUrl = URL.createObjectURL(file);
       loading.classList.remove("hidden");
       preview.classList.remove("hidden");
+      preview.classList.add("is-loading");
       placeholder?.classList.add("hidden");
       preview.onload = () => {
         loading.classList.add("hidden");
+        preview.classList.remove("is-loading");
         URL.revokeObjectURL(objectUrl);
       };
       preview.onerror = () => {
         loading.classList.add("hidden");
+        preview.classList.remove("is-loading");
         URL.revokeObjectURL(objectUrl);
       };
       preview.src = objectUrl;
@@ -2706,8 +2709,8 @@
         <form data-ai-settings-form="payment" class="ai-business-data-form">
           <div class="ai-business-qris-upload">
             <div class="ai-business-qris-preview-wrap">
-              <span class="ai-business-qris-loading-ring ${qrisImage ? "is-visible" : "hidden"}" id="aiBusinessQrisLoading" role="status" aria-label="Memuat gambar QRIS"></span>
-              <img id="aiBusinessQrisPreview" class="ai-business-qris-preview ${qrisImage ? "" : "hidden"}" src="${escapeHTML(qrisImage)}" alt="QRIS pembayaran usaha" decoding="async">
+              <span class="ai-business-qris-loading-ring ${qrisImage ? "" : "hidden"}" id="aiBusinessQrisLoading" role="status" aria-label="Memuat gambar QRIS"></span>
+              <img id="aiBusinessQrisPreview" class="ai-business-qris-preview ${qrisImage ? "is-loading" : "hidden"}" src="${escapeHTML(qrisImage)}" alt="QRIS pembayaran usaha" decoding="async" fetchpriority="high">
               <div id="aiBusinessQrisPlaceholder" class="ai-business-qris-placeholder ${qrisImage ? "hidden" : ""}">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v2M17 20h4M20 18v3"/></svg>
                 <strong>Belum ada gambar QRIS</strong>
@@ -2727,9 +2730,17 @@
       const qrisPreview = $("#aiBusinessQrisPreview");
       const qrisLoading = $("#aiBusinessQrisLoading");
       if (qrisPreview && qrisLoading) {
-        qrisPreview.addEventListener("load", () => qrisLoading.classList.add("hidden"), { once: true });
-        qrisPreview.addEventListener("error", () => qrisLoading.classList.add("hidden"), { once: true });
-        if (qrisPreview.complete) qrisLoading.classList.add("hidden");
+        const finishQrisPreview = (loaded) => {
+          qrisLoading.classList.add("hidden");
+          qrisPreview.classList.remove("is-loading");
+          if (!loaded) {
+            qrisPreview.classList.add("hidden");
+            $("#aiBusinessQrisPlaceholder")?.classList.remove("hidden");
+          }
+        };
+        qrisPreview.addEventListener("load", () => finishQrisPreview(true), { once: true });
+        qrisPreview.addEventListener("error", () => finishQrisPreview(false), { once: true });
+        if (qrisPreview.complete) finishQrisPreview(qrisPreview.naturalWidth > 0);
       }
     } else if (section === "products") {
       const products = settings.products.length ? settings.products : [{ name: "", price: "", stock: "" }];
