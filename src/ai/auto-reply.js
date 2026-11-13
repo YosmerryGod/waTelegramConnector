@@ -129,10 +129,10 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     if (!socket||typeof socket.sendMessage!=="function"||typeof socket.onWhatsApp!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
     const manager=profile.settings?.manager && typeof profile.settings.manager==="object" ? profile.settings.manager : {};
     if (!manager.phone) throw new Error("PAYMENT_MANAGER_PHONE_NOT_CONFIGURED");
-    const managerDigits=manager.phone.replace(/\\D/g,"");
+    const managerDigits=manager.phone.replace(/\D/g,"");
     const managerInternational=managerDigits.startsWith("0") ? "62"+managerDigits.slice(1) : managerDigits.startsWith("8") ? "62"+managerDigits : managerDigits;
-    if (!/^62\\d{8,13}$/.test(managerInternational)) throw new Error("PAYMENT_MANAGER_PHONE_INVALID");
-    if (managerInternational===String(phoneNumber||"").replace(/\\D/g,"").replace(/^0/,"62")) throw new Error("PAYMENT_MANAGER_IS_CUSTOMER_NUMBER");
+    if (!/^62\d{8,13}$/.test(managerInternational)) throw new Error("PAYMENT_MANAGER_PHONE_INVALID");
+    if (managerInternational===String(phoneNumber||"").replace(/\D/g,"").replace(/^0/,"62")) throw new Error("PAYMENT_MANAGER_IS_CUSTOMER_NUMBER");
     const managerLookup=await socket.onWhatsApp(managerInternational);
     const managerJid=managerLookup?.find((entry)=>entry?.exists&&entry?.jid)?.jid;
     if (!managerJid) throw new Error("PAYMENT_MANAGER_WHATSAPP_NOT_REGISTERED");
