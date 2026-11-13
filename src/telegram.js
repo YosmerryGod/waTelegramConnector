@@ -1347,6 +1347,8 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
               messageId,
               socket,
               quotedMessage: message
+            }).catch((error) => {
+              console.error("[WAGRAM AI Auto Reply] Worker crashed:", error.message);
             });
           }
 
