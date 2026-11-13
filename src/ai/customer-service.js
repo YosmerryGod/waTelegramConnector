@@ -818,10 +818,10 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     const calls = result.parts.filter((part) => part?.functionCall).map((part) => part.functionCall);
     if (!calls.length) {
       // [MODIFIED] Normalize accidental multi-paragraph output and cap customer-facing replies.
-      const answer = result.text.trim().replace(/\\s*\\n+\\s*/g, " ").replace(/\\s{2,}/g, " ");
+      const answer = result.text.trim().replace(/\s*\n+\s*/g, " ").replace(/\s{2,}/g, " ");
       if (!answer) throw new Error("OPENROUTER_AGENT_EMPTY_ANSWER");
       const conciseAnswer = answer.length > 320
-        ? answer.slice(0, 317).replace(/\\s+\\S*$/, "").replace(/[,:;\\s]+$/, "") + "…"
+        ? answer.slice(0, 317).replace(/\s+\S*$/, "").replace(/[,:;\s]+$/, "") + "…"
         : answer;
       return { reply: conciseAnswer, trace: {
         recognition: recognition.interpretation, intent: recognition.intent, entity: recognition.entity,
