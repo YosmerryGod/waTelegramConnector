@@ -1,12 +1,11 @@
 import "dotenv/config";
 import db from "../database.js";
-import { listMessages } from "../database.js";
+import { listMessages, getAIBusinessProfile } from "../database.js";
 import {
   getAICustomerServiceStatus,
   createAICustomerServiceSuggestion,
   createAIBusinessReply
 } from "./customer-service.js";
-import { getAIBusinessProfile } from "../database.js";
 
 // [ADDED] Durable at-most-once processing guard for WhatsApp auto replies.
 // A claimed job is never automatically retried: this prevents duplicate sends
@@ -116,8 +115,8 @@ function wait(ms) {
 }
 
 // [ADDED] Send exactly one AI reply for one incoming private text message.
-// This worker uses the existing Premium-C AI Customer Service switch and
-// learned customer/admin examples. Group chats and outgoing messages never enter.
+// This worker uses the configured AI Business profile when available, otherwise
+// the enabled Premium-C AI Customer Service. Group/outgoing messages never enter.
 export async function handleIncomingAIAutoReply({
   telegramId,
   sessionId,
@@ -231,12 +230,20 @@ export async function handleIncomingAIAutoReply({
       return { sent: false, reason: "superseded_during_generation" };
     }
 
-    // [ADDED] Respect an owner disabling AI while OpenRouter is generating.
-    const latestAIStatus = getAICustomerServiceStatus(ownerId, accountId);
-    if (!latestAIStatus.eligible || !latestAIStatus.enabled) {
+    // [ADDED] Recheck the selected AI mode before sending.
+    const latestBusinessProfile = useBusinessAI
+      ? getAIBusinessProfile(ownerId, accountId)
+      : null;
+    const latestAIStatus = useBusinessAI
+      ? null
+      : getAICustomerServiceStatus(ownerId, accountId);
+    if (
+      (useBusinessAI && !latestBusinessProfile) ||
+      (!useBusinessAI && (!latestAIStatus?.eligible || !latestAIStatus?.enabled))
+    ) {
       updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
         status: "skipped",
-        error: "AI Customer Service was disabled before the reply was sent."
+        error: "The selected AI mode was disabled before the reply was sent."
       });
       return { sent: false, reason: "ai_disabled_during_generation" };
     }
