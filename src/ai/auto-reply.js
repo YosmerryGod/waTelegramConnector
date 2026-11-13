@@ -172,7 +172,8 @@ export async function handleIncomingAIAutoReply({
     const suggestion = await createAICustomerServiceSuggestion(
       ownerId,
       accountId,
-      whatsappChatId
+      whatsappChatId,
+      { autoReply: true, expectedMessageId: incomingId }
     );
     const reply = String(suggestion?.draft || "").trim();
 
