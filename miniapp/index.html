@@ -29,6 +29,16 @@
     </div>
   </div>
 
+  <!-- [ADDED] Independent splash fallback if app.js fails before its own initializer runs. -->
+  <script>
+    window.setTimeout(() => {
+      const loadingScreen = document.getElementById("appLoadingScreen");
+      if (!loadingScreen) return;
+      loadingScreen.classList.add("is-hidden");
+      window.setTimeout(() => loadingScreen.remove(), 380);
+    }, 12000);
+  </script>
+
   <!-- Ikon (SVG sprite) -->
   <svg width="0" height="0" style="position:absolute" aria-hidden="true">
     <defs>
@@ -892,7 +902,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261115-manual-payment-fallback-v2"></script>
+  <script src="app.js?v=20261115-splash-fallback-v3"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
