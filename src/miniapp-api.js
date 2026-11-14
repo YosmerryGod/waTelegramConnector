@@ -547,12 +547,16 @@ router.get("/sessions", (req, res) => {
     });
 
     res.setHeader("Cache-Control", "no-store");
-    // [MODIFIED] Pending secondary sessions reserve a slot but are not counted as linked accounts.
-    const linkedSessionCount = sessions.filter((session) =>
-      session.is_primary ||
-      Boolean(session.phone_number) ||
-      ["connected", "paused"].includes(session.status)
-    ).length;
+    // [MODIFIED] Count unique registered WhatsApp accounts, not duplicate/alias session records.
+    const linkedPhoneNumbers = new Set(
+      sessions
+        .filter((session) => !session.is_primary && session.phone_number)
+        .map((session) => String(session.phone_number).replace(/\D/g, ""))
+        .filter(Boolean)
+    );
+    const linkedSessionCount = sessions.some((session) => session.is_primary)
+      ? 1 + linkedPhoneNumbers.size
+      : linkedPhoneNumbers.size;
 
     res.json({
       ok: true,
