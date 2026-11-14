@@ -4622,7 +4622,13 @@
       /* penyimpanan tidak tersedia */
     }
 
-    applyTheme();
+    // [MODIFIED] Reveal the new theme with a centered expanding circle when View Transitions are supported.
+    const root = document.documentElement;
+    if (typeof document.startViewTransition === "function" && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      document.startViewTransition(() => applyTheme());
+    } else {
+      applyTheme();
+    }
   }
 
   // "auto" mengikuti tema Telegram, lalu tema perangkat. Default WAGRAM adalah tema terang.
