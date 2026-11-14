@@ -2378,6 +2378,21 @@
     }
   }
 
+  // [ADDED] Normalize Indonesian phone inputs to international 62 format before sending to WhatsApp.
+  function normalizeWhatsAppPairingPhone(value) {
+    let phone = String(value || "").trim().replace(/\D/g, "");
+
+    if (phone.startsWith("0062")) {
+      phone = "62" + phone.slice(4);
+    } else if (phone.startsWith("0")) {
+      phone = "62" + phone.slice(1);
+    } else if (phone.startsWith("8")) {
+      phone = "62" + phone;
+    }
+
+    return phone;
+  }
+
   // [ADDED] Request and display a WhatsApp Linked Devices pairing code.
   async function requestWhatsAppPairingCode() {
     const sessionId = currentWhatsAppPairingSessionId;
@@ -2385,19 +2400,21 @@
     const button = $("#requestWhatsAppPairingCodeButton");
     const status = $("#whatsappPairingCodeStatus");
     const result = $("#whatsappPairingCodeResult");
-    const phoneNumber = String(input.value || "").replace(/\D/g, "");
+    const phoneNumber = normalizeWhatsAppPairingPhone(input.value); // [MODIFIED] Accept local 08, 8, +62, and 62 formats.
 
     if (!sessionId) {
       showToast("Session WhatsApp belum tersedia.");
       return;
     }
-    if (!/^\d{8,15}$/.test(phoneNumber)) {
-      status.textContent = "Masukkan nomor dengan kode negara, contoh 62812xxxxxxxx.";
+    if (!/^\d{8,15}$/.test(phoneNumber) || (phoneNumber.startsWith("62") && !/^628\d{7,11}$/.test(phoneNumber))) {
+      status.textContent = "Periksa kembali nomor WhatsApp yang kamu masukkan.";
       result.classList.add("hidden");
       input.focus();
       return;
     }
 
+    // [ADDED] Show the normalized international number so the user can verify the value sent.
+    input.value = phoneNumber;
     button.disabled = true;
     button.textContent = "Meminta kode…";
     status.textContent = "Menghubungi WhatsApp untuk membuat kode tautan…";
