@@ -524,12 +524,12 @@ router.get("/account", (req, res) => {
 });
 
 // [ADDED] List and manage WhatsApp accounts with server-enforced tier limits.
-router.get("/sessions", (req, res) => {
+router.get("/sessions", async (req, res) => {
   try {
     const membership = getMembership(req.telegramId);
     // [MODIFIED] Remove abandoned secondary sessions that never completed pairing.
     // These records have no phone number and no live QR/connection, so they must not consume a Premium slot.
-    const sessions = getWhatsAppAccounts(req.telegramId).map((session) => {
+    const sessions = (await Promise.all(getWhatsAppAccounts(req.telegramId).map(async (session) => {
       const live = getWhatsAppStatus(session.session_id);
       // [MODIFIED] Keep persisted linked/connecting states when the in-memory socket registry
       // has not restored this account yet; a missing runtime entry is not proof of abandonment.
@@ -539,13 +539,18 @@ router.get("/sessions", (req, res) => {
         : ["connected", "connecting", "qr", "paused"].includes(persistedStatus)
           ? persistedStatus
           : "disconnected";
+      const profile = status === "connected" || status === "paused"
+        ? await getWhatsAppAccountProfile(session.session_id).catch(() => ({ displayName: null, pictureUrl: null }))
+        : { displayName: null, pictureUrl: null };
 
       return {
         ...session,
         status,
+        display_name: profile.displayName || null,
+        picture_url: profile.pictureUrl || null,
         phone_number: live.phoneNumber || session.phone_number || null
       };
-    }).filter((session) => {
+    }))).filter((session) => {
       // [MODIFIED] Do not delete an account merely because its socket is temporarily absent.
       // Only remove a secondary record that is explicitly disconnected and has never linked a number.
       const abandoned = !session.is_primary &&
