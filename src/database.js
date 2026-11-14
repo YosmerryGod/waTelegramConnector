@@ -221,6 +221,36 @@ db.exec(`
     ON whatsapp_accounts(telegram_id, created_at ASC);
 `);
 
+// [ADDED] Persist whether a WhatsApp account has ever completed a successful connection.
+const whatsappAccountColumns = db
+  .prepare("PRAGMA table_info(whatsapp_accounts)")
+  .all()
+  .map((column) => column.name);
+
+if (!whatsappAccountColumns.includes("ever_connected_at")) {
+  db.exec("ALTER TABLE whatsapp_accounts ADD COLUMN ever_connected_at INTEGER");
+}
+
+// [ADDED] Preserve accounts already connected before this migration.
+db.exec(`
+  UPDATE whatsapp_accounts
+  SET ever_connected_at = COALESCE(ever_connected_at, updated_at)
+  WHERE connection_status IN ('connected', 'paused');
+
+  UPDATE whatsapp_accounts
+  SET ever_connected_at = COALESCE(ever_connected_at, (
+    SELECT s.updated_at
+    FROM whatsapp_sessions s
+    WHERE s.telegram_id = whatsapp_accounts.telegram_id
+  ))
+  WHERE is_primary = 1
+    AND EXISTS (
+      SELECT 1 FROM whatsapp_sessions s
+      WHERE s.telegram_id = whatsapp_accounts.telegram_id
+        AND s.connection_status IN ('connected', 'paused')
+    );
+`);
+
 db.exec(`
   INSERT OR IGNORE INTO whatsapp_accounts (
     session_id, telegram_id, phone_number, connection_status,
@@ -1054,7 +1084,7 @@ export function getWhatsAppAccounts(telegramId) {
     SELECT a.session_id, a.telegram_id, a.label, a.phone_number,
            CASE WHEN a.is_primary = 1 THEN COALESCE(s.connection_status, a.connection_status)
                 ELSE a.connection_status END AS connection_status,
-           a.is_primary, a.created_at, a.updated_at
+           a.is_primary, a.created_at, a.updated_at, a.ever_connected_at
     FROM whatsapp_accounts a
     LEFT JOIN whatsapp_sessions s ON s.telegram_id = a.telegram_id
     WHERE a.telegram_id = ?
@@ -1168,9 +1198,13 @@ export function updateWhatsAppAccountSession(telegramId, sessionId, status, phon
     UPDATE whatsapp_accounts
     SET connection_status = ?,
         phone_number = COALESCE(?, phone_number),
+        ever_connected_at = CASE
+          WHEN ? = 'connected' THEN COALESCE(ever_connected_at, ?)
+          ELSE ever_connected_at
+        END,
         updated_at = ?
     WHERE telegram_id = ? AND session_id = ?
-  `).run(status, phoneNumber, now, String(telegramId), String(sessionId));
+  `).run(status, phoneNumber, status, now, now, String(telegramId), String(sessionId));
   if (result.changes === 0) return null;
   return getWhatsAppAccount(telegramId, sessionId);
 }
