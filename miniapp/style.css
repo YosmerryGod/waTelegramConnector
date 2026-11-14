@@ -8163,3 +8163,71 @@ body.in-chat #topbar {
 .premium-proof-error:empty {
   display: none;
 }
+
+/* [MODIFIED] Professional pairing layout: tabs and actions stay outside the QR canvas. */
+.whatsapp-sessions-modal.is-pairing .whatsapp-session-qr {
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:12px;
+  margin-top:14px;
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  color:var(--text);
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-tabs {
+  order:0;
+  margin:0;
+  padding:4px;
+  border-radius:13px;
+  background:var(--surface-2);
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-tab {
+  min-height:42px;
+  font-size:13px;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-method-panel {
+  gap:12px;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-qr-brand-frame {
+  width:min(100%, 340px);
+  padding:10px;
+  border:1px solid rgba(20,40,28,.08);
+  border-radius:18px;
+  background:#fff;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-qr-brand-frame > #whatsappSessionQrImage {
+  border-radius:8px;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-status {
+  min-height:0;
+  padding:9px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface-2);
+  color:var(--muted);
+  font-size:11px;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-cancel {
+  order:3;
+  margin:2px 0 0;
+  min-height:48px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:var(--surface-2);
+  color:var(--text);
+  box-shadow:none;
+  font-size:13px;
+  font-weight:750;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-submit {
+  min-height:46px;
+  border-radius:12px;
+  box-shadow:0 5px 14px rgba(37,201,106,.16);
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-hint {
+  margin:0;
+  line-height:1.45;
+}
