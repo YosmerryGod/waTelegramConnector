@@ -535,7 +535,7 @@
       tier.textContent = "FREE TIER";
       tier.removeAttribute("title");
       tier.classList.remove("is-premium", "is-admin");
-      if (upgradeButton) upgradeButton.innerHTML = '<span aria-hidden="true">♛</span> Upgrade Premium';
+      if (upgradeButton) upgradeButton.innerHTML = '<img class="premium-crown-svg" src="./assets/premium-crown.svg" alt="" aria-hidden="true"> Upgrade Premium';
       if (meta) meta.textContent = "Nikmati fitur dasar WAGRAM";
       return;
     }
@@ -563,8 +563,8 @@
 
     if (upgradeButton) {
       upgradeButton.innerHTML = isPremium
-        ? '<span aria-hidden="true">♛</span> Perpanjang Premium'
-        : '<span aria-hidden="true">♛</span> Upgrade Premium';
+        ? '<img class="premium-crown-svg" src="./assets/premium-crown.svg" alt="" aria-hidden="true"> Perpanjang Premium'
+        : '<img class="premium-crown-svg" src="./assets/premium-crown.svg" alt="" aria-hidden="true"> Upgrade Premium';
     }
 
     // [MODIFIED] Remove the separate expiry-date line below the tier badge.
@@ -669,7 +669,7 @@
       const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
       const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
       const locked = isWhatsAppSessionLocked(session);
-      return '<button class="whatsapp-session-item' + (active ? ' is-active' : '') + (locked ? ' is-session-locked' : '') + '" type="button" data-session-select="' + escapeHTML(session.session_id) + '" aria-label="' + escapeHTML(label) + (locked ? ', Premium diperlukan' : '') + '">' + '<span class="whatsapp-session-avatar">' + icon("whatsapp") + '</span>' + '<span class="whatsapp-session-info"><strong>' + escapeHTML(label) + '</strong><small>' + escapeHTML(number) + '</small></span>' + '<span class="whatsapp-session-status status-' + escapeHTML(status) + '">' + escapeHTML(labels[status] || status) + '</span>' + (locked ? '<span class="whatsapp-session-lock" aria-label="Premium diperlukan">♛</span>' : active ? '<span class="whatsapp-session-check">✓</span>' : '') + '</button>';
+      return '<button class="whatsapp-session-item' + (active ? ' is-active' : '') + (locked ? ' is-session-locked' : '') + '" type="button" data-session-select="' + escapeHTML(session.session_id) + '" aria-label="' + escapeHTML(label) + (locked ? ', Premium diperlukan' : '') + '">' + '<span class="whatsapp-session-avatar">' + icon("whatsapp") + '</span>' + '<span class="whatsapp-session-info"><strong>' + escapeHTML(label) + '</strong><small>' + escapeHTML(number) + '</small></span>' + '<span class="whatsapp-session-status status-' + escapeHTML(status) + '">' + escapeHTML(labels[status] || status) + '</span>' + (locked ? '<span class="whatsapp-session-lock" aria-label="Premium diperlukan"><img class="premium-crown-svg" src="./assets/premium-crown.svg" alt=""></span>' : active ? '<span class="whatsapp-session-check">✓</span>' : '') + '</button>';
     }).join("");
     // [ADDED] Keep all linked accounts visible in one Profile card, each with its own actions.
     const accountRows = $("#whatsappAccountRows");
@@ -692,7 +692,7 @@
           : "";
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
           '<button class="whatsapp-account-select' + (locked ? ' is-session-locked' : '') + '" type="button" data-account-select="' + escapeHTML(session.session_id) + '" aria-label="' + (locked ? 'Premium diperlukan untuk memilih ' : 'Pilih akun ') + escapeHTML(label) + '">' +
-          '<span class="whatsapp-account-avatar' + (active ? ' is-selected' : '') + '">' + picture + (locked ? '<span class="whatsapp-session-lock whatsapp-avatar-lock" aria-label="Premium diperlukan">👑</span>' : '') + (active ? '<span class="whatsapp-account-selected-check" aria-label="Dipilih">✓</span>' : '') + '</span>' +
+          '<span class="whatsapp-account-avatar' + (active ? ' is-selected' : '') + '">' + picture + (locked ? '<span class="whatsapp-session-lock whatsapp-avatar-lock" aria-label="Premium diperlukan"><img class="premium-crown-svg" src="./assets/premium-crown.svg" alt=""></span>' : '') + (active ? '<span class="whatsapp-account-selected-check" aria-label="Dipilih">✓</span>' : '') + '</span>' +
           '<span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
           '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : status === "connecting" ? ' is-connecting' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
           '<button class="whatsapp-account-row-chevron" type="button" data-account-settings-toggle="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '" aria-expanded="' + String(state.expandedSettingsSessionId === session.session_id) + '">' + icon("back") + '</button></div>' +
@@ -703,7 +703,7 @@
     const linkedSessionCount = Number(state.whatsappSessionCount ?? state.whatsappSessions.length) || 0;
     const canAdd = linkedSessionCount < state.whatsappSessionLimit;
     const add = $("#createWhatsAppSessionButton");
-    if (add) add.innerHTML = canAdd ? icon("plus") + " Tambah akun WhatsApp" : icon("crown") + " Upgrade untuk tambah akun";
+    if (add) add.innerHTML = canAdd ? icon("plus") + " Tambah akun WhatsApp" : '<img class="premium-crown-svg" src="./assets/premium-crown.svg" alt="" aria-hidden="true"> Upgrade untuk tambah akun';
     $("#whatsappSessionLimitText").textContent = linkedSessionCount + " dari " + state.whatsappSessionLimit + " session digunakan";
     const headerAdd = $("#addWhatsAppSessionButton");
     if (headerAdd) {
@@ -887,7 +887,7 @@
         crown = document.createElement("span");
         crown.className = "notification-lock-crown";
         crown.setAttribute("aria-hidden", "true");
-        crown.textContent = "👑";
+        crown.innerHTML = '<img class="premium-crown-svg" src="./assets/premium-crown.svg" alt="">';
         button.appendChild(crown);
       } else if (!locked && crown) {
         crown.remove();
@@ -1106,7 +1106,7 @@
           <button class="list-item chat-row-content" type="button" data-chat="${escapeHTML(chat.whatsapp_chat_id)}" ${isLocked ? 'data-premium-chat="true"' : ""}>
             <span class="chat-avatar-wrap">
               ${avatar(name, name, "", chat.profile_picture_url)}
-              ${isLocked ? '<span class="premium-chat-crown" aria-label="Premium">👑</span>' : ""}
+              ${isLocked ? '<span class="premium-chat-crown" aria-label="Premium"><img class="premium-crown-svg" src="./assets/premium-crown.svg" alt=""></span>' : ""}
             </span>
             <div class="item-body">
               <div class="item-row">
@@ -1379,7 +1379,7 @@
     return `<div class="locked-media">
       <div class="locked-media-heading">${icon(iconName)}<strong>${escapeHTML(label.charAt(0).toUpperCase() + label.slice(1))}</strong><span class="locked-media-lock">${icon("eye-off")}</span></div>
       <div class="locked-media-copy">${escapeHTML(sender)} mengirim ${escapeHTML(label)}</div>
-      <button class="locked-media-upgrade" type="button" data-premium-media="true"><span aria-hidden="true">👑</span> Upgrade untuk melihat</button>
+      <button class="locked-media-upgrade" type="button" data-premium-media="true"><img class="premium-crown-svg" src="./assets/premium-crown.svg" alt="" aria-hidden="true"> Upgrade untuk melihat</button>
     </div>`;
   }
 
