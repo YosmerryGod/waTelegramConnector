@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261114-thinking-mascot-spacing-v2">
+  <link rel="stylesheet" href="style.css?v=20261114-linking-method-tabs-v1">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -846,7 +846,7 @@
         <div id="whatsappSessionList" class="whatsapp-session-list"></div>
         <button id="createWhatsAppSessionButton" class="whatsapp-session-add-action" type="button"><svg class="i"><use href="#i-plus"/></svg> Tambah akun WhatsApp</button>
         <div id="whatsappSessionQrWrap" class="whatsapp-session-qr hidden">
-          {/* [ADDED] Pairing method selector for QR and manual linking code. */}
+          <!-- [ADDED] Pairing method selector for QR and manual linking code. -->
           <div class="whatsapp-pairing-tabs" role="tablist" aria-label="Metode tautkan perangkat">
             <button id="whatsappPairingQrTab" class="whatsapp-pairing-tab is-active" type="button" role="tab" aria-selected="true">QR Code</button>
             <button id="whatsappPairingCodeTab" class="whatsapp-pairing-tab" type="button" role="tab" aria-selected="false">Kode Tautan</button>
@@ -885,7 +885,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261114-pairing-polish-v1"></script>
+  <script src="app.js?v=20261114-linking-method-tabs-v1"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
