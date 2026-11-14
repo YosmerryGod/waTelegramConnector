@@ -547,11 +547,18 @@ router.get("/sessions", (req, res) => {
     });
 
     res.setHeader("Cache-Control", "no-store");
+    // [MODIFIED] Pending secondary sessions reserve a slot but are not counted as linked accounts.
+    const linkedSessionCount = sessions.filter((session) =>
+      session.is_primary ||
+      Boolean(session.phone_number) ||
+      ["connected", "paused"].includes(session.status)
+    ).length;
+
     res.json({
       ok: true,
       sessions,
       limit: membership?.sessions_limit || 1,
-      count: sessions.length,
+      count: linkedSessionCount,
       plan: membership?.plan || "free"
     });
   } catch (error) {
