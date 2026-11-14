@@ -366,6 +366,30 @@ router.post("/payment-monitor/events", (req, res) => {
 
     const order = result.order;
     const membership = result.membership;
+
+    // [ADDED] Automatically resume previously linked WhatsApp accounts when Premium is reactivated.
+    // Only accounts within the newly active plan's session limit are resumed.
+    if (membership && membership.plan !== "free") {
+      const ownedSessions = getWhatsAppAccounts(order.telegram_id);
+      const eligibleSessions = ownedSessions.slice(0, membership.sessions_limit);
+      for (const session of eligibleSessions) {
+        if (session.connection_status !== "paused") continue;
+        try {
+          await connectWhatsApp(
+            order.telegram_id,
+            createWhatsAppCallbacks(order.telegram_id, {
+              sessionId: session.session_id,
+              silentStartup: true,
+              notifyQrToTelegram: false
+            }),
+            { sessionId: session.session_id }
+          );
+        } catch (error) {
+          console.error("[WAGRAM Premium Resume] Could not resume WhatsApp session:", error.message);
+        }
+      }
+    }
+
     publishToMiniApp(order.telegram_id, {
       type: "membership.updated",
       data: {
