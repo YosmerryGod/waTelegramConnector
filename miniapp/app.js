@@ -619,6 +619,11 @@
   async function loadWhatsAppSessions() {
     const data = await api("/sessions");
     state.whatsappSessions = data.sessions || [];
+    // [ADDED] Use the server's linked-account count; pending QR/connecting records are not linked accounts.
+    state.whatsappSessionCount = Math.max(
+      0,
+      Number(data.count ?? state.whatsappSessions.length) || 0
+    );
     // [MODIFIED] Prefer the API limit, then the already-loaded membership limit.
     state.whatsappSessionLimit = Math.max(
       1,
@@ -665,10 +670,12 @@
           '</div>';
       }).join("");
     }
-    const canAdd = state.whatsappSessions.length < state.whatsappSessionLimit;
+    // [MODIFIED] Pending secondary sessions are hidden from linked-account capacity calculations.
+    const linkedSessionCount = Number(state.whatsappSessionCount ?? state.whatsappSessions.length) || 0;
+    const canAdd = linkedSessionCount < state.whatsappSessionLimit;
     const add = $("#createWhatsAppSessionButton");
     if (add) add.innerHTML = canAdd ? icon("plus") + " Tambah akun WhatsApp" : icon("crown") + " Upgrade untuk tambah akun";
-    $("#whatsappSessionLimitText").textContent = state.whatsappSessions.length + " dari " + state.whatsappSessionLimit + " session digunakan";
+    $("#whatsappSessionLimitText").textContent = linkedSessionCount + " dari " + state.whatsappSessionLimit + " session digunakan";
     const headerAdd = $("#addWhatsAppSessionButton");
     if (headerAdd) {
       headerAdd.classList.toggle("is-session-locked", !canAdd);
