@@ -8359,3 +8359,34 @@ body.in-chat #topbar {
 .whatsapp-sessions-modal.is-pairing #whatsappPairingCodeStatus:empty {
   display:none;
 }
+
+/* [ADDED] Center-out circular reveal for light/dark theme changes. */
+::view-transition-group(root) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(.22, .75, .2, 1);
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+  clip-path: circle(0 at 50% 50%);
+  animation: wagram-theme-reveal 620ms cubic-bezier(.16, 1, .3, 1) forwards;
+}
+@keyframes wagram-theme-reveal {
+  to {
+    clip-path: circle(150vmax at 50% 50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms !important;
+  }
+}
