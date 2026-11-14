@@ -616,6 +616,20 @@
   }
 
 
+  // [ADDED] Only an unexpired Premium membership may use secondary WhatsApp sessions.
+  function hasActivePremiumMembership() {
+    const membership = state.membership;
+    if (!membership || !membership.plan || membership.plan === "free") return false;
+    if (!membership.plan_expires_at) return true;
+    const expiry = new Date(membership.plan_expires_at).getTime();
+    return Number.isFinite(expiry) && expiry > Date.now();
+  }
+
+  // [ADDED] Expired and Free users can access only their primary WhatsApp session.
+  function isWhatsAppSessionLocked(session) {
+    return Boolean(session && !session.is_primary && !hasActivePremiumMembership());
+  }
+
   // [ADDED] Load WhatsApp sessions and restore the selected account.
   async function loadWhatsAppSessions() {
     const data = await api("/sessions");
@@ -631,8 +645,12 @@
       Number(data.limit ?? state.membership?.sessions_limit ?? 1) || 1
     );
     const saved = localStorage.getItem("wagram-active-whatsapp-session");
-    const selected = state.whatsappSessions.find((item) => item.session_id === saved) || state.whatsappSessions.find((item) => item.is_primary) || state.whatsappSessions[0];
+    const savedSession = state.whatsappSessions.find((item) => item.session_id === saved);
+    const selected = savedSession && !isWhatsAppSessionLocked(savedSession)
+      ? savedSession
+      : state.whatsappSessions.find((item) => item.is_primary) || state.whatsappSessions[0];
     state.activeSessionId = selected ? selected.session_id : null;
+    if (selected) localStorage.setItem("wagram-active-whatsapp-session", selected.session_id);
     renderWhatsAppSessions();
     return selected;
   }
@@ -646,7 +664,8 @@
       const labels = { connected: "Terhubung", connecting: "Menghubungkan", qr: "Menunggu QR", paused: "Pause", disconnected: "Terputus", logged_out: "Keluar" };
       const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
       const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
-      return '<button class="whatsapp-session-item' + (active ? ' is-active' : '') + '" type="button" data-session-select="' + escapeHTML(session.session_id) + '">' + '<span class="whatsapp-session-avatar">' + icon("whatsapp") + '</span>' + '<span class="whatsapp-session-info"><strong>' + escapeHTML(label) + '</strong><small>' + escapeHTML(number) + '</small></span>' + '<span class="whatsapp-session-status status-' + escapeHTML(status) + '">' + escapeHTML(labels[status] || status) + '</span>' + (active ? '<span class="whatsapp-session-check">✓</span>' : '') + '</button>';
+      const locked = isWhatsAppSessionLocked(session);
+      return '<button class="whatsapp-session-item' + (active ? ' is-active' : '') + (locked ? ' is-session-locked' : '') + '" type="button" data-session-select="' + escapeHTML(session.session_id) + '" aria-label="' + escapeHTML(label) + (locked ? ', Premium diperlukan' : '') + '">' + '<span class="whatsapp-session-avatar">' + icon("whatsapp") + '</span>' + '<span class="whatsapp-session-info"><strong>' + escapeHTML(label) + '</strong><small>' + escapeHTML(number) + '</small></span>' + '<span class="whatsapp-session-status status-' + escapeHTML(status) + '">' + escapeHTML(labels[status] || status) + '</span>' + (locked ? '<span class="whatsapp-session-lock" aria-label="Premium diperlukan">♛</span>' : active ? '<span class="whatsapp-session-check">✓</span>' : '') + '</button>';
     }).join("");
     // [ADDED] Keep all linked accounts visible in one Profile card, each with its own actions.
     const accountRows = $("#whatsappAccountRows");
@@ -663,14 +682,15 @@
         const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
         const label = session.display_name || session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
         const active = session.session_id === state.activeSessionId;
+        const locked = isWhatsAppSessionLocked(session);
         const picture = session.picture_url
           ? '<img src="' + escapeHTML(session.picture_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
           : "";
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
-          '<button class="whatsapp-account-select" type="button" data-account-select="' + escapeHTML(session.session_id) + '" aria-label="Pilih akun ' + escapeHTML(label) + '">' +
+          '<button class="whatsapp-account-select' + (locked ? ' is-session-locked' : '') + '" type="button" data-account-select="' + escapeHTML(session.session_id) + '" aria-label="' + (locked ? 'Premium diperlukan untuk memilih ' : 'Pilih akun ') + escapeHTML(label) + '">' +
           '<span class="whatsapp-account-avatar' + (active ? ' is-selected' : '') + '">' + picture + (active ? '<span class="whatsapp-account-selected-check" aria-label="Dipilih">✓</span>' : '') + '</span>' +
           '<span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
-          '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : status === "connecting" ? ' is-connecting' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
+          '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : status === "connecting" ? ' is-connecting' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span>' + (locked ? '<span class="whatsapp-session-lock" aria-label="Premium diperlukan">♛</span>' : '') + '</button>' +
           '<button class="whatsapp-account-row-chevron" type="button" data-account-settings-toggle="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '" aria-expanded="' + String(state.expandedSettingsSessionId === session.session_id) + '">' + icon("back") + '</button></div>' +
           '<div class="whatsapp-account-settings-slot" data-account-settings-slot="' + escapeHTML(session.session_id) + '"></div>';
       }).join("");
@@ -2258,7 +2278,12 @@
   }
 
   async function selectWhatsAppSession(sessionId) {
-    if (!state.whatsappSessions.some((item) => item.session_id === sessionId)) return;
+    const session = state.whatsappSessions.find((item) => item.session_id === sessionId);
+    if (!session) return;
+    if (isWhatsAppSessionLocked(session)) {
+      openPremiumSheet();
+      return;
+    }
     state.activeSessionId = sessionId;
     state.expandedSettingsSessionId = null; // [ADDED] Selecting a row closes the previous session's settings dropdown.
     localStorage.setItem("wagram-active-whatsapp-session", sessionId);
@@ -2510,8 +2535,14 @@
       }
       const accountSettingsToggle = event.target.closest("[data-account-settings-toggle]");
       if (accountSettingsToggle) {
-        // [MODIFIED] Opening a dropdown never changes the active WhatsApp session.
+        // [ADDED] Secondary session settings are Premium-only after subscription expiry.
         const sessionId = accountSettingsToggle.dataset.accountSettingsToggle;
+        const settingsSession = state.whatsappSessions.find((item) => item.session_id === sessionId);
+        if (isWhatsAppSessionLocked(settingsSession)) {
+          openPremiumSheet();
+          return;
+        }
+        // [MODIFIED] Opening a dropdown never changes the active WhatsApp session.
         state.expandedSettingsSessionId = state.expandedSettingsSessionId === sessionId ? null : sessionId;
         mountWhatsAppSessionSettings();
         renderNotificationPreferences();
