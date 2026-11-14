@@ -704,10 +704,11 @@ router.get("/sessions", async (req, res) => {
     }))).filter((session) => {
       // [MODIFIED] Only show WhatsApp sessions that are currently valid or explicitly paused.
       // Disconnected, logged-out, connecting, and QR/pairing sessions stay out of the session list.
-      // [MODIFIED] Hide inactive sessions from the list without deleting their records.
-      // Pairing endpoints still need the database record while QR/code pairing is in progress.
-      const shouldShow = ["connected", "paused"].includes(session.status);
-      return shouldShow;
+      // [MODIFIED] Always return the primary account so the frontend can render its real status.
+      // Only secondary accounts are hidden unless they are connected or explicitly paused.
+      // Hidden sessions remain in the database for pairing and reconnect flows.
+      if (session.is_primary) return true;
+      return ["connected", "paused"].includes(session.status);
     });
 
     res.setHeader("Cache-Control", "no-store");
