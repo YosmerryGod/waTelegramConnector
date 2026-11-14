@@ -922,7 +922,7 @@
     const button = $("#aiBusinessToggle");
     if (!button) return;
 
-    const sessionId = String(state.activeSessionId || "default");
+    const sessionId = String(state.expandedSettingsSessionId || state.activeSessionId || "default");
     const preferences = getAIBusinessPreferences();
     const enabled = button.getAttribute("aria-checked") !== "true";
     preferences[sessionId] = enabled;
