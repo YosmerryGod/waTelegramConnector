@@ -7824,3 +7824,13 @@ body.in-chat #topbar {
     height: 28px;
   }
 }
+
+
+/* [MODIFIED] Let the selected badge sit outside the primary avatar corner without clipping the photo. */
+#accountWhatsAppAvatar {
+  overflow: visible;
+}
+#accountWhatsAppAvatar #accountWhatsAppPhoto,
+#accountWhatsAppAvatar > .i {
+  border-radius: inherit;
+}
