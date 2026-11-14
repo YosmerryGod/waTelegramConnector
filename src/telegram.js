@@ -15,6 +15,7 @@ import {
   listMembershipUsers,
   MEMBERSHIP_PLANS,
   getSession,
+  getWhatsAppAccounts, // [ADDED] Find every linked account when Premium is activated.
   getAllSessions, // [ADDED] Find every active WhatsApp session for the admin pause command.
   setFreePauseDate, // [ADDED] Prevent the daily scheduler from pausing the same user twice.
   updateSession,
@@ -1138,6 +1139,50 @@ async function forwardMedia({ chatId, socket, message, info, header, text }) {
 
 // Create callbacks for one Telegram user's WhatsApp connection.
 // [MODIFIED] Startup restoration can update Mini App status without Telegram spam.
+// [ADDED] Resume previously paused WhatsApp accounts whenever any admin Premium activation path succeeds.
+async function resumePremiumWhatsAppSessions(telegramId, membership) {
+  if (!membership || membership.plan === "free") return { resumed: 0, failed: 0 };
+
+  const accounts = getWhatsAppAccounts(telegramId);
+  const eligibleAccounts = accounts.slice(0, Math.max(1, Number(membership.sessions_limit) || 1));
+  let resumed = 0;
+  let failed = 0;
+
+  for (const account of eligibleAccounts) {
+    if (account.connection_status !== "paused") continue;
+
+    try {
+      await connectWhatsApp(
+        telegramId,
+        createWhatsAppCallbacks(telegramId, {
+          sessionId: account.session_id,
+          silentStartup: true,
+          notifyQrToTelegram: false
+        }),
+        { sessionId: account.session_id }
+      );
+      resumed += 1;
+    } catch (error) {
+      failed += 1;
+      console.error("[WAGRAM Premium Resume] Could not resume WhatsApp account:", {
+        telegramId: String(telegramId),
+        sessionId: account.session_id,
+        error: error.message
+      });
+    }
+  }
+
+  console.info("[WAGRAM Premium Resume] Admin activation resume result:", {
+    telegramId: String(telegramId),
+    plan: membership.plan,
+    eligible: eligibleAccounts.length,
+    resumed,
+    failed
+  });
+
+  return { resumed, failed };
+}
+
 export function createWhatsAppCallbacks(telegramId, options = {}) {
   const id = String(telegramId);
   const sessionId = String(options.sessionId || id);
@@ -1918,6 +1963,9 @@ bot.onText(/^\/set(?:@\w+)?(?:\s+(\S+))?(?:\s+(\d+))?$/, async (msg, match) => {
     return;
   }
 
+  // [ADDED] Resume eligible paused WhatsApp accounts for admin-granted Premium plans.
+  await resumePremiumWhatsAppSessions(targetId, membership);
+
   // [ADDED] Push membership changes to an open Mini App so Premium locks update immediately.
   publishToMiniApp(targetId, {
     type: "membership.updated",
@@ -2195,6 +2243,9 @@ bot.on("callback_query", async (query) => {
     const membership = setMembership(reviewedOrder.telegram_id, plan);
 
     if (membership) {
+      // [ADDED] Resume eligible paused WhatsApp accounts after manual payment approval.
+      await resumePremiumWhatsAppSessions(reviewedOrder.telegram_id, membership);
+
       publishToMiniApp(reviewedOrder.telegram_id, {
         type: "membership.updated",
         data: {
