@@ -881,9 +881,44 @@ async function createSocket(id, ownerId, entry) {
       }
 
       for (const call of events || []) {
-        // [ADDED] Set CALL_DEBUG=1 in .env to log every raw call event.
+        // [MODIFIED] Log only masked call diagnostics; keep the raw call object redacted.
         if (process.env.CALL_DEBUG === "1") {
-          logger.warn({ telegramId: id, call }, "WhatsApp call event");
+          const baseUser = (jid) =>
+            typeof jid === "string" ? jid.split("@")[0].split(":")[0] : null;
+          const jidType = (jid) =>
+            typeof jid === "string" && jid.includes("@")
+              ? jid.split("@").pop()
+              : null;
+          const userSuffix = (jid) => {
+            const user = baseUser(jid);
+            return user ? user.slice(-3) : null;
+          };
+
+          const fromUser = baseUser(call?.from);
+          const chatUser = baseUser(call?.chatId);
+          const ownId = baseUser(socket.user?.id);
+          const ownLid = baseUser(socket.user?.lid);
+
+          logger.warn(
+            {
+              telegramId: id,
+              callDebug: {
+                status: typeof call?.status === "string" ? call.status : null,
+                hasCallId: Boolean(call?.id),
+                fromType: jidType(call?.from),
+                fromUserSuffix: userSuffix(call?.from),
+                chatIdType: jidType(call?.chatId),
+                chatIdUserSuffix: userSuffix(call?.chatId),
+                callerPnType: jidType(call?.callerPn),
+                callerPnUserSuffix: userSuffix(call?.callerPn),
+                fromMatchesOwnId: Boolean(fromUser && ownId && fromUser === ownId),
+                fromMatchesOwnLid: Boolean(fromUser && ownLid && fromUser === ownLid),
+                chatIdMatchesOwnId: Boolean(chatUser && ownId && chatUser === ownId),
+                chatIdMatchesOwnLid: Boolean(chatUser && ownLid && chatUser === ownLid)
+              }
+            },
+            "WhatsApp call event"
+          );
         }
 
         try {
