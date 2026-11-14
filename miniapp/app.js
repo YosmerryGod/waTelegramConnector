@@ -2236,7 +2236,8 @@
 
   async function createWhatsAppSession() {
     const button = $("#createWhatsAppSessionButton");
-    if (state.whatsappSessions.length >= state.whatsappSessionLimit) {
+    const linkedSessionCount = Number(state.whatsappSessionCount ?? state.whatsappSessions.length) || 0;
+    if (linkedSessionCount >= state.whatsappSessionLimit) {
       showToast("Batas session paket Anda sudah tercapai.");
       return;
     }
@@ -2454,7 +2455,8 @@
       const addSessionButton = event.target.closest("#addWhatsAppSessionButton");
       if (addSessionButton) {
         event.preventDefault();
-        if (state.whatsappSessions.length >= state.whatsappSessionLimit) {
+        const linkedSessionCount = Number(state.whatsappSessionCount ?? state.whatsappSessions.length) || 0;
+        if (linkedSessionCount >= state.whatsappSessionLimit) {
           openPremiumSheet();
         } else {
           createWhatsAppSession();
@@ -2480,7 +2482,8 @@
       const sessionItem = event.target.closest("[data-session-select]");
       if (sessionItem) { selectWhatsAppSession(sessionItem.dataset.sessionSelect); return; }
       if (event.target.closest("#createWhatsAppSessionButton")) {
-        if (state.whatsappSessions.length >= state.whatsappSessionLimit) {
+        const linkedSessionCount = Number(state.whatsappSessionCount ?? state.whatsappSessions.length) || 0;
+        if (linkedSessionCount >= state.whatsappSessionLimit) {
           closeWhatsAppSessions();
           openPremiumSheet();
         } else {
