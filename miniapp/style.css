@@ -8231,3 +8231,67 @@ body.in-chat #topbar {
   margin:0;
   line-height:1.45;
 }
+
+/* [MODIFIED] Cleaner pairing-code form: remove repeated instructions and strengthen hierarchy. */
+.whatsapp-sessions-modal.is-pairing .whatsapp-code-method-panel,
+.whatsapp-sessions-modal.is-pairing #whatsappCodeMethodPanel {
+  gap:10px;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-label {
+  margin:2px 0 0;
+  color:var(--text);
+  font-size:13px;
+  font-weight:700;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-phone-input {
+  min-height:50px;
+  padding:0 15px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:var(--surface-2);
+  color:var(--text);
+  font-size:15px;
+  letter-spacing:.2px;
+  box-shadow:none;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-phone-input::placeholder {
+  color:var(--muted);
+  opacity:.72;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-phone-input:focus {
+  border-color:rgba(37,201,106,.65);
+  box-shadow:0 0 0 3px rgba(37,201,106,.09);
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-submit {
+  min-height:48px;
+  margin-top:2px;
+  border-radius:13px;
+  background:#25c96a;
+  color:#082516;
+  font-size:13px;
+  font-weight:800;
+  box-shadow:0 5px 14px rgba(37,201,106,.13);
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-status {
+  min-height:0;
+  margin:0;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface-2);
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-code-result {
+  padding:16px 14px;
+  border-radius:14px;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-code-result > p {
+  max-width:270px;
+  line-height:1.5;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-cancel {
+  min-height:46px;
+  margin-top:2px;
+}
