@@ -531,17 +531,27 @@ router.get("/sessions", (req, res) => {
     // These records have no phone number and no live QR/connection, so they must not consume a Premium slot.
     const sessions = getWhatsAppAccounts(req.telegramId).map((session) => {
       const live = getWhatsAppStatus(session.session_id);
+      // [MODIFIED] Keep persisted linked/connecting states when the in-memory socket registry
+      // has not restored this account yet; a missing runtime entry is not proof of abandonment.
+      const persistedStatus = session.connection_status || "disconnected";
+      const status = live.status !== "disconnected"
+        ? live.status
+        : ["connected", "connecting", "qr", "paused"].includes(persistedStatus)
+          ? persistedStatus
+          : "disconnected";
+
       return {
         ...session,
-        status: live.status === "disconnected" && session.connection_status === "paused"
-          ? "paused"
-          : live.status,
+        status,
         phone_number: live.phoneNumber || session.phone_number || null
       };
     }).filter((session) => {
+      // [MODIFIED] Do not delete an account merely because its socket is temporarily absent.
+      // Only remove a secondary record that is explicitly disconnected and has never linked a number.
       const abandoned = !session.is_primary &&
         !session.phone_number &&
-        session.status === "disconnected";
+        session.status === "disconnected" &&
+        ["disconnected", "logged_out"].includes(session.connection_status || "disconnected");
       if (abandoned) deleteWhatsAppAccount(req.telegramId, session.session_id);
       return !abandoned;
     });
