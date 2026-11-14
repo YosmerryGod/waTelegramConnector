@@ -7988,6 +7988,6 @@ body.in-chat #topbar {
   left: -7px;
   z-index: 4;
   border: 2px solid var(--surface-2);
-  transform: rotate(22deg);
+  transform: rotate(-22deg);
   box-shadow: 0 2px 5px rgba(0,0,0,.3);
 }
