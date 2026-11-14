@@ -3796,100 +3796,23 @@
         return;
       }
 
-      proofPreviewLoading.classList.remove("hidden");
-      let bitmap = null;
-      let objectUrl = "";
+      // [MODIFIED] Keep original file bytes; avoid Canvas re-encoding that can produce blank images in Android WebView.
       try {
-        // [ADDED] Prefer ImageBitmap, then fall back to the WebView's native Image decoder.
-        let imageSource = null;
-        try {
-          if (typeof createImageBitmap === "function") {
-            bitmap = await createImageBitmap(file);
-            imageSource = bitmap;
-          }
-        } catch (bitmapError) {
-          console.warn("Premium proof ImageBitmap decoding failed; trying Image fallback:", bitmapError);
-        }
-
-        if (!imageSource) {
-          objectUrl = URL.createObjectURL(file);
-          imageSource = await new Promise((resolve, reject) => {
-            const image = new Image();
-            image.onload = () => resolve(image);
-            image.onerror = () => reject(new Error("Browser tidak dapat membaca gambar ini. Coba pilih ulang atau gunakan screenshot JPG/PNG."));
-            image.src = objectUrl;
-          });
-        }
-
-        if (readToken !== proofReadToken) {
-          bitmap?.close?.();
-          bitmap = null;
-          return;
-        }
-
-        const imageWidth = Number(imageSource.width || imageSource.naturalWidth || 0);
-        const imageHeight = Number(imageSource.height || imageSource.naturalHeight || 0);
-        if (!imageWidth || !imageHeight) {
-          throw new Error("Ukuran gambar tidak dapat dibaca. Coba pilih ulang file bukti pembayaran.");
-        }
-
-        const maxDimension = 1600;
-        const scale = Math.min(1, maxDimension / Math.max(imageWidth, imageHeight));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.round(imageWidth * scale));
-        canvas.height = Math.max(1, Math.round(imageHeight * scale));
-        const context = canvas.getContext("2d", { alpha: false });
-        if (!context) throw new Error("Browser tidak mendukung pemrosesan gambar.");
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.drawImage(imageSource, 0, 0, canvas.width, canvas.height);
-        bitmap?.close?.();
-        bitmap = null;
-
-        const toJpegBlob = (quality) => new Promise((resolve, reject) => {
-          canvas.toBlob(
-            (blob) => blob ? resolve(blob) : reject(new Error("File gagal diproses.")),
-            "image/jpeg",
-            quality
-          );
-        });
-        let compressed = await toJpegBlob(0.78);
-        if (compressed.size > 1200 * 1024) compressed = await toJpegBlob(0.65);
-        if (compressed.size > 1800 * 1024) {
-          const smallerCanvas = document.createElement("canvas");
-          smallerCanvas.width = Math.max(1, Math.round(canvas.width * 0.75));
-          smallerCanvas.height = Math.max(1, Math.round(canvas.height * 0.75));
-          const smallerContext = smallerCanvas.getContext("2d", { alpha: false });
-          if (!smallerContext) throw new Error("Browser tidak mendukung pemrosesan gambar.");
-          smallerContext.fillStyle = "#ffffff";
-          smallerContext.fillRect(0, 0, smallerCanvas.width, smallerCanvas.height);
-          smallerContext.drawImage(canvas, 0, 0, smallerCanvas.width, smallerCanvas.height);
-          compressed = await new Promise((resolve, reject) => {
-            smallerCanvas.toBlob(
-              (blob) => blob ? resolve(blob) : reject(new Error("File gagal dikompres.")),
-              "image/jpeg",
-              0.62
-            );
-          });
-        }
+        const imageBuffer = await file.arrayBuffer();
         if (readToken !== proofReadToken) return;
-        if (compressed.size > 5 * 1024 * 1024) {
-          throw new Error("File masih terlalu besar setelah diproses. Pilih gambar lain.");
-        }
-        selectedPremiumProof = compressed; // [MODIFIED] Keep raw Blob; no Base64 conversion.
-        selectedPremiumProofName = file.name || "bukti-pembayaran.jpg";
+        if (!imageBuffer.byteLength) throw new Error("File gambar kosong. Pilih ulang bukti pembayaran.");
+        selectedPremiumProof = new Blob([imageBuffer], { type: file.type });
+        selectedPremiumProofName = file.name || "bukti-pembayaran";
         $("#premiumProofFileName").textContent = selectedPremiumProofName;
-        $("#premiumProofFileSize").textContent = (compressed.size / 1024).toFixed(0) + " KB · Siap dikirim";
+        $("#premiumProofFileSize").textContent = (file.size / 1024).toFixed(0) + " KB · Siap dikirim";
         $("#premiumProofPlaceholder").classList.add("has-file");
         proofConfirmButton.disabled = false;
       } catch (error) {
         if (readToken !== proofReadToken) return;
         selectedPremiumProof = null;
         selectedPremiumProofName = "";
-        showPremiumProofInlineError(error.message || "Gambar gagal diproses.");
+        showPremiumProofInlineError(error.message || "Gambar gagal dibaca.");
       } finally {
-        bitmap?.close?.();
-        if (objectUrl) URL.revokeObjectURL(objectUrl); // [ADDED] Release the fallback image URL after decoding.
         if (readToken === proofReadToken) proofPreviewLoading.classList.add("hidden");
       }
     });
@@ -3925,7 +3848,7 @@
         await api("/premium/orders/" + encodeURIComponent(activePremiumOrderId) + "/paid", {
           method: "POST",
           body: selectedPremiumProof, // [MODIFIED] Send raw image bytes, not Base64 JSON.
-          contentType: "image/jpeg" // [ADDED]
+          contentType: "application/octet-stream" // [MODIFIED] Send original image bytes without conversion.
         });
         proofModal.classList.add("hidden");
         selectedPremiumProof = null; // [ADDED] Release the selected proof after successful submission.
