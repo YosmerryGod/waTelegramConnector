@@ -697,6 +697,11 @@
       connectButton.hidden = selectedStatus === "connected";
       connectButton.textContent = selectedStatus === "qr" ? "Tampilkan QR" : "Hubungkan session";
     }
+    // [ADDED] The top row always represents the currently selected session.
+    const primarySettingsSlot = $("#primaryWhatsAppSettingsSlot");
+    if (primarySettingsSlot) primarySettingsSlot.dataset.accountSettingsSlot = state.activeSessionId || "";
+    $("#accountWhatsAppAvatar")?.classList.toggle("is-selected", Boolean(state.activeSessionId));
+    mountWhatsAppSessionSettings();
   }
 
   // [ADDED] Place the shared settings content directly below the session that owns it.
@@ -2250,6 +2255,7 @@
   async function selectWhatsAppSession(sessionId) {
     if (!state.whatsappSessions.some((item) => item.session_id === sessionId)) return;
     state.activeSessionId = sessionId;
+    state.expandedSettingsSessionId = null; // [ADDED] Selecting a row closes the previous session's settings dropdown.
     localStorage.setItem("wagram-active-whatsapp-session", sessionId);
     renderWhatsAppSessions();
     try {
