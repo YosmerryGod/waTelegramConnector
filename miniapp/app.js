@@ -713,6 +713,7 @@
         ? (data.displayName || "WhatsApp")
         : "WhatsApp";
       const photo = $("#accountWhatsAppPhoto");
+      $("#accountWhatsAppAvatar").classList.toggle("is-selected", true); // [ADDED] The account shown in the main row is the selected session.
       if (connected && data.pictureUrl) {
         photo.src = data.pictureUrl;
         photo.classList.remove("hidden");
