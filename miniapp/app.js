@@ -497,6 +497,8 @@
     try {
       const data = await api("/account");
       state.membership = data.account || null;
+      // [ADDED] Re-evaluate the saved active session after the server confirms membership status.
+      await loadWhatsAppSessions();
       renderMembership();
       renderAIBusinessToggle();
       renderWagramAiPinnedRow();
@@ -619,7 +621,9 @@
   // [ADDED] Only an unexpired Premium membership may use secondary WhatsApp sessions.
   function hasActivePremiumMembership() {
     const membership = state.membership;
-    if (!membership || !membership.plan || membership.plan === "free") return false;
+    // Membership is loaded asynchronously; defer the lock decision until the server responds.
+    if (!membership) return true;
+    if (!membership.plan || membership.plan === "free") return false;
     if (!membership.plan_expires_at) return true;
     const expiry = new Date(membership.plan_expires_at).getTime();
     return Number.isFinite(expiry) && expiry > Date.now();
