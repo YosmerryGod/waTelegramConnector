@@ -2259,10 +2259,69 @@
   }
 
   let whatsappQrPollTimer = null;
+  let currentWhatsAppPairingSessionId = null; // [ADDED] Keep the session targeted by both pairing methods.
+
+  // [ADDED] Switch between QR scanning and manual pairing-code instructions.
+  function setWhatsAppPairingMethod(method) {
+    const useCode = method === "code";
+    $("#whatsappPairingQrTab").classList.toggle("is-active", !useCode);
+    $("#whatsappPairingCodeTab").classList.toggle("is-active", useCode);
+    $("#whatsappPairingQrTab").setAttribute("aria-selected", String(!useCode));
+    $("#whatsappPairingCodeTab").setAttribute("aria-selected", String(useCode));
+    $("#whatsappQrMethodPanel").classList.toggle("hidden", useCode);
+    $("#whatsappCodeMethodPanel").classList.toggle("hidden", !useCode);
+  }
+
+  // [ADDED] Request and display a WhatsApp Linked Devices pairing code.
+  async function requestWhatsAppPairingCode() {
+    const sessionId = currentWhatsAppPairingSessionId;
+    const input = $("#whatsappPairingPhoneInput");
+    const button = $("#requestWhatsAppPairingCodeButton");
+    const status = $("#whatsappPairingCodeStatus");
+    const result = $("#whatsappPairingCodeResult");
+    const phoneNumber = String(input.value || "").replace(/\D/g, "");
+
+    if (!sessionId) {
+      showToast("Session WhatsApp belum tersedia.");
+      return;
+    }
+    if (!/^\d{8,15}$/.test(phoneNumber)) {
+      status.textContent = "Masukkan nomor dengan kode negara, contoh 62812xxxxxxxx.";
+      result.classList.add("hidden");
+      input.focus();
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Meminta kode…";
+    status.textContent = "Menghubungi WhatsApp untuk membuat kode tautan…";
+    result.classList.add("hidden");
+    try {
+      const data = await api("/sessions/" + enc(sessionId) + "/pairing-code", {
+        method: "POST",
+        body: JSON.stringify({ phoneNumber })
+      });
+      const code = String(data.code || "").replace(/\s/g, "");
+      if (!code) throw new Error("WhatsApp tidak mengembalikan kode tautan.");
+      $("#whatsappPairingCodeValue").textContent = code.match(/.{1,4}/g)?.join(" ") || code;
+      result.classList.remove("hidden");
+      status.textContent = "Kode berhasil dibuat. Masukkan kode ini di WhatsApp pada menu Perangkat tertaut.";
+    } catch (error) {
+      status.textContent = error.message || "Gagal membuat kode tautan.";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Dapatkan Kode";
+    }
+  }
 
   async function showWhatsAppSessionQr(sessionId) {
     openWhatsAppSessions();
-    // [MODIFIED] Show a focused QR popup instead of the account manager list.
+    currentWhatsAppPairingSessionId = sessionId; // [ADDED]
+    setWhatsAppPairingMethod("qr"); // [ADDED] Keep QR as the default method.
+    $("#whatsappPairingPhoneInput").value = "";
+    $("#whatsappPairingCodeResult").classList.add("hidden");
+    $("#whatsappPairingCodeStatus").textContent = "Masukkan nomor WhatsApp untuk mendapatkan kode tautan.";
+    // [MODIFIED] Show a focused pairing popup instead of the account manager list.
     $("#whatsappSessionsModal").classList.add("is-pairing");
     $("#whatsappSessionsTitle").textContent = "Hubungkan WhatsApp";
     $("#closeWhatsAppSessions").setAttribute("aria-label", "Cancel pairing");
@@ -2423,6 +2482,9 @@
         return;
       }
       if (event.target.closest("#whatsappSessionConnectButton")) { connectSelectedWhatsAppSession(); return; }
+      if (event.target.closest("#whatsappPairingQrTab")) { setWhatsAppPairingMethod("qr"); return; } // [ADDED]
+      if (event.target.closest("#whatsappPairingCodeTab")) { setWhatsAppPairingMethod("code"); return; } // [ADDED]
+      if (event.target.closest("#requestWhatsAppPairingCodeButton")) { requestWhatsAppPairingCode(); return; } // [ADDED]
       if (event.target.closest("#whatsappSessionDeleteButton")) { deleteSelectedWhatsAppSession(); return; }
 
       const upgradeButton = event.target.closest("#upgradePremiumButton");
