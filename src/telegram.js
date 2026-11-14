@@ -600,9 +600,108 @@ function formatCallLog(log) {
     (parts.length ? ` — ${parts.join(" · ")}` : "");
 }
 
+// [ADDED] Read display text from WhatsApp interactive button payloads.
+function parseInteractiveButtonParams(value) {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string") return null;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+// [ADDED] Convert WhatsApp business interactive messages into readable text.
+// Buttons are shown as labels only; WAGRAM does not execute WhatsApp business actions.
+function getInteractiveMessageText(content) {
+  const interactive = content?.interactiveMessage;
+  const legacyButtons = content?.buttonsMessage;
+  const list = content?.listMessage;
+  const template = content?.templateMessage;
+  const nativeFlow = interactive?.nativeFlowMessage;
+
+  if (!interactive && !legacyButtons && !list && !template) {
+    return null;
+  }
+
+  const lines = [];
+  const addLine = (value) => {
+    const text = String(value ?? "").trim();
+    if (text && !lines.includes(text)) lines.push(text);
+  };
+
+  addLine(interactive?.header?.title || interactive?.header?.subtitle);
+  addLine(interactive?.body?.text);
+  addLine(legacyButtons?.contentText);
+  addLine(list?.description);
+  addLine(template?.hydratedTemplate?.hydratedContentText);
+  addLine(template?.fourRowTemplate?.content?.text);
+  addLine(interactive?.footer?.text);
+  addLine(legacyButtons?.footerText);
+  addLine(list?.footerText);
+  addLine(template?.hydratedTemplate?.hydratedFooterText);
+
+  const buttonLabels = [];
+  const addButton = (value) => {
+    const label = String(value ?? "").trim();
+    if (label && !buttonLabels.includes(label)) buttonLabels.push(label);
+  };
+
+  for (const button of nativeFlow?.buttons || []) {
+    const params = parseInteractiveButtonParams(button?.buttonParamsJson);
+    addButton(
+      params?.display_text ||
+      params?.displayText ||
+      params?.title ||
+      params?.text ||
+      button?.name
+    );
+  }
+
+  for (const button of legacyButtons?.buttons || []) {
+    addButton(button?.buttonText?.displayText || button?.buttonText?.text);
+  }
+
+  for (const section of list?.sections || []) {
+    for (const row of section?.rows || []) {
+      addButton(row?.title);
+      if (row?.description) addButton(row.description);
+    }
+  }
+
+  const hydratedButtons = template?.hydratedTemplate?.hydratedButtons ||
+    template?.fourRowTemplate?.hydratedButtons ||
+    [];
+
+  for (const button of hydratedButtons) {
+    addButton(
+      button?.quickReplyButton?.displayText ||
+      button?.urlButton?.displayText ||
+      button?.callButton?.displayText ||
+      button?.index
+    );
+  }
+
+  if (buttonLabels.length) {
+    lines.push("", "Pilihan tombol:");
+    buttonLabels.forEach((label, index) => {
+      lines.push(`${index + 1}. ${label}`);
+    });
+    lines.push("", "Untuk menggunakan tombol, buka WhatsApp.");
+  }
+
+  return lines.join("\\n").trim() || "Pesan interaktif WhatsApp";
+}
+
 // Extract plain text or a short description for non-media messages.
 // Returns null when the message should be skipped.
 function getTextBody(content) {
+  // [ADDED] Business interactive messages (native flow, buttons, lists, templates).
+  const interactiveText = getInteractiveMessageText(content);
+  if (interactiveText) return interactiveText;
+
   if (content.conversation) {
     return content.conversation;
   }
@@ -1344,7 +1443,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                   ? "contact"
                   : content.reactionMessage
                     ? "reaction"
-                    : content.conversation || content.extendedTextMessage
+                    : content.conversation || content.extendedTextMessage ||
+                      content.interactiveMessage || content.buttonsMessage ||
+                      content.listMessage || content.templateMessage
                       ? "text"
                       : "other"
             );
