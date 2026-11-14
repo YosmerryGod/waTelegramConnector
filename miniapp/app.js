@@ -4720,11 +4720,12 @@
       pendingCallsRefresh = false;
 
       if (pendingConnectionStatus) {
-        // [ADDED] Keep secondary account badges in sync as their sockets reconnect.
-        loadWhatsAppSessions().then(() => {
-          if (state.page === "account") return loadWhatsAppAccount();
-        }).catch(() => {});
-        if (state.page === "account") loadWhatsAppAccount();
+        // [MODIFIED] Refresh the account panel once, or the session list on other pages.
+        if (state.page === "account") {
+          loadWhatsAppAccount().catch(() => {});
+        } else {
+          loadWhatsAppSessions().catch(() => {});
+        }
         $("#connectionStatus").textContent = pendingConnectionStatus === "connected"
           ? "WhatsApp terhubung"
           : `WhatsApp ${pendingConnectionStatus}`;
