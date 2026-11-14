@@ -749,7 +749,8 @@
         <!-- [MODIFIED] QR download remains available while payment is detected automatically. -->
         <div class="premium-payment-actions">
           <button class="premium-payment-download" id="premiumPaymentDownloadButton" type="button">Unduh QRIS</button>
-          <button class="premium-payment-paid" id="premiumPaymentPaidButton" type="button" disabled>Menunggu pembayaran otomatis</button>
+          <!-- [MODIFIED] Open manual proof fallback while automatic payment detection remains active. -->
+          <button class="premium-payment-paid" id="premiumPaymentPaidButton" type="button">Saya sudah bayar</button>
         </div>
         <p class="premium-payment-confirmation" id="premiumPaymentConfirmation" aria-live="polite"></p>
       </section>
@@ -890,7 +891,7 @@
   </div>
 
   <!-- [MODIFIED] Versioned scripts prevent stale Telegram WebView assets. -->
-  <script src="app.js?v=20261114-auto-premium-payment-v1"></script>
+  <script src="app.js?v=20261115-manual-payment-fallback-v2"></script>
   <script src="connection.js?v=20261109-silent-pause-resume"></script>
 </body>
 </html>
