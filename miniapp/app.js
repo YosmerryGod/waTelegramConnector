@@ -3584,7 +3584,8 @@
         // [ADDED] Reveal the centered WAGRAM logo only after the QR canvas is ready.
         qrWrap?.classList.remove("is-loading");
         qrWrap?.classList.add("is-ready");
-        $("#premiumPaymentStatus").textContent = "QRIS siap dipindai";
+        // [MODIFIED] The QR itself communicates readiness; avoid repeating it in a separate status line.
+        $("#premiumPaymentStatus").textContent = "";
       } catch (error) {
         const context = canvas.getContext("2d");
         context.clearRect(0, 0, canvas.width, canvas.height);
