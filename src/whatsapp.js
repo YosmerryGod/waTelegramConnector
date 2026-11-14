@@ -297,6 +297,32 @@ export function getWhatsAppQr(telegramId) {
   return entry?.status === "qr" ? entry.qr || null : null;
 }
 
+// [ADDED] Request a WhatsApp Linked Devices pairing code for an unregistered session.
+export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
+  const id = String(sessionId || "");
+  const entry = connections.get(id);
+  const digits = String(phoneNumber || "").replace(/\D/g, "");
+
+  if (!/^\d{8,15}$/.test(digits)) {
+    throw new Error("Masukkan nomor WhatsApp dengan kode negara, contoh 62812xxxxxxxx.");
+  }
+
+  if (!entry || !entry.socket || !["connecting", "qr"].includes(entry.status)) {
+    throw new Error("Koneksi WhatsApp belum siap. Coba lagi beberapa detik.");
+  }
+
+  if (typeof entry.socket.requestPairingCode !== "function") {
+    throw new Error("Versi Baileys yang terpasang belum mendukung kode tautan.");
+  }
+
+  try {
+    return await entry.socket.requestPairingCode(digits);
+  } catch (error) {
+    logger.warn({ sessionId: id, err: error }, "WhatsApp pairing code request failed");
+    throw new Error("Kode tautan belum dapat dibuat. Periksa nomor dan coba lagi.");
+  }
+}
+
 // [ADDED] Resolve a WhatsApp LID to its public phone number for profile display.
 export async function getWhatsAppPhoneNumber(telegramId, whatsappJid) {
   const entry = connections.get(String(telegramId));
