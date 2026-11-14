@@ -761,9 +761,9 @@
     const primaryStatus = primary?.status || primary?.connection_status || "disconnected";
     const showPrimary = Boolean(primary && ["connected", "paused"].includes(primaryStatus));
     const primaryRow = $(".whatsapp-primary-account-row");
-    if (primaryRow) primaryRow.hidden = !showPrimary;
+    if (primaryRow) primaryRow.classList.toggle("hidden", !showPrimary);
     const accountControls = $("#whatsappAccountControls");
-    if (accountControls) accountControls.hidden = !hasVisibleSessions;
+    if (accountControls) accountControls.classList.toggle("hidden", !hasVisibleSessions);
     if (!hasVisibleSessions && accountRows) {
       accountRows.innerHTML = '<div class="whatsapp-empty-state"><strong>Belum ada WhatsApp terhubung</strong><span>Ketuk tombol + untuk menambahkan akun WhatsApp.</span></div>';
     }
@@ -791,7 +791,7 @@
     const primarySettingsSlot = $("#primaryWhatsAppSettingsSlot");
     if (primarySettingsSlot) {
       primarySettingsSlot.dataset.accountSettingsSlot = showPrimary ? primary.session_id : "";
-      primarySettingsSlot.hidden = !showPrimary;
+      primarySettingsSlot.classList.toggle("hidden", !showPrimary);
     }
     mountWhatsAppSessionSettings();
   }
