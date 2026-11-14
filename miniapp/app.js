@@ -4695,9 +4695,26 @@
     } else if (event.type === "connection.status") {
       pendingConnectionStatus = event.data?.status || null;
     } else if (event.type === "membership.updated") {
-      // [MODIFIED] Refresh Premium access and all WhatsApp session states after a plan change.
+      // [MODIFIED] Refresh Premium access, then actively resume every eligible paused WhatsApp session.
       loadMembership().then(async () => {
         await loadWhatsAppSessions();
+
+        if (hasActivePremiumMembership()) {
+          const resumableSessions = (state.whatsappSessions || []).filter((session, index) => {
+            const status = session.status || session.connection_status || "disconnected";
+            return !session.is_primary && status === "paused" && index < state.whatsappSessionLimit;
+          });
+
+          // [ADDED] Resume through the authenticated session endpoint so every Premium activation
+          // path (automatic payment, admin approval, or admin plan update) behaves consistently.
+          await Promise.allSettled(resumableSessions.map((session) =>
+            api("/sessions/" + enc(session.session_id) + "/connect", { method: "POST" })
+          ));
+
+          // [ADDED] Refresh status and profile data after reconnect attempts have started.
+          await loadWhatsAppSessions();
+        }
+
         if (state.page === "account") await loadWhatsAppAccount();
         if (state.chatsLoaded) await loadChats();
       }).catch((error) => showToast(error.message || "Status Premium gagal diperbarui."));
