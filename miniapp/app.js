@@ -704,11 +704,13 @@
     if (accountRows) {
       // [MODIFIED] Hide newly-created secondary sessions until WhatsApp pairing succeeds.
       // [MODIFIED] Keep account rows in their original positions; selection only changes the checkmark.
-      accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => {
-        if (session.is_primary) return false;
+      // [MODIFIED] Only render genuinely linked or explicitly paused WhatsApp accounts.
+      const visibleSessions = (state.whatsappSessions || []).filter((session) => {
         const status = session.status || session.connection_status || "disconnected";
-        return Boolean(session.phone_number) || status === "connected" || status === "paused";
-      }).map((session, index) => {
+        return status === "connected" || status === "paused";
+      });
+      const hasVisibleSessions = visibleSessions.length > 0;
+      accountRows.innerHTML = visibleSessions.filter((session) => !session.is_primary).map((session, index) => {
         const status = session.status || session.connection_status || "disconnected";
         const labels = { connected: "Connected", connecting: "Connecting", qr: "Menunggu QR", paused: "Pause", disconnected: "Connect", logged_out: "Disconnected" };
         const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
@@ -756,7 +758,17 @@
     const primaryName = $("#accountWhatsAppName");
     const primaryPhone = $("#accountWhatsAppPhone");
     const primaryState = $("#accountWhatsAppState");
-    if (primary) {
+    // [MODIFIED] Hide the primary row when no valid WhatsApp connection exists.
+    const primaryStatus = primary?.status || primary?.connection_status || "disconnected";
+    const showPrimary = Boolean(primary && ["connected", "paused"].includes(primaryStatus));
+    const primaryRow = $(".whatsapp-primary-account-row");
+    if (primaryRow) primaryRow.hidden = !showPrimary;
+    const accountControls = $("#whatsappAccountControls");
+    if (accountControls) accountControls.hidden = !hasVisibleSessions;
+    if (!hasVisibleSessions && accountRows) {
+      accountRows.innerHTML = '<div class="whatsapp-empty-state"><strong>Belum ada WhatsApp terhubung</strong><span>Ketuk tombol + untuk menambahkan akun WhatsApp.</span></div>';
+    }
+    if (primary && showPrimary) {
       const primaryActive = primary.session_id === state.activeSessionId;
       primaryAvatar?.classList.toggle("is-selected", primaryActive);
       if (primaryPhoto) {
@@ -778,7 +790,10 @@
       }
     }
     const primarySettingsSlot = $("#primaryWhatsAppSettingsSlot");
-    if (primarySettingsSlot) primarySettingsSlot.dataset.accountSettingsSlot = primary?.session_id || "";
+    if (primarySettingsSlot) {
+      primarySettingsSlot.dataset.accountSettingsSlot = showPrimary ? primary.session_id : "";
+      primarySettingsSlot.hidden = !showPrimary;
+    }
     mountWhatsAppSessionSettings();
   }
 
@@ -786,6 +801,14 @@
   function mountWhatsAppSessionSettings() {
     const panel = $("#whatsappAccountControls");
     if (!panel) return;
+    const hasVisibleSessions = (state.whatsappSessions || []).some((session) =>
+      ["connected", "paused"].includes(session.status || session.connection_status || "disconnected")
+    );
+    panel.hidden = !hasVisibleSessions;
+    if (!hasVisibleSessions) {
+      panel.classList.add("is-collapsed");
+      return;
+    }
     const sessionId = state.expandedSettingsSessionId;
     const slot = sessionId
       ? $("[data-account-settings-slot='" + CSS.escape(sessionId) + "']")
