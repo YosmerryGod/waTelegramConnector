@@ -3526,8 +3526,9 @@
         const order = result.order;
         activePremiumOrderId = order.id;
         $("#premiumPaymentDownloadButton").disabled = false;
-        $("#premiumPaymentPaidButton").disabled = true;
-        $("#premiumPaymentPaidButton").textContent = "Menunggu pembayaran otomatis";
+        // [MODIFIED] Manual proof upload remains available while automatic detection continues polling.
+        $("#premiumPaymentPaidButton").disabled = false;
+        $("#premiumPaymentPaidButton").textContent = "Saya sudah bayar";
         startPremiumPaymentTracking(order);
         $("#premiumPaymentConfirmation").textContent = "";
         $("#premiumPaymentAmount").textContent = new Intl.NumberFormat("id-ID", {
