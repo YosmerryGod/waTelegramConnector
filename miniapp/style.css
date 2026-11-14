@@ -7742,3 +7742,85 @@ body.in-chat #topbar {
 @keyframes ai-business-thinking-dot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 @media(max-width:380px){.ai-business-page .ai-business-thinking-mascot{flex-basis:44px;width:44px;height:44px}.ai-business-page .ai-business-thinking-label{font-size:12px}}
 @media(prefers-reduced-motion:reduce){.ai-business-page .ai-business-thinking-dots i{animation:none;opacity:.85}}
+
+
+/* [ADDED] Match every secondary WhatsApp account row to the primary account layout. */
+.whatsapp-account-rows {
+  gap: 0;
+}
+.whatsapp-account-rows .whatsapp-account-row {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--divider);
+}
+.whatsapp-account-select {
+  width: 100%;
+}
+.whatsapp-account-select .whatsapp-account-avatar {
+  position: relative;
+  overflow: visible;
+}
+.whatsapp-account-select .whatsapp-account-avatar > img,
+.whatsapp-account-select .whatsapp-account-avatar > .i {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.whatsapp-account-select .whatsapp-account-avatar > .i {
+  inset: 50% auto auto 50%;
+  width: 25px;
+  height: 25px;
+  transform: translate(-50%, -50%);
+}
+.whatsapp-account-selected-check {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  z-index: 2;
+  display: none;
+  width: 19px;
+  height: 19px;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface, #102017);
+  border-radius: 50%;
+  background: #22c77a;
+  color: #052b18;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(0,0,0,.28);
+}
+.whatsapp-account-avatar.is-selected .whatsapp-account-selected-check,
+.whatsapp-account-select .whatsapp-account-avatar.is-selected .whatsapp-account-selected-check {
+  display: inline-flex;
+}
+.whatsapp-account-row-chevron {
+  display: grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  color: var(--muted);
+  background: var(--surface-2);
+}
+.whatsapp-account-row-chevron .i {
+  width: 17px;
+  height: 17px;
+  transform: rotate(180deg);
+}
+.whatsapp-account-select:active .whatsapp-account-row-chevron {
+  background: var(--surface);
+}
+@media (max-width: 380px) {
+  .whatsapp-account-row-chevron {
+    flex-basis: 28px;
+    width: 28px;
+    height: 28px;
+  }
+}
