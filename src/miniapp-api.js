@@ -21,6 +21,7 @@ import {
 } from "./ai/customer-service.js";
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
+import { publishToMiniApp } from "./realtime.js";
 import QRCode from "qrcode";
 import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppAccountProfile, getWhatsAppProfile, getWhatsAppPhoneNumber, requestWhatsAppPairingCode } from "./whatsapp.js";
 
@@ -60,6 +61,7 @@ import {
   createPremiumPaymentOrder, // [ADDED] Server-side Premium payment order allocation.
   getPremiumPaymentOrder, // [ADDED] Read an order owned by the authenticated user.
   markPremiumPaymentReported, // [ADDED] Record a user's payment confirmation.
+  completePremiumPaymentByAmount, // [ADDED] Match DANA notification amounts and activate Premium atomically.
   getAIBusinessProfile,
   saveAIBusinessProfile,
   addAIBusinessExample
@@ -310,6 +312,76 @@ router.get("/premium/qr-download/:token.png", (req, res) => {
   res.setHeader("Content-Length", entry.buffer.length);
   return res.end(entry.buffer);
 });
+// [ADDED] Receive verified-format DANA Business notification events from Check Payment.
+// This route is intentionally outside Telegram Mini App auth and protected by a dedicated shared API key.
+router.post("/payment-monitor/events", (req, res) => {
+  const configuredKey = String(process.env.DANA_PAYMENT_MONITOR_API_KEY || "");
+  const suppliedKey = String(req.get("X-API-Key") || "");
+  if (!configuredKey || !suppliedKey ||
+      Buffer.byteLength(configuredKey) !== Buffer.byteLength(suppliedKey) ||
+      !crypto.timingSafeEqual(Buffer.from(configuredKey), Buffer.from(suppliedKey))) {
+    return res.status(401).json({ ok: false, error: "INVALID_PAYMENT_MONITOR_KEY" });
+  }
+
+  const event = req.body || {};
+  const eventId = String(event.event_id || "");
+  const title = String(event.title || "");
+  const body = String(event.text || "");
+  const amount = Number(event.amount);
+  if (
+    event.type !== "incoming_payment" ||
+    event.source !== "android_notification" ||
+    event.package_name !== "id.dana" ||
+    !title.trim().toLowerCase().includes("pembayaran masuk") ||
+    !/^Rp\\s?[\\d.]+\\s+diterima DANA Bisnis\\.?$/i.test(body) ||
+    event.currency !== "IDR" ||
+    !Number.isSafeInteger(amount) || amount <= 0 ||
+    !/^[a-f0-9]{64}$/i.test(eventId)
+  ) {
+    return res.status(400).json({ ok: false, error: "INVALID_DANA_PAYMENT_EVENT" });
+  }
+
+  try {
+    const result = completePremiumPaymentByAmount(amount, eventId);
+    res.setHeader("Cache-Control", "no-store");
+    if (!result.matched) {
+      return res.status(202).json({ ok: true, matched: false, reason: result.reason });
+    }
+    if (result.duplicate) {
+      return res.json({ ok: true, matched: true, duplicate: true });
+    }
+
+    const order = result.order;
+    const membership = result.membership;
+    publishToMiniApp(order.telegram_id, {
+      type: "membership.updated",
+      data: {
+        plan: membership.plan,
+        role: membership.role,
+        plan_expires_at: membership.plan_expires_at
+      }
+    });
+    bot.sendMessage(
+      order.telegram_id,
+      "🎉 <b>Pembayaran Premium berhasil terdeteksi!</b>\\n\\n" +
+      "Paket: <b>" + ({ "3d": "Premium 3 Hari", "7d": "Premium 7 Hari", "30d": "Premium 30 Hari" }[order.plan_period]) + "</b>\\n" +
+      "Nominal: <b>Rp" + Number(order.amount).toLocaleString("id-ID") + "</b>\\n" +
+      "Premium kamu sekarang aktif. Selamat menikmati WAGRAM!",
+      { parse_mode: "HTML", disable_web_page_preview: true }
+    ).catch((error) => console.warn("Could not notify automatically activated Premium user:", error.message));
+
+    return res.json({
+      ok: true,
+      matched: true,
+      activated: true,
+      orderId: order.id,
+      telegramId: order.telegram_id
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Could not process DANA payment event");
+  }
+});
+
 // All routes below require authenticated Telegram Mini App data.
 router.use(requireMiniAppAuth);
 
@@ -511,6 +583,29 @@ router.post(
   }
 });
 
+
+// [ADDED] Let the payment screen poll its own order until payment or expiry.
+router.get("/premium/orders/:orderId/status", (req, res) => {
+  const orderId = String(req.params.orderId || "");
+  if (!/^premium_\\d+_[a-z0-9]+$/i.test(orderId)) {
+    return res.status(400).json({ ok: false, error: "INVALID_ORDER_ID" });
+  }
+  const order = getPremiumPaymentOrder(req.telegramId, orderId);
+  if (!order) return res.status(404).json({ ok: false, error: "PREMIUM_ORDER_NOT_FOUND" });
+  const membership = getMembership(req.telegramId);
+  res.setHeader("Cache-Control", "no-store");
+  return res.json({
+    ok: true,
+    order: {
+      id: order.id,
+      status: order.status,
+      amount: order.amount,
+      expiresAt: order.expires_at,
+      paidAt: order.paid_at || null
+    },
+    membership
+  });
+});
 
 // [ADDED] Current role and membership for the authenticated Mini App account.
 router.get("/account", (req, res) => {
