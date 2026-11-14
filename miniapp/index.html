@@ -845,15 +845,38 @@
         </div>
         <div id="whatsappSessionList" class="whatsapp-session-list"></div>
         <button id="createWhatsAppSessionButton" class="whatsapp-session-add-action" type="button"><svg class="i"><use href="#i-plus"/></svg> Tambah akun WhatsApp</button>
-        <div id="whatsappSessionQrWrap" class="whatsapp-session-qr hidden"><div class="whatsapp-qr-brand-frame is-loading" id="whatsappQrBrandFrame">
-            <img id="whatsappSessionQrImage" alt="QR untuk menghubungkan WhatsApp">
-            <span class="whatsapp-qr-center-logo"><img src="assets/brand-pack/wagram-logo-pack/svg/logo-green-transparent.svg" alt="WaGRAM"></span>
-            <!-- [ADDED] Pairing QR loading ring; brand logo appears only after QR image loads. -->
-            <div class="whatsapp-qr-loader" id="whatsappQrLoader" role="status" aria-live="polite">
-              <span class="whatsapp-qr-loader-ring" aria-hidden="true"></span>
-              <span>Menyiapkan QR WhatsApp…</span>
+        <div id="whatsappSessionQrWrap" class="whatsapp-session-qr hidden">
+          {/* [ADDED] Pairing method selector for QR and manual linking code. */}
+          <div class="whatsapp-pairing-tabs" role="tablist" aria-label="Metode tautkan perangkat">
+            <button id="whatsappPairingQrTab" class="whatsapp-pairing-tab is-active" type="button" role="tab" aria-selected="true">QR Code</button>
+            <button id="whatsappPairingCodeTab" class="whatsapp-pairing-tab" type="button" role="tab" aria-selected="false">Kode Tautan</button>
+          </div>
+          <div id="whatsappQrMethodPanel" class="whatsapp-pairing-method-panel">
+            <div class="whatsapp-qr-brand-frame is-loading" id="whatsappQrBrandFrame">
+              <img id="whatsappSessionQrImage" alt="QR untuk menghubungkan WhatsApp">
+              <span class="whatsapp-qr-center-logo"><img src="assets/brand-pack/wagram-logo-pack/svg/logo-green-transparent.svg" alt="WaGRAM"></span>
+              <!-- [ADDED] Pairing QR loading ring; brand logo appears only after QR image loads. -->
+              <div class="whatsapp-qr-loader" id="whatsappQrLoader" role="status" aria-live="polite">
+                <span class="whatsapp-qr-loader-ring" aria-hidden="true"></span>
+                <span>Menyiapkan QR WhatsApp…</span>
+              </div>
             </div>
-          </div><p id="whatsappSessionQrStatus" class="hidden" aria-live="polite"></p><button id="cancelWhatsAppPairingButton" class="secondary-button whatsapp-pairing-cancel" type="button">Batalkan</button></div>
+            <p id="whatsappSessionQrStatus" class="whatsapp-pairing-status" aria-live="polite">Buka WhatsApp · Perangkat tertaut</p>
+          </div>
+          <div id="whatsappCodeMethodPanel" class="whatsapp-pairing-method-panel hidden">
+            <label class="whatsapp-pairing-label" for="whatsappPairingPhoneInput">Nomor WhatsApp dengan kode negara</label>
+            <input id="whatsappPairingPhoneInput" class="whatsapp-pairing-phone-input" type="tel" inputmode="numeric" autocomplete="tel" placeholder="62812xxxxxxxx">
+            <p class="whatsapp-pairing-hint">Gunakan format internasional, contoh 62812xxxxxxxx. Nomor ini digunakan untuk membuat kode tautan.</p>
+            <button id="requestWhatsAppPairingCodeButton" class="whatsapp-pairing-submit" type="button">Dapatkan Kode</button>
+            <div id="whatsappPairingCodeResult" class="whatsapp-pairing-code-result hidden" aria-live="polite">
+              <span>KODE TAUTAN</span>
+              <strong id="whatsappPairingCodeValue">--------</strong>
+              <p>Buka WhatsApp → Perangkat tertaut → Tautkan dengan nomor telepon, lalu masukkan kode ini.</p>
+            </div>
+            <p id="whatsappPairingCodeStatus" class="whatsapp-pairing-status" aria-live="polite">Masukkan nomor WhatsApp untuk mendapatkan kode tautan.</p>
+          </div>
+          <button id="cancelWhatsAppPairingButton" class="secondary-button whatsapp-pairing-cancel" type="button">Batalkan</button>
+        </div>
         <div class="whatsapp-session-footer"><button id="whatsappSessionConnectButton" class="secondary-button" type="button">Hubungkan ulang</button><button id="whatsappSessionDeleteButton" class="danger-button" type="button">Hapus session</button></div>
       </section>
     </div>
