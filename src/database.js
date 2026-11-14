@@ -1034,9 +1034,23 @@ export function createWhatsAppAccount(telegramId, label = null) {
   const now = Date.now();
   const sessionId = crypto.randomUUID();
   return db.transaction(() => {
-    const count = db.prepare(
-      "SELECT COUNT(*) AS count FROM whatsapp_accounts WHERE telegram_id = ?"
-    ).get(ownerId).count;
+    // [MODIFIED] Pending records and duplicate phone aliases do not consume linked-account capacity.
+    const count = db.prepare(`
+      SELECT
+        CASE
+          WHEN SUM(CASE WHEN is_primary = 1 THEN 1 ELSE 0 END) > 0
+          THEN 1 + COUNT(DISTINCT CASE
+            WHEN is_primary = 0 AND phone_number IS NOT NULL AND TRIM(phone_number) <> ''
+            THEN phone_number
+          END)
+          ELSE COUNT(DISTINCT CASE
+            WHEN phone_number IS NOT NULL AND TRIM(phone_number) <> ''
+            THEN phone_number
+          END)
+        END AS count
+      FROM whatsapp_accounts
+      WHERE telegram_id = ?
+    `).get(ownerId).count;
     if (count >= membership.sessions_limit) {
       throw new Error("SESSION_LIMIT_REACHED");
     }
