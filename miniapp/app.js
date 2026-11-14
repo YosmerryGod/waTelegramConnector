@@ -66,6 +66,33 @@
     account: "#profileNav"
   };
 
+  // [ADDED] Restore the last main page per Telegram account after a Mini App reload.
+  const LAST_PAGE_STORAGE_PREFIX = "wagram-last-page:";
+  function getLastPageStorageKey() {
+    const telegramUserId = String(tg?.initDataUnsafe?.user?.id || "guest");
+    return LAST_PAGE_STORAGE_PREFIX + telegramUserId;
+  }
+
+  function getLastVisitedPage() {
+    try {
+      const savedPage = localStorage.getItem(getLastPageStorageKey());
+      if (!savedPage || !Object.prototype.hasOwnProperty.call(PAGES, savedPage)) return "chats";
+      // Premium is a purchase flow, not a page to reopen after reload.
+      return savedPage === "premium" ? "account" : savedPage;
+    } catch {
+      return "chats";
+    }
+  }
+
+  function saveLastVisitedPage(page) {
+    try {
+      // [ADDED] If reload happens inside Premium, resume at Profile instead.
+      localStorage.setItem(getLastPageStorageKey(), page === "premium" ? "account" : page);
+    } catch {
+      // Continue normally if storage is unavailable.
+    }
+  }
+
   const FILTER_TITLES = {
     all: "Percakapan",
     unread: "Belum dibaca",
@@ -344,6 +371,7 @@
 
   function setPage(page) {
     state.page = page;
+    saveLastVisitedPage(page); // [ADDED] Persist the active page for the next Mini App reload.
     closeTopbarSearch(false);
     updateTopbarTitle();
     // [ADDED] Show the add-contact action only on the Contacts page.
@@ -4921,6 +4949,18 @@
     // [MODIFIED] Resolve the authenticated membership through loadMe() before the first chat render.
     // This prevents Premium groups from being rendered as locked while /account is still loading.
     loadMe().finally(() => {
+      // [ADDED] Restore the last visited page only after membership/account state is loaded.
+      let lastPage = getLastVisitedPage();
+      if (lastPage === "aiBusiness" && !isAIBusinessEligible()) lastPage = "account";
+      setPage(lastPage);
+      if (lastPage === "aiBusiness") {
+        renderAIBusinessHistory();
+        renderAIBusinessTrainingState();
+        syncAIBusinessSettingsFromServer().catch((error) => {
+          console.warn("Could not restore WAMO AI settings:", error.message);
+        });
+      }
+
       loadChats().finally(() => {
         requestAnimationFrame(() => {
           loadingScreen?.classList.add("is-hidden");
