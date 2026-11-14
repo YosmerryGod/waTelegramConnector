@@ -4681,7 +4681,8 @@
   }
 
   function scheduleRealtimeRefresh(event) {
-    if (event.data?.sessionId && state.activeSessionId && event.data.sessionId !== state.activeSessionId) return;
+    // [MODIFIED] Connection updates for secondary accounts must refresh the whole session list.
+    if (event.type !== "connection.status" && event.data?.sessionId && state.activeSessionId && event.data.sessionId !== state.activeSessionId) return;
     if (
       event.type === "message.created" ||
       event.type === "message.deleted" ||
@@ -4719,6 +4720,10 @@
       pendingCallsRefresh = false;
 
       if (pendingConnectionStatus) {
+        // [ADDED] Keep secondary account badges in sync as their sockets reconnect.
+        loadWhatsAppSessions().then(() => {
+          if (state.page === "account") return loadWhatsAppAccount();
+        }).catch(() => {});
         if (state.page === "account") loadWhatsAppAccount();
         $("#connectionStatus").textContent = pendingConnectionStatus === "connected"
           ? "WhatsApp terhubung"
