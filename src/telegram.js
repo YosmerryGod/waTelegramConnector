@@ -692,7 +692,7 @@ function getInteractiveMessageText(content) {
     lines.push("", "Untuk menggunakan tombol, buka WhatsApp.");
   }
 
-  return lines.join("\\n").trim() || "Pesan interaktif WhatsApp";
+  return lines.join("\n").trim() || "Pesan interaktif WhatsApp";
 }
 
 // Extract plain text or a short description for non-media messages.
