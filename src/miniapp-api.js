@@ -219,14 +219,18 @@ function requireMiniAppAuth(req, res, next) {
     req.get("X-WAGRAM-Session-ID") || authenticated.id
   );
   const requestedSession = getWhatsAppAccount(authenticated.id, requestedSessionId);
-  if (!requestedSession) {
+  const sessionIndependentRoutes = new Set(["/me", "/account", "/sessions"]);
+  const isSessionIndependentRoute = sessionIndependentRoutes.has(req.path);
+
+  // [MODIFIED] Allow authenticated bootstrap routes when WhatsApp is disconnected
+  // or its account record is missing. All WhatsApp-dependent routes still require an owned session.
+  if (!requestedSession && !isSessionIndependentRoute) {
     return res.status(404).json({ ok: false, error: "WHATSAPP_SESSION_NOT_FOUND" });
   }
 
-  // [ADDED] Enforce expired/Free session restrictions on every API request.
-  // A user may keep their linked secondary accounts, but only the primary account remains accessible.
+  // [MODIFIED] Enforce Premium restrictions whenever an actual secondary session is requested.
   const membership = getMembership(authenticated.id);
-  if (!requestedSession.is_primary && (!membership || membership.plan === "free")) {
+  if (requestedSession && !requestedSession.is_primary && (!membership || membership.plan === "free")) {
     return res.status(403).json({
       ok: false,
       error: "PREMIUM_REQUIRED",
@@ -236,7 +240,7 @@ function requireMiniAppAuth(req, res, next) {
 
   req.miniAppUser = authenticated.user;
   req.telegramId = authenticated.id;
-  req.sessionId = requestedSessionId;
+  req.sessionId = requestedSession?.session_id || authenticated.id;
   next();
 }
 
