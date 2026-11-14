@@ -702,12 +702,11 @@ router.get("/sessions", async (req, res) => {
         phone_number: live.phoneNumber || session.phone_number || null
       };
     }))).filter((session) => {
-      // [MODIFIED] Do not delete an account merely because its socket is temporarily absent.
-      // Only remove a secondary record that is explicitly disconnected and has never linked a number.
+      // [MODIFIED] Hide secondary sessions that never completed a successful connection.
+      // Keep pairing sessions visible and retain accounts with a successful connection history.
       const abandoned = !session.is_primary &&
-        !session.phone_number &&
-        session.status === "disconnected" &&
-        ["disconnected", "logged_out"].includes(session.connection_status || "disconnected");
+        !session.ever_connected_at &&
+        ["disconnected", "logged_out"].includes(session.status);
       if (abandoned) deleteWhatsAppAccount(req.telegramId, session.session_id);
       return !abandoned;
     });
