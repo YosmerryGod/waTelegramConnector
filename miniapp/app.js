@@ -839,11 +839,12 @@
     } catch {
       allSaved = {};
     }
-    const saved = allSaved[state.activeSessionId] || {};
+    const settingsSessionId = state.expandedSettingsSessionId || state.activeSessionId;
+    const saved = allSaved[settingsSessionId] || {};
     const premium = isPremiumMembership();
     document.querySelectorAll("[data-notification]").forEach((button) => {
       const key = button.dataset.notification;
-      button.dataset.sessionId = state.activeSessionId || "";
+      button.dataset.sessionId = settingsSessionId || "";
       const locked = !premium && isPremiumNotification(key);
       const enabled = !locked && (
         typeof saved[key] === "boolean" ? saved[key] : DEFAULT_NOTIFICATION_PREFS[key]
@@ -893,7 +894,7 @@
 
     const premium = isAIBusinessEligible();
     const preferences = getAIBusinessPreferences();
-    const sessionId = String(state.activeSessionId || "default");
+    const sessionId = String(state.expandedSettingsSessionId || state.activeSessionId || "default");
     const enabled = premium && preferences[sessionId] === true;
 
     button.setAttribute("aria-checked", String(enabled));
@@ -3922,7 +3923,9 @@
 
     // [MODIFIED] The primary session's chevron opens only that session's settings.
     $("#whatsappControlsToggle").addEventListener("click", async () => {
-      const sessionId = state.activeSessionId;
+      // [MODIFIED] The primary-row dropdown belongs to the primary account and never changes selection.
+      const primary = state.whatsappSessions.find((item) => item.is_primary);
+      const sessionId = primary?.session_id;
       if (!sessionId) return;
       state.expandedSettingsSessionId = state.expandedSettingsSessionId === sessionId ? null : sessionId;
       mountWhatsAppSessionSettings();
