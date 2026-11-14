@@ -2349,6 +2349,35 @@
     $("#whatsappCodeMethodPanel").classList.toggle("hidden", !useCode);
   }
 
+  // [ADDED] Copy the generated WhatsApp pairing code with a WebView-safe fallback.
+  async function copyWhatsAppPairingCode() {
+    const code = String($("#whatsappPairingCodeValue").textContent || "").replace(/\\s/g, "");
+    const button = $("#copyWhatsAppPairingCodeButton");
+    if (!code || !button) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        const field = document.createElement("textarea");
+        field.value = code;
+        field.setAttribute("readonly", "");
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        field.select();
+        const copied = document.execCommand("copy");
+        field.remove();
+        if (!copied) throw new Error("Clipboard unavailable");
+      }
+      button.querySelector(".copy-label").textContent = "Tersalin";
+      button.classList.add("is-copied");
+      showToast("Kode tautan berhasil disalin.");
+    } catch (error) {
+      showToast("Tidak dapat menyalin kode. Silakan salin manual.");
+    }
+  }
+
   // [ADDED] Request and display a WhatsApp Linked Devices pairing code.
   async function requestWhatsAppPairingCode() {
     const sessionId = currentWhatsAppPairingSessionId;
@@ -2382,7 +2411,7 @@
       if (!code) throw new Error("WhatsApp tidak mengembalikan kode tautan.");
       $("#whatsappPairingCodeValue").textContent = code.match(/.{1,4}/g)?.join(" ") || code;
       result.classList.remove("hidden");
-      status.textContent = "Kode berhasil dibuat. Masukkan kode ini di WhatsApp pada menu Perangkat tertaut.";
+      status.textContent = ""; // [MODIFIED] The result panel already explains what to do; avoid duplicate instructions.
     } catch (error) {
       status.textContent = error.message || "Gagal membuat kode tautan.";
     } finally {
@@ -2580,6 +2609,7 @@
       if (event.target.closest("#whatsappPairingQrTab")) { setWhatsAppPairingMethod("qr"); return; } // [ADDED]
       if (event.target.closest("#whatsappPairingCodeTab")) { setWhatsAppPairingMethod("code"); return; } // [ADDED]
       if (event.target.closest("#requestWhatsAppPairingCodeButton")) { requestWhatsAppPairingCode(); return; } // [ADDED]
+      if (event.target.closest("#copyWhatsAppPairingCodeButton")) { copyWhatsAppPairingCode(); return; } // [ADDED]
       if (event.target.closest("#whatsappSessionDeleteButton")) { deleteSelectedWhatsAppSession(); return; }
 
       const upgradeButton = event.target.closest("#upgradePremiumButton");
