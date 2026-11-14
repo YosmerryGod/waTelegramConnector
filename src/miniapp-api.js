@@ -327,7 +327,8 @@ router.get("/premium/qr-download/:token.png", (req, res) => {
 });
 // [ADDED] Receive verified-format DANA Business notification events from Check Payment.
 // This route is intentionally outside Telegram Mini App auth and protected by a dedicated shared API key.
-router.post("/payment-monitor/events", (req, res) => {
+// [MODIFIED] Async handler is required because Premium activation resumes eligible WhatsApp sessions.
+router.post("/payment-monitor/events", async (req, res) => {
   const configuredKey = String(process.env.DANA_PAYMENT_MONITOR_API_KEY || "");
   const suppliedKey = String(req.get("X-API-Key") || "");
   if (!configuredKey || !suppliedKey ||
