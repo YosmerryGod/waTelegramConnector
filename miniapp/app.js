@@ -25,6 +25,7 @@
     whatsappSessions: [],
     whatsappSessionLimit: 1,
     activeSessionId: null,
+    expandedSettingsSessionId: null, // [ADDED] Session whose individual settings dropdown is open.
 
     chats: [],
     chatsLoaded: false,
@@ -666,11 +667,12 @@
           ? '<img src="' + escapeHTML(session.picture_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
           : icon("whatsapp");
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
-          '<button class="whatsapp-account-select" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pilih akun ' + escapeHTML(label) + '">' +
+          '<button class="whatsapp-account-select" type="button" data-account-select="' + escapeHTML(session.session_id) + '" aria-label="Pilih akun ' + escapeHTML(label) + '">' +
           '<span class="whatsapp-account-avatar' + (active ? ' is-selected' : '') + '">' + picture + (active ? '<span class="whatsapp-account-selected-check" aria-label="Dipilih">✓</span>' : '') + '</span>' +
           '<span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
-          '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : status === "connecting" ? ' is-connecting' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span>' +
-          '<span class="whatsapp-account-row-chevron" aria-hidden="true">' + icon("back") + '</span></button></div>';
+          '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : status === "connecting" ? ' is-connecting' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
+          '<button class="whatsapp-account-row-chevron" type="button" data-account-settings-toggle="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '" aria-expanded="' + String(state.expandedSettingsSessionId === session.session_id) + '">' + icon("back") + '</button></div>' +
+          '<div class="whatsapp-account-settings-slot" data-account-settings-slot="' + escapeHTML(session.session_id) + '"></div>';
       }).join("");
     }
     // [MODIFIED] Pending secondary sessions are hidden from linked-account capacity calculations.
@@ -695,6 +697,29 @@
       connectButton.hidden = selectedStatus === "connected";
       connectButton.textContent = selectedStatus === "qr" ? "Tampilkan QR" : "Hubungkan session";
     }
+  }
+
+  // [ADDED] Place the shared settings content directly below the session that owns it.
+  function mountWhatsAppSessionSettings() {
+    const panel = $("#whatsappAccountControls");
+    if (!panel) return;
+    const sessionId = state.expandedSettingsSessionId;
+    const slot = sessionId
+      ? $("[data-account-settings-slot='" + CSS.escape(sessionId) + "']")
+      : null;
+    if (slot) {
+      slot.appendChild(panel);
+      panel.classList.remove("is-collapsed");
+    } else {
+      panel.classList.add("is-collapsed");
+      const card = $(".whatsapp-account-card");
+      const rows = $("#whatsappAccountRows");
+      if (card && rows) card.appendChild(panel);
+    }
+    document.querySelectorAll("[data-account-settings-toggle]").forEach((button) => {
+      button.setAttribute("aria-expanded", String(button.dataset.accountSettingsToggle === sessionId));
+    });
+    $("#whatsappControlsToggle")?.setAttribute("aria-expanded", String(Boolean(sessionId)));
   }
 
   // [ADDED] Load WhatsApp connection details for the selected Profile session.
@@ -2467,14 +2492,24 @@
         }
         return;
       }
-      const accountSettingsButton = event.target.closest("[data-account-settings]");
-      if (accountSettingsButton) {
-        selectWhatsAppSession(accountSettingsButton.dataset.accountSettings).then(() => {
-          const panel = $("#whatsappAccountControls");
-          panel.classList.remove("is-collapsed");
-          $("#whatsappControlsToggle").setAttribute("aria-expanded", "true");
+      const accountSelectButton = event.target.closest("[data-account-select]");
+      if (accountSelectButton) {
+        selectWhatsAppSession(accountSelectButton.dataset.accountSelect);
+        return;
+      }
+      const accountSettingsToggle = event.target.closest("[data-account-settings-toggle]");
+      if (accountSettingsToggle) {
+        const sessionId = accountSettingsToggle.dataset.accountSettingsToggle;
+        selectWhatsAppSession(sessionId).then(() => {
+          state.expandedSettingsSessionId = state.expandedSettingsSessionId === sessionId ? null : sessionId;
+          mountWhatsAppSessionSettings();
           renderNotificationPreferences();
         });
+        return;
+      }
+      const primaryAccountSelect = event.target.closest("[data-primary-account-select]");
+      if (primaryAccountSelect) {
+        selectWhatsAppSession(primaryAccountSelect.dataset.primaryAccountSelect);
         return;
       }
       const accountDisconnectButton = event.target.closest("[data-account-disconnect]");
@@ -3875,23 +3910,22 @@
       }
     });
 
-    // [ADDED] Expand or collapse all WhatsApp account controls from the status row.
-    $("#whatsappControlsToggle").addEventListener("click", () => {
-      const panel = $("#whatsappAccountControls");
-      const collapsed = panel.classList.toggle("is-collapsed");
-      $("#whatsappControlsToggle").setAttribute("aria-expanded", String(!collapsed));
-      $("#whatsappControlsToggle").setAttribute(
-        "aria-label",
-        collapsed ? "Buka pengaturan akun WhatsApp" : "Tutup pengaturan akun WhatsApp"
-      );
+    // [MODIFIED] The primary session's chevron opens only that session's settings.
+    $("#whatsappControlsToggle").addEventListener("click", async () => {
+      const sessionId = state.activeSessionId;
+      if (!sessionId) return;
+      state.expandedSettingsSessionId = state.expandedSettingsSessionId === sessionId ? null : sessionId;
+      mountWhatsAppSessionSettings();
+      renderNotificationPreferences();
     });
 
-    // [ADDED] Expand or collapse notification preferences within the same card.
-    $("#notificationCardToggle").addEventListener("click", () => {
-      // [MODIFIED] The notification dropdown now belongs to the embedded WhatsApp card.
-      const section = $("#notificationCardToggle").closest(".embedded-notification-section");
+    // [MODIFIED] Notification preferences remain inside the settings panel of their owning session.
+    $("#whatsappAccountControls").addEventListener("click", (event) => {
+      const toggle = event.target.closest("#notificationCardToggle");
+      if (!toggle) return;
+      const section = toggle.closest(".embedded-notification-section");
       const collapsed = section.classList.toggle("is-collapsed");
-      $("#notificationCardToggle").setAttribute("aria-expanded", String(!collapsed));
+      toggle.setAttribute("aria-expanded", String(!collapsed));
     });
 
 
