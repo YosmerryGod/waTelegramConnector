@@ -8410,3 +8410,9 @@ body.in-chat #topbar {
   font-size:12px;
   line-height:1.5;
 }
+ 
+/* [MODIFIED] Ensure the primary WhatsApp row is fully removed from layout when hidden.
+   The row uses display:flex, which otherwise overrides the browser's hidden presentation. */
+.whatsapp-primary-account-row[hidden] {
+  display: none !important;
+}
