@@ -8030,3 +8030,75 @@ body.in-chat #topbar {
   object-fit:contain;
   vertical-align:middle;
 }
+
+/* [MODIFIED] Cleaner Premium payment hierarchy: compact header, amount and QR focus. */
+.premium-payment-content {
+  width: min(100%, 370px);
+  max-height: min(86dvh, 720px);
+  gap: 8px;
+  padding: 54px 20px 18px;
+  border-radius: 24px;
+}
+.premium-payment-content h2 {
+  font-size: 19px;
+  letter-spacing: -.25px;
+}
+.premium-payment-plan {
+  font-size: 10px;
+  letter-spacing: .8px;
+}
+.premium-payment-amount {
+  margin-top: 1px;
+  font-size: clamp(27px, 7vw, 31px);
+  line-height: 1.1;
+  letter-spacing: -.6px;
+}
+.premium-payment-unique {
+  margin: -3px 0 0;
+  font-size: 11px;
+}
+.premium-payment-countdown {
+  font-size: 12px;
+}
+.premium-payment-qr-wrap {
+  padding: 7px;
+  border-radius: 16px;
+}
+#premiumPaymentQr {
+  width: min(232px, 62vw);
+}
+.premium-payment-status:empty {
+  display: none;
+}
+.premium-payment-hint {
+  margin-top: 1px;
+  font-size: 10px;
+}
+.premium-payment-actions {
+  margin-top: 4px;
+  gap: 8px;
+}
+.premium-payment-actions button {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+.premium-payment-confirmation:empty {
+  display: none;
+}
+@media (max-height: 760px) {
+  .premium-payment-modal {
+    align-items: center;
+    padding-top: max(10px, env(safe-area-inset-top));
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .premium-payment-content {
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    gap: 6px;
+    padding-top: 48px;
+    padding-bottom: 14px;
+  }
+  #premiumPaymentQr {
+    width: min(210px, 56vw);
+  }
+}
