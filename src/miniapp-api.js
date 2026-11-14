@@ -474,7 +474,7 @@ router.post("/premium/orders/:orderId/qr-download", (req, res) => {
 // [ADDED] User reports that a Premium QRIS payment has been completed.
 router.post(
   "/premium/orders/:orderId/paid",
-  express.raw({ type: ["image/jpeg"], limit: "8mb" }), // [ADDED] Receive compact binary image payload.
+  express.raw({ type: ["application/octet-stream"], limit: "8mb" }), // [MODIFIED] Accept original image bytes without transcoding.
   async (req, res) => {
   try {
     const orderId = String(req.params.orderId || "");
@@ -497,24 +497,31 @@ router.post(
       return res.json({ ok: true, alreadyReported: true });
     }
 
-    // [MODIFIED] Validate raw JPEG bytes; avoids Base64 request expansion.
+    // [MODIFIED] Validate original JPEG, PNG, or WEBP signatures without re-encoding.
     const proofBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-    if (!proofBuffer.length) {
+    if (!proofBuffer.length || proofBuffer.length > 5 * 1024 * 1024) {
       return res.status(400).json({
         ok: false,
-        error: "PAYMENT_PROOF_REQUIRED",
+        error: proofBuffer.length ? "INVALID_PAYMENT_PROOF" : "PAYMENT_PROOF_REQUIRED",
         message: "Pilih bukti pembayaran JPG, PNG, atau WEBP maksimal 5 MB."
       });
     }
     const isJpeg = proofBuffer.length >= 3 &&
       proofBuffer[0] === 0xff && proofBuffer[1] === 0xd8 && proofBuffer[2] === 0xff;
-    if (!isJpeg || proofBuffer.length > 5 * 1024 * 1024) {
+    const isPng = proofBuffer.length >= 8 &&
+      proofBuffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    const isWebp = proofBuffer.length >= 12 &&
+      proofBuffer.toString("ascii", 0, 4) === "RIFF" &&
+      proofBuffer.toString("ascii", 8, 12) === "WEBP";
+    if (!isJpeg && !isPng && !isWebp) {
       return res.status(400).json({
         ok: false,
         error: "INVALID_PAYMENT_PROOF",
-        message: "Ukuran bukti pembayaran maksimal 5 MB."
+        message: "Isi file bukan gambar JPG, PNG, atau WEBP yang valid."
       });
     }
+    const proofMimeType = isJpeg ? "image/jpeg" : isPng ? "image/png" : "image/webp";
+    const proofExtension = isJpeg ? "jpg" : isPng ? "png" : "webp";
 
     if (!markPremiumPaymentReported(req.telegramId, orderId)) {
       return res.status(409).json({
@@ -550,10 +557,8 @@ router.post(
 
     const proofExtension = "jpg"; // [MODIFIED] Client sends compressed JPEG binary data.
     const results = await Promise.allSettled(
-      adminIds.map((adminId) => bot.sendPhoto(
-        adminId,
-        proofBuffer,
-        {
+      adminIds.map((adminId) => {
+        const options = {
           caption: message,
           parse_mode: "HTML",
           reply_markup: {
@@ -562,9 +567,18 @@ router.post(
               { text: "❌ Tolak", callback_data: "premium:reject:" + order.id }
             ]]
           }
-        },
-        { filename: "bukti-pembayaran-premium." + proofExtension, contentType: "image/jpeg" } // [MODIFIED]
-      ))
+        };
+        // [MODIFIED] Send JPEG/PNG as a photo; preserve WEBP as a document.
+        return isWebp
+          ? bot.sendDocument(adminId, proofBuffer, options, {
+              filename: "bukti-pembayaran-premium." + proofExtension,
+              contentType: proofMimeType
+            })
+          : bot.sendPhoto(adminId, proofBuffer, options, {
+              filename: "bukti-pembayaran-premium." + proofExtension,
+              contentType: proofMimeType
+            });
+      })
     );
     const delivered = results.some((result) => result.status === "fulfilled");
     if (!delivered) {
