@@ -652,8 +652,8 @@
     if (accountRows) {
       // [MODIFIED] Hide newly-created secondary sessions until WhatsApp pairing succeeds.
       accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => {
+        // [MODIFIED] Show every other linked account, including the primary account when a secondary is selected.
         if (session.session_id === state.activeSessionId) return false;
-        if (session.is_primary) return false;
         const status = session.status || session.connection_status || "disconnected";
         return Boolean(session.phone_number) || status === "connected" || status === "paused";
       }).map((session, index) => {
