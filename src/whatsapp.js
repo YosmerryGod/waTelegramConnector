@@ -315,6 +315,11 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
     throw new Error("Versi Baileys yang terpasang belum mendukung kode tautan.");
   }
 
+  // [ADDED] Prevent overlapping requests from replacing the active pairing code.
+  if (entry.pairingCodeRequested) {
+    throw new Error("Kode tautan sedang aktif. Gunakan kode yang sudah ditampilkan.");
+  }
+
   // [ADDED] Baileys requires the socket to emit its initial connecting/QR update first.
   if (!entry.connectionStarted) {
     const socket = entry.socket;
@@ -339,8 +344,10 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
   }
 
   try {
+    entry.pairingCodeRequested = true; // [ADDED] Lock pairing-code state until the session opens or fails.
     return await entry.socket.requestPairingCode(digits);
   } catch (error) {
+    entry.pairingCodeRequested = false; // [ADDED]
     logger.warn({ sessionId: id, err: error }, "WhatsApp pairing code request failed");
     throw new Error("Kode tautan belum dapat dibuat. Periksa nomor dan coba lagi.");
   }
@@ -638,6 +645,7 @@ async function createSocket(id, ownerId, entry) {
       }
 
       if (connection === "open") {
+        entry.pairingCodeRequested = false; // [ADDED] Pairing is complete; allow a future relink.
         entry.qr = null; // [ADDED] Never expose a QR after successful pairing.
         entry.status = "connected";
         entry.connectedAt = Date.now();
@@ -651,6 +659,7 @@ async function createSocket(id, ownerId, entry) {
       }
 
       if (connection === "close") {
+        entry.pairingCodeRequested = false; // [ADDED] Release the pairing lock after a disconnect.
         entry.socket = null;
 
         const statusCode =
