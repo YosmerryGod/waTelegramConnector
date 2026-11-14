@@ -9,6 +9,7 @@ import { getWhatsAppMessageContent } from "./database.js";
 import makeWASocket, {
   DisconnectReason,
   WAMessageStubType,
+  Browsers,
   proto,
   useMultiFileAuthState
 } from "baileys";
@@ -38,6 +39,9 @@ const CONNECT_TIMEOUT_MS = Math.max(
   10000,
   Number(process.env.WA_CONNECT_TIMEOUT_MS || 60000)
 );
+
+// [ADDED] Pairing codes expire quickly; allow a clean retry after this window.
+const PAIRING_CODE_TTL_MS = 60000;
 
 // A connection that lived this long counts as stable (resets backoff).
 const STABLE_CONNECTION_MS = 30000;
@@ -321,27 +325,88 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
     throw new Error("Versi Baileys yang terpasang belum mendukung kode tautan.");
   }
 
-  // [ADDED] Prevent overlapping requests from replacing the active pairing code.
+  // [ADDED] A generated code may be reused only during its 60-second validity window.
   if (entry.pairingCodeRequested) {
-    throw new Error("Kode tautan sedang aktif. Gunakan kode yang sudah ditampilkan.");
+    const codeAge = Date.now() - Number(entry.pairingCodeRequestedAt || Date.now());
+
+    if (codeAge < PAIRING_CODE_TTL_MS) {
+      throw new Error("Kode tautan sedang aktif. Gunakan kode yang sudah ditampilkan.");
+    }
+
+    if (entry.status === "connected" || entry.socket?.user) {
+      throw new Error("WhatsApp sudah terhubung. Tidak perlu meminta kode baru.");
+    }
+
+    // [ADDED] Clear only unregistered credentials before retrying an expired pairing code.
+    const authPath = getAuthPath(id);
+    const { state } = await useMultiFileAuthState(authPath);
+
+    if (state.creds?.registered === true) {
+      entry.pairingCodeRequested = false;
+      entry.pairingCodeRequestedAt = null;
+      throw new Error("Kredensial WhatsApp sudah terdaftar. Putuskan sesi terlebih dahulu sebelum pairing ulang.");
+    }
+
+    if (entry.reconnectTimer) {
+      clearTimeout(entry.reconnectTimer);
+      entry.reconnectTimer = null;
+    }
+
+    const previousSocket = entry.socket;
+    entry.socket = null;
+
+    try {
+      previousSocket?.end(undefined);
+    } catch {
+      // The expired pairing socket may already be closed.
+    }
+
+    fs.rmSync(authPath, { recursive: true, force: true });
+    entry.pairingCodeRequested = false;
+    entry.pairingCodeRequestedAt = null;
+    entry.connectionStarted = false;
+    entry.qr = null;
+    entry.status = "connecting";
+    await createSocket(id, entry.ownerId, entry);
   }
 
-  // [ADDED] Baileys requires the socket to emit its initial connecting/QR update first.
-  if (!entry.connectionStarted) {
+  // [MODIFIED] Wait for Baileys' QR event, not the early "connecting" event.
+  if (!entry.connectionStarted || !entry.qr) {
     const socket = entry.socket;
+
+    if (!socket) {
+      throw new Error("Koneksi WhatsApp terputus. Coba lagi.");
+    }
+
     await new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         socket.ev.off("connection.update", onConnectionUpdate);
-        reject(new Error("Koneksi WhatsApp belum siap. Coba lagi beberapa detik."));
-      }, 10000);
+        reject(new Error("WhatsApp belum mengirim QR. Tunggu sebentar lalu coba lagi."));
+      }, 20000);
+
       const onConnectionUpdate = (update) => {
-        if (update.connection === "connecting" || update.qr) {
+        if (update.qr) {
           clearTimeout(timeout);
           socket.ev.off("connection.update", onConnectionUpdate);
           resolve();
+        } else if (update.connection === "close") {
+          clearTimeout(timeout);
+          socket.ev.off("connection.update", onConnectionUpdate);
+          reject(new Error("Koneksi WhatsApp terputus sebelum pairing siap."));
         }
       };
+
       socket.ev.on("connection.update", onConnectionUpdate);
+
+      if (entry.socket !== socket || entry.stopping) {
+        clearTimeout(timeout);
+        socket.ev.off("connection.update", onConnectionUpdate);
+        reject(new Error("Koneksi WhatsApp terputus. Coba lagi."));
+      } else if (entry.qr) {
+        clearTimeout(timeout);
+        socket.ev.off("connection.update", onConnectionUpdate);
+        resolve();
+      }
     });
   }
 
@@ -350,7 +415,8 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
   }
 
   try {
-    entry.pairingCodeRequested = true; // [ADDED] Lock pairing-code state until the session opens or fails.
+    entry.pairingCodeRequested = true; // [ADDED] Lock pairing-code state until success, expiry, or failure.
+    entry.pairingCodeRequestedAt = Date.now();
     logger.warn({
       sessionId: id,
       status: entry.status,
@@ -358,6 +424,7 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
     }, "WhatsApp pairing code request started");
 
     const code = await entry.socket.requestPairingCode(digits);
+    entry.pairingCodeRequestedAt = Date.now(); // [ADDED] Start the TTL after the code is generated.
 
     logger.warn({
       sessionId: id,
@@ -368,6 +435,7 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
     return code;
   } catch (error) {
     entry.pairingCodeRequested = false; // [ADDED]
+    entry.pairingCodeRequestedAt = null; // [ADDED]
     logger.warn({
       sessionId: id,
       errorName: error?.name || "Error",
@@ -528,6 +596,9 @@ export async function connectWhatsApp(telegramId, callbacks = {}, options = {}) 
     status: "connecting",
     phoneNumber: null,
     qr: null, // [ADDED] Current Baileys pairing QR for the Mini App.
+    connectionStarted: false, // [ADDED] Reset readiness for every new socket.
+    pairingCodeRequested: false, // [ADDED] Pairing lock is scoped to the current socket/code.
+    pairingCodeRequestedAt: null, // [ADDED] Pairing-code expiration timestamp.
     reconnectTimer: null,
     reconnectDelay: INITIAL_RECONNECT_DELAY,
     stopping: false,
@@ -551,6 +622,12 @@ async function createSocket(id, ownerId, entry) {
   if (entry.stopping || intentionalDisconnects.has(id)) {
     return;
   }
+
+  // [ADDED] A recreated socket must complete its own QR readiness handshake.
+  entry.connectionStarted = false;
+  entry.qr = null;
+  entry.pairingCodeRequested = false;
+  entry.pairingCodeRequestedAt = null;
 
   const authPath = getAuthPath(id);
   fs.mkdirSync(authPath, { recursive: true });
@@ -577,7 +654,7 @@ async function createSocket(id, ownerId, entry) {
       auth: state,
       logger,
       printQRInTerminal: false,
-      browser: ["WhatsApp Bridge", "Chrome", "1.0.0"],
+      browser: Browsers.ubuntu("Chrome"),
       markOnlineOnConnect: false,
       syncFullHistory: false,
       // [MODIFIED] Keep Baileys' initial protocol sync enabled so saved sessions
@@ -660,8 +737,8 @@ async function createSocket(id, ownerId, entry) {
           errorMessage: String(lastDisconnect?.error?.message || "").slice(0, 200)
         }, "WhatsApp connection update");
       }
-      if (connection === "connecting" || qr) {
-        entry.connectionStarted = true; // [ADDED] Track when Baileys is ready for a pairing-code request.
+      if (qr) {
+        entry.connectionStarted = true; // [MODIFIED] Pairing readiness begins only after Baileys emits QR.
       }
 
       if (qr) {
@@ -687,6 +764,7 @@ async function createSocket(id, ownerId, entry) {
           hasUser: Boolean(socket.user)
         }, "WhatsApp connection opened");
         entry.pairingCodeRequested = false; // [ADDED] Pairing is complete; allow a future relink.
+        entry.pairingCodeRequestedAt = null; // [ADDED]
         entry.qr = null; // [ADDED] Never expose a QR after successful pairing.
         entry.status = "connected";
         entry.connectedAt = Date.now();
@@ -708,6 +786,9 @@ async function createSocket(id, ownerId, entry) {
           errorMessage: String(lastDisconnect?.error?.message || "").slice(0, 200)
         }, "WhatsApp connection closed during connection update");
         entry.pairingCodeRequested = false; // [ADDED] Release the pairing lock after a disconnect.
+        entry.pairingCodeRequestedAt = null; // [ADDED]
+        entry.connectionStarted = false; // [ADDED] The next socket must pass its own readiness gate.
+        entry.qr = null;
         entry.socket = null;
 
         const statusCode =
