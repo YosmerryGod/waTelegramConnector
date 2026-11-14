@@ -824,6 +824,8 @@ async function createSocket(id, ownerId, entry) {
         }
 
         if (loggedOut) {
+          // [ADDED] WhatsApp explicitly invalidated this login; remove unusable credentials.
+          fs.rmSync(getAuthPath(id), { recursive: true, force: true });
           entry.status = "logged_out";
           entry.callbacks.onStatus?.("logged_out");
           entry.callbacks.onLoggedOut?.();
