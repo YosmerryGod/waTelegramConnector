@@ -321,6 +321,18 @@ const premiumOrderColumns = db
 if (!premiumOrderColumns.includes("payment_reported_at")) {
   db.exec("ALTER TABLE premium_payment_orders ADD COLUMN payment_reported_at INTEGER");
 }
+// [ADDED] Store the Android notification event used for automatic payment settlement.
+if (!premiumOrderColumns.includes("payment_event_id")) {
+  db.exec("ALTER TABLE premium_payment_orders ADD COLUMN payment_event_id TEXT");
+}
+if (!premiumOrderColumns.includes("paid_at")) {
+  db.exec("ALTER TABLE premium_payment_orders ADD COLUMN paid_at INTEGER");
+}
+db.exec(`
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_premium_orders_payment_event
+    ON premium_payment_orders(payment_event_id)
+    WHERE payment_event_id IS NOT NULL;
+`);
 
 export function getPremiumPaymentOrder(telegramId, orderId) {
   return db.prepare(`
@@ -349,6 +361,59 @@ export function reviewPremiumPaymentOrder(orderId, decision) {
     WHERE id = ? AND status = 'pending' AND payment_reported_at IS NOT NULL
   `).run(decision, String(orderId));
   return result.changes > 0 ? getPremiumPaymentOrderById(orderId) : null;
+}
+
+// [ADDED] Atomically match one unexpired QRIS order and activate its membership.
+export function completePremiumPaymentByAmount(amount, eventId) {
+  const normalizedAmount = Number(amount);
+  const normalizedEventId = String(eventId || "").trim();
+  if (!Number.isSafeInteger(normalizedAmount) || normalizedAmount <= 0 ||
+      !/^[a-f0-9]{64}$/i.test(normalizedEventId)) {
+    return { matched: false, reason: "INVALID_EVENT" };
+  }
+
+  const now = Date.now();
+  const complete = db.transaction(() => {
+    const existing = db.prepare(`
+      SELECT * FROM premium_payment_orders
+      WHERE payment_event_id = ? LIMIT 1
+    `).get(normalizedEventId);
+    if (existing) {
+      return { matched: true, duplicate: true, order: existing };
+    }
+
+    const order = db.prepare(`
+      SELECT * FROM premium_payment_orders
+      WHERE amount = ? AND status = 'pending' AND expires_at > ?
+      ORDER BY created_at ASC
+      LIMIT 1
+    `).get(normalizedAmount, now);
+    if (!order) return { matched: false, reason: "NO_MATCHING_PENDING_ORDER" };
+
+    const updated = db.prepare(`
+      UPDATE premium_payment_orders
+      SET status = 'approved', payment_event_id = ?, paid_at = ?
+      WHERE id = ? AND status = 'pending' AND expires_at > ?
+    `).run(normalizedEventId, now, order.id, now);
+    if (updated.changes !== 1) {
+      return { matched: false, reason: "ORDER_ALREADY_PROCESSED" };
+    }
+
+    const planByPeriod = { "3d": "premium-a", "7d": "premium-b", "30d": "premium-c" };
+    const plan = planByPeriod[order.plan_period];
+    if (!plan) throw new Error("INVALID_PREMIUM_PLAN_PERIOD");
+    const membership = setMembership(order.telegram_id, plan);
+    if (!membership) throw new Error("PREMIUM_USER_NOT_FOUND");
+
+    return {
+      matched: true,
+      duplicate: false,
+      order: getPremiumPaymentOrderById(order.id),
+      membership
+    };
+  });
+
+  return complete();
 }
 
 export function markPremiumPaymentReported(telegramId, orderId) {
