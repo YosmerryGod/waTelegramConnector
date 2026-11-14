@@ -1297,7 +1297,11 @@
 
     try {
       response = await fetch(`${API_BASE}/messages/${enc(key)}/media`, {
-        headers: { "X-Telegram-Init-Data": tg?.initData || "" }
+        headers: {
+          "X-Telegram-Init-Data": tg?.initData || "",
+          // [MODIFIED] Media requests must use the same WhatsApp session as the active chat.
+          ...(state.activeSessionId ? { "X-WAGRAM-Session-ID": state.activeSessionId } : {})
+        }
       });
     } catch {
       throw new Error("Tidak dapat terhubung ke server.");
