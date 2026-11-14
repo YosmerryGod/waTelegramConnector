@@ -6389,6 +6389,48 @@ body.premium-payment-open { overflow: hidden !important; }
   font-size: 12px;
   font-weight: 750;
 }
+/* [ADDED] 15-minute QRIS countdown and automatic payment success animation. */
+.premium-payment-countdown {
+  margin: 0;
+  color: var(--accent, #08a94f);
+  font-size: 13px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+.premium-payment-success-mark {
+  position: absolute;
+  inset: 9px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(5, 25, 15, .82);
+  color: #fff;
+  font-size: clamp(76px, 22vw, 112px);
+  font-weight: 900;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(.65);
+  transition: opacity .22s ease, transform .3s cubic-bezier(.2,.8,.2,1), visibility .22s ease;
+}
+.premium-payment-qr-wrap.is-paid .premium-payment-success-mark {
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
+}
+.premium-payment-qr-wrap.is-paid .premium-payment-logo {
+  opacity: 0;
+  visibility: hidden;
+}
+.premium-payment-qr-wrap.is-paid {
+  box-shadow: 0 0 0 3px #20c878, 0 0 34px rgba(32,200,120,.35);
+}
+.premium-payment-paid:disabled {
+  opacity: 1;
+  background: color-mix(in srgb, var(--accent, #08a94f) 16%, var(--surface, #fff));
+  color: var(--accent, #08a94f);
+}
+
 .premium-payment-hint {
   margin: 0;
   color: var(--muted, #718078);
