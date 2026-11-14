@@ -1037,17 +1037,14 @@ export function createWhatsAppAccount(telegramId, label = null) {
     // [MODIFIED] Pending records and duplicate phone aliases do not consume linked-account capacity.
     const count = db.prepare(`
       SELECT
-        CASE
-          WHEN SUM(CASE WHEN is_primary = 1 THEN 1 ELSE 0 END) > 0
-          THEN 1 + COUNT(DISTINCT CASE
-            WHEN is_primary = 0 AND phone_number IS NOT NULL AND TRIM(phone_number) <> ''
-            THEN phone_number
-          END)
-          ELSE COUNT(DISTINCT CASE
-            WHEN phone_number IS NOT NULL AND TRIM(phone_number) <> ''
-            THEN phone_number
-          END)
-        END AS count
+        COUNT(DISTINCT CASE
+          WHEN phone_number IS NOT NULL AND TRIM(phone_number) <> ''
+          THEN phone_number
+        END)
+        + MAX(CASE
+          WHEN is_primary = 1 AND (phone_number IS NULL OR TRIM(phone_number) = '')
+          THEN 1 ELSE 0
+        END) AS count
       FROM whatsapp_accounts
       WHERE telegram_id = ?
     `).get(ownerId).count;
