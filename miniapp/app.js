@@ -665,7 +665,7 @@
         const active = session.session_id === state.activeSessionId;
         const picture = session.picture_url
           ? '<img src="' + escapeHTML(session.picture_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
-          : icon("whatsapp");
+          : "";
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
           '<button class="whatsapp-account-select" type="button" data-account-select="' + escapeHTML(session.session_id) + '" aria-label="Pilih akun ' + escapeHTML(label) + '">' +
           '<span class="whatsapp-account-avatar' + (active ? ' is-selected' : '') + '">' + picture + (active ? '<span class="whatsapp-account-selected-check" aria-label="Dipilih">✓</span>' : '') + '</span>' +
@@ -755,8 +755,6 @@
 
   // [ADDED] Load WhatsApp connection details for the selected Profile session.
   async function loadWhatsAppAccount() {
-    const phone = $("#accountWhatsAppPhone");
-    const stateLabel = $("#accountWhatsAppState");
     const disconnectButton = $("#disconnectWhatsAppButton");
     try {
       await loadWhatsAppSessions();
@@ -765,36 +763,11 @@
       // [MODIFIED] Connection actions follow the active session; account identity rows stay fixed.
       const connected = data.status === "connected";
       const paused = data.status === "paused";
-      phone.textContent = data.phoneNumber ? `+${String(data.phoneNumber).replace(/^\+/, "")}` : "Nomor belum tersedia";
-      $("#accountWhatsAppName").textContent = connected || paused
-        ? (data.displayName || "WhatsApp")
-        : "WhatsApp";
-      const photo = $("#accountWhatsAppPhoto");
-      $("#accountWhatsAppAvatar").classList.toggle("is-selected", true); // [ADDED] The account shown in the main row is the selected session.
-      if (connected && data.pictureUrl) {
-        photo.src = data.pictureUrl;
-        photo.classList.remove("hidden");
-      } else {
-        photo.removeAttribute("src");
-        photo.classList.add("hidden");
-      }
-      stateLabel.classList.toggle("is-connected", connected);
-      stateLabel.classList.toggle("is-paused", paused);
-      // [MODIFIED] Connect is available from Profile when WhatsApp is disconnected or paused.
-      stateLabel.classList.remove("is-connecting");
-      stateLabel.disabled = connected;
-      stateLabel.innerHTML = connected
-        ? '<i></i> Connected <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>'
-        : paused
-          ? '<i></i> Pause <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>'
-          : '<i></i> Connect <span class="free-pause-countdown hidden" id="freePauseCountdown" aria-live="off">00.00</span>';
+      // [MODIFIED] The primary row is rendered from its own account record; selecting another
+      // session must not replace its identity, avatar, or connection status.
       disconnectButton.disabled = !connected && !paused;
       disconnectButton.dataset.sessionId = state.activeSessionId;
-      renderFreePauseCountdown(); // [ADDED] Refresh countdown with connection status.
     } catch (error) {
-      phone.textContent = "Status koneksi tidak tersedia";
-      stateLabel.classList.remove("is-connected");
-      stateLabel.textContent = "Status tidak tersedia";
       disconnectButton.disabled = true;
     }
   }
