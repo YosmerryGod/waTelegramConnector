@@ -702,13 +702,13 @@ router.get("/sessions", async (req, res) => {
         phone_number: live.phoneNumber || session.phone_number || null
       };
     }))).filter((session) => {
-      // [MODIFIED] Hide secondary sessions that never completed a successful connection.
-      // Keep pairing sessions visible and retain accounts with a successful connection history.
-      const abandoned = !session.is_primary &&
-        !session.ever_connected_at &&
-        ["disconnected", "logged_out"].includes(session.status);
-      if (abandoned) deleteWhatsAppAccount(req.telegramId, session.session_id);
-      return !abandoned;
+      // [MODIFIED] Only show WhatsApp sessions that are currently valid or explicitly paused.
+      // Disconnected, logged-out, connecting, and QR/pairing sessions stay out of the session list.
+      const shouldShow = ["connected", "paused"].includes(session.status);
+      if (!shouldShow && !session.is_primary) {
+        deleteWhatsAppAccount(req.telegramId, session.session_id);
+      }
+      return shouldShow;
     });
 
     res.setHeader("Cache-Control", "no-store");
