@@ -22,7 +22,7 @@ import {
 
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import QRCode from "qrcode";
-import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppAccountProfile, getWhatsAppProfile, getWhatsAppPhoneNumber } from "./whatsapp.js";
+import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, getWhatsAppAccountProfile, getWhatsAppProfile, getWhatsAppPhoneNumber, requestWhatsAppPairingCode } from "./whatsapp.js";
 
 import {
   getUser,
@@ -644,6 +644,63 @@ router.post("/sessions/:sessionId/connect", async (req, res) => {
     res.status(202).json({ ok: true, sessionId: session.session_id, ...live });
   } catch (error) {
     sendServerError(res, error, "Could not start WhatsApp session pairing");
+  }
+});
+
+// [ADDED] Generate a WhatsApp Linked Devices pairing code for the selected session.
+router.post("/sessions/:sessionId/pairing-code", express.json(), async (req, res) => {
+  try {
+    const session = getWhatsAppAccount(req.telegramId, req.params.sessionId);
+    if (!session) return res.status(404).json({ ok: false, error: "SESSION_NOT_FOUND" });
+
+    const phoneNumber = String(req.body?.phoneNumber || "").replace(/\D/g, "");
+    if (!/^\d{8,15}$/.test(phoneNumber)) {
+      return res.status(400).json({
+        ok: false,
+        error: "INVALID_PHONE_NUMBER",
+        message: "Masukkan nomor dengan kode negara, contoh 62812xxxxxxxx."
+      });
+    }
+
+    const membership = getMembership(req.telegramId);
+    const ownedSessions = getWhatsAppAccounts(req.telegramId);
+    const sessionIndex = ownedSessions.findIndex((item) => item.session_id === session.session_id);
+    if (!membership || sessionIndex < 0 || sessionIndex >= membership.sessions_limit) {
+      return res.status(403).json({
+        ok: false,
+        error: "SESSION_LIMIT_REACHED",
+        limit: membership?.sessions_limit || 1,
+        plan: membership?.plan || "free"
+      });
+    }
+
+    const live = getWhatsAppStatus(session.session_id);
+    if (live.status === "connected") {
+      return res.status(409).json({
+        ok: false,
+        error: "WHATSAPP_ALREADY_CONNECTED",
+        message: "Session WhatsApp ini sudah terhubung."
+      });
+    }
+
+    if (!["connecting", "qr"].includes(live.status)) {
+      await connectWhatsApp(
+        req.telegramId,
+        createWhatsAppCallbacks(req.telegramId, {
+          sessionId: session.session_id,
+          notifyQrToTelegram: false
+        }),
+        { sessionId: session.session_id }
+      );
+    }
+
+    const code = await requestWhatsAppPairingCode(session.session_id, phoneNumber);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ok: true, sessionId: session.session_id, code });
+  } catch (error) {
+    const message = error.message || "Could not generate WhatsApp pairing code";
+    const status = /belum siap|belum dapat dibuat|belum mendukung|Masukkan nomor/i.test(message) ? 400 : 500;
+    res.status(status).json({ ok: false, error: "PAIRING_CODE_FAILED", message });
   }
 });
 
