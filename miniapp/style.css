@@ -2669,9 +2669,13 @@ body:has(#accountPage:not(.hidden)) .topbar {
   inset:0;
   display:grid;
   place-items:center;
-  font-size:14px;
   line-height:1;
-  filter:grayscale(.15);
+  filter:none;
+}
+.notification-lock-crown .premium-crown-svg {
+  width:17px;
+  height:17px;
+  transform:rotate(22deg);
 }
 .notification-switch.is-premium-locked:focus-visible {
   outline:2px solid #d9a441;
@@ -3946,13 +3950,12 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   justify-content: center;
   width: 22px;
   height: 22px;
-  border: 2px solid var(--surface);
-  border-radius: 50%;
-  background: #f59e0b;
-  font-size: 12px;
-  line-height: 1;
-  transform: rotate(22deg);
   pointer-events: none;
+}
+.premium-chat-crown .premium-crown-svg {
+  width: 22px;
+  height: 22px;
+  transform: rotate(22deg);
 }
 .chat-row-content.is-premium-locked .item-sub {
   color: #d99a32;
@@ -3967,22 +3970,14 @@ button.history-cleanup-item:disabled { opacity:.5; cursor:wait; }
   opacity:1;
 }
 .whatsapp-add-session-button.is-session-locked::after {
-  content:"♛";
+  content:"";
   position:absolute;
-  top:-6px;
-  right:-6px;
-  display:grid;
-  place-items:center;
-  width:16px;
-  height:16px;
-  border:1px solid var(--bg);
-  border-radius:50%;
-  background:#f5c542;
-  color:#3b2b00;
-  font-size:10px;
-  font-weight:800;
-  line-height:1;
-  box-shadow:0 1px 4px rgba(0,0,0,.22);
+  top:-7px;
+  right:-7px;
+  width:18px;
+  height:18px;
+  background:url("./assets/premium-crown.svg") center / contain no-repeat;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.3));
 }
 
 
@@ -7975,19 +7970,34 @@ body.in-chat #topbar {
   flex: 0 0 auto;
   width: 21px;
   height: 21px;
-  border-radius: 50%;
-  background: #f5c542;
-  color: #3b2b00;
-  font-size: 12px;
-  font-weight: 900;
   line-height: 1;
+}
+.whatsapp-session-lock .premium-crown-svg {
+  display:block;
+  width:21px;
+  height:21px;
 }
 .whatsapp-avatar-lock {
   position: absolute;
   top: -7px;
   left: -7px;
   z-index: 4;
-  border: 2px solid var(--surface-2);
   transform: rotate(-22deg);
-  box-shadow: 0 2px 5px rgba(0,0,0,.3);
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.3));
+}
+.whatsapp-avatar-lock .premium-crown-svg {
+  display:block;
+  width:23px;
+  height:23px;
+}
+
+
+/* [ADDED] Shared supplied Premium crown SVG for every WAGRAM Premium indicator. */
+.premium-crown-svg {
+  display:inline-block;
+  width:18px;
+  height:18px;
+  flex:0 0 auto;
+  object-fit:contain;
+  vertical-align:middle;
 }
