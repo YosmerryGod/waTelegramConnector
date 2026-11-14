@@ -308,6 +308,12 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
   }
 
   if (!entry || !entry.socket || !["connecting", "qr"].includes(entry.status)) {
+    logger.warn({
+      sessionId: id,
+      hasEntry: Boolean(entry),
+      hasSocket: Boolean(entry?.socket),
+      status: entry?.status || "missing"
+    }, "WhatsApp pairing code request rejected: session not ready");
     throw new Error("Koneksi WhatsApp belum siap. Coba lagi beberapa detik.");
   }
 
@@ -345,10 +351,29 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
 
   try {
     entry.pairingCodeRequested = true; // [ADDED] Lock pairing-code state until the session opens or fails.
-    return await entry.socket.requestPairingCode(digits);
+    logger.warn({
+      sessionId: id,
+      status: entry.status,
+      connectionStarted: Boolean(entry.connectionStarted)
+    }, "WhatsApp pairing code request started");
+
+    const code = await entry.socket.requestPairingCode(digits);
+
+    logger.warn({
+      sessionId: id,
+      status: entry.status,
+      codeLength: String(code || "").length
+    }, "WhatsApp pairing code generated successfully");
+
+    return code;
   } catch (error) {
     entry.pairingCodeRequested = false; // [ADDED]
-    logger.warn({ sessionId: id, err: error }, "WhatsApp pairing code request failed");
+    logger.warn({
+      sessionId: id,
+      errorName: error?.name || "Error",
+      errorMessage: String(error?.message || "unknown").slice(0, 240),
+      statusCode: error?.output?.statusCode || error?.statusCode || null
+    }, "WhatsApp pairing code request failed");
     throw new Error("Kode tautan belum dapat dibuat. Periksa nomor dan coba lagi.");
   }
 }
@@ -624,6 +649,17 @@ async function createSocket(id, ownerId, entry) {
       }
 
       const { connection, lastDisconnect, qr } = update;
+      if (connection || qr) {
+        logger.warn({
+          sessionId: id,
+          connection: connection || "update",
+          hasQr: Boolean(qr),
+          pairingCodeRequested: Boolean(entry.pairingCodeRequested),
+          statusCode: lastDisconnect?.error?.output?.statusCode || null,
+          errorName: lastDisconnect?.error?.name || null,
+          errorMessage: String(lastDisconnect?.error?.message || "").slice(0, 200)
+        }, "WhatsApp connection update");
+      }
       if (connection === "connecting" || qr) {
         entry.connectionStarted = true; // [ADDED] Track when Baileys is ready for a pairing-code request.
       }
@@ -645,6 +681,11 @@ async function createSocket(id, ownerId, entry) {
       }
 
       if (connection === "open") {
+        logger.warn({
+          sessionId: id,
+          pairingCodeRequested: Boolean(entry.pairingCodeRequested),
+          hasUser: Boolean(socket.user)
+        }, "WhatsApp connection opened");
         entry.pairingCodeRequested = false; // [ADDED] Pairing is complete; allow a future relink.
         entry.qr = null; // [ADDED] Never expose a QR after successful pairing.
         entry.status = "connected";
@@ -659,6 +700,13 @@ async function createSocket(id, ownerId, entry) {
       }
 
       if (connection === "close") {
+        logger.warn({
+          sessionId: id,
+          pairingCodeRequested: Boolean(entry.pairingCodeRequested),
+          statusCode: lastDisconnect?.error?.output?.statusCode || null,
+          errorName: lastDisconnect?.error?.name || null,
+          errorMessage: String(lastDisconnect?.error?.message || "").slice(0, 200)
+        }, "WhatsApp connection closed during connection update");
         entry.pairingCodeRequested = false; // [ADDED] Release the pairing lock after a disconnect.
         entry.socket = null;
 
