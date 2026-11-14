@@ -333,7 +333,7 @@ router.post("/payment-monitor/events", (req, res) => {
     event.source !== "android_notification" ||
     event.package_name !== "id.dana" ||
     !title.trim().toLowerCase().includes("pembayaran masuk") ||
-    !/^Rp\\s?[\\d.]+\\s+diterima DANA Bisnis\\.?$/i.test(body) ||
+    !/^Rp\s?[\d.]+\s+diterima DANA Bisnis\.?$/i.test(body) ||
     event.currency !== "IDR" ||
     !Number.isSafeInteger(amount) || amount <= 0 ||
     !/^[a-f0-9]{64}$/i.test(eventId)
@@ -587,7 +587,7 @@ router.post(
 // [ADDED] Let the payment screen poll its own order until payment or expiry.
 router.get("/premium/orders/:orderId/status", (req, res) => {
   const orderId = String(req.params.orderId || "");
-  if (!/^premium_\\d+_[a-z0-9]+$/i.test(orderId)) {
+  if (!/^premium_\d+_[a-z0-9]+$/i.test(orderId)) {
     return res.status(400).json({ ok: false, error: "INVALID_ORDER_ID" });
   }
   const order = getPremiumPaymentOrder(req.telegramId, orderId);
