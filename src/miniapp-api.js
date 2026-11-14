@@ -555,7 +555,7 @@ router.post(
       "⚠️ Verifikasi dana masuk di DANA sebelum menyetujui pembayaran."
     ].join("\n");
 
-    const proofExtension = "jpg"; // [MODIFIED] Client sends compressed JPEG binary data.
+    // [MODIFIED] Reuse the extension detected from the original image signature above.
     const results = await Promise.allSettled(
       adminIds.map((adminId) => {
         const options = {
