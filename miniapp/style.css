@@ -8102,3 +8102,64 @@ body.in-chat #topbar {
     width: min(210px, 56vw);
   }
 }
+
+/* [MODIFIED] Clean, wallet-neutral payment proof upload dialog. */
+.premium-proof-modal {
+  padding: 18px;
+}
+.premium-proof-content {
+  width: min(100%, 350px);
+  gap: 10px;
+  padding: 22px;
+  border-radius: 22px;
+}
+.premium-proof-content h2 {
+  font-size: 19px;
+  letter-spacing: -.3px;
+}
+.premium-proof-description {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.premium-proof-picker {
+  min-height: 148px;
+  border-radius: 14px;
+  background: rgba(100,140,110,.055);
+}
+.premium-proof-placeholder {
+  min-height: 148px;
+  gap: 6px;
+  padding: 16px;
+}
+.premium-proof-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  font-size: 28px;
+}
+.premium-proof-placeholder strong {
+  font-size: 13px;
+}
+.premium-proof-placeholder small {
+  font-size: 10px;
+}
+.premium-proof-change-label {
+  margin-top: 4px;
+  padding: 7px 12px;
+  font-size: 10px;
+}
+.premium-proof-actions {
+  gap: 8px;
+}
+.premium-proof-actions button {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+.premium-proof-confirm:disabled {
+  background: rgba(37,211,102,.28);
+  color: rgba(237,247,239,.48);
+}
+.premium-proof-error:empty {
+  display: none;
+}
