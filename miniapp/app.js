@@ -4694,9 +4694,12 @@
     } else if (event.type === "connection.status") {
       pendingConnectionStatus = event.data?.status || null;
     } else if (event.type === "membership.updated") {
-      // [ADDED] Refresh Premium access immediately after the server changes a user's plan.
-      loadMembership();
-      if (state.chatsLoaded) loadChats();
+      // [MODIFIED] Refresh Premium access and all WhatsApp session states after a plan change.
+      loadMembership().then(async () => {
+        await loadWhatsAppSessions();
+        if (state.page === "account") await loadWhatsAppAccount();
+        if (state.chatsLoaded) await loadChats();
+      }).catch((error) => showToast(error.message || "Status Premium gagal diperbarui."));
     }
 
     clearTimeout(realtimeRefreshTimer);
