@@ -3526,8 +3526,9 @@
         const order = result.order;
         activePremiumOrderId = order.id;
         $("#premiumPaymentDownloadButton").disabled = false;
-        $("#premiumPaymentPaidButton").disabled = false;
-        $("#premiumPaymentPaidButton").textContent = "Saya sudah bayar";
+        $("#premiumPaymentPaidButton").disabled = true;
+        $("#premiumPaymentPaidButton").textContent = "Menunggu pembayaran otomatis";
+        startPremiumPaymentTracking(order);
         $("#premiumPaymentConfirmation").textContent = "";
         $("#premiumPaymentAmount").textContent = new Intl.NumberFormat("id-ID", {
           style: "currency",
@@ -3563,8 +3564,75 @@
         button.disabled = false;
       }
     });
-    // [MODIFIED] Keep the current server-created order for download and payment reporting.
+    // [MODIFIED] Track the 15-minute server order and activate the UI when backend confirms payment.
     let activePremiumOrderId = null;
+    let premiumPaymentPollTimer = null;
+    let premiumPaymentCountdownTimer = null;
+
+    function stopPremiumPaymentTracking() {
+      if (premiumPaymentPollTimer) clearInterval(premiumPaymentPollTimer);
+      if (premiumPaymentCountdownTimer) clearInterval(premiumPaymentCountdownTimer);
+      premiumPaymentPollTimer = null;
+      premiumPaymentCountdownTimer = null;
+    }
+
+    function startPremiumPaymentTracking(order) {
+      stopPremiumPaymentTracking();
+      const expiresAt = Number(order.expiresAt || 0);
+      const countdown = $("#premiumPaymentCountdown");
+      const updateCountdown = () => {
+        const remaining = Math.max(0, expiresAt - Date.now());
+        const totalSeconds = Math.ceil(remaining / 1000);
+        const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+        const seconds = String(totalSeconds % 60).padStart(2, "0");
+        countdown.textContent = remaining > 0
+          ? "Bayar dalam " + minutes + ":" + seconds
+          : "Waktu pembayaran habis";
+        if (remaining <= 0) {
+          stopPremiumPaymentTracking();
+          $("#premiumPaymentStatus").textContent = "QRIS kedaluwarsa. Silakan buat pesanan baru.";
+          $("#premiumPaymentPaidButton").textContent = "Pesanan kedaluwarsa";
+          $("#premiumPaymentDownloadButton").disabled = true;
+        }
+      };
+
+      updateCountdown();
+      premiumPaymentCountdownTimer = setInterval(updateCountdown, 1000);
+
+      const checkPayment = async () => {
+        if (!activePremiumOrderId) return;
+        try {
+          const result = await api("/premium/orders/" + encodeURIComponent(activePremiumOrderId) + "/status");
+          if (result.order?.status === "approved") {
+            stopPremiumPaymentTracking();
+            $("#premiumPaymentQrWrap").classList.add("is-paid");
+            $("#premiumPaymentStatus").textContent = "Pembayaran berhasil";
+            $("#premiumPaymentCountdown").textContent = "Pembayaran diterima";
+            $("#premiumPaymentPaidButton").textContent = "✓ Pembayaran berhasil";
+            $("#premiumPaymentConfirmation").textContent = "Premium sudah aktif.";
+            activePremiumOrderId = null;
+            setTimeout(() => {
+              closePremiumPaymentModal();
+              setPage("chats");
+              tg?.BackButton?.hide?.();
+            }, 1400);
+            return;
+          }
+          if (result.order?.status === "expired" || Number(result.order?.expiresAt || 0) <= Date.now()) {
+            stopPremiumPaymentTracking();
+            $("#premiumPaymentStatus").textContent = "QRIS kedaluwarsa. Silakan buat pesanan baru.";
+            $("#premiumPaymentCountdown").textContent = "Waktu pembayaran habis";
+            $("#premiumPaymentPaidButton").textContent = "Pesanan kedaluwarsa";
+            $("#premiumPaymentDownloadButton").disabled = true;
+          }
+        } catch (error) {
+          console.warn("Premium payment status check failed:", error?.message || error);
+        }
+      };
+
+      checkPayment();
+      premiumPaymentPollTimer = setInterval(checkPayment, 2500);
+    }
     const downloadPremiumQr = async () => {
       const sourceCanvas = $("#premiumPaymentQr");
       const exportCanvas = document.createElement("canvas");
@@ -3908,6 +3976,7 @@
 
     // [MODIFIED] Close the payment dialog without navigating away from Premium.
     function closePremiumPaymentModal() {
+      stopPremiumPaymentTracking();
       $("#premiumPaymentModal").classList.add("hidden");
       document.body.classList.remove("premium-payment-open");
     }
