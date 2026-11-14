@@ -8295,3 +8295,67 @@ body.in-chat #topbar {
   min-height:46px;
   margin-top:2px;
 }
+
+/* [MODIFIED] Pairing code result is a focused, copy-ready panel without repeated status text. */
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-code-result {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  padding:18px 16px;
+  border:1px solid rgba(37,201,106,.25);
+  border-radius:16px;
+  background:linear-gradient(145deg, rgba(37,201,106,.10), rgba(37,201,106,.035));
+  text-align:center;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-code-result > span {
+  color:#35cf7a;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:2px;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-code-result > strong {
+  color:var(--text);
+  font-size:clamp(28px, 8vw, 36px);
+  font-weight:800;
+  letter-spacing:5px;
+  line-height:1.2;
+  font-variant-numeric:tabular-nums;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-copy {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-width:132px;
+  min-height:40px;
+  padding:0 16px;
+  border:1px solid rgba(37,201,106,.35);
+  border-radius:11px;
+  background:rgba(37,201,106,.12);
+  color:#42d485;
+  font-size:12px;
+  font-weight:800;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-copy::before {
+  content:"";
+  width:14px;
+  height:14px;
+  background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='8' width='13' height='13' rx='2'/%3E%3Cpath d='M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='8' y='8' width='13' height='13' rx='2'/%3E%3Cpath d='M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-copy.is-copied {
+  border-color:rgba(37,201,106,.55);
+  background:rgba(37,201,106,.2);
+}
+.whatsapp-sessions-modal.is-pairing .whatsapp-pairing-code-result > p {
+  max-width:260px;
+  margin:0;
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+.whatsapp-sessions-modal.is-pairing #whatsappPairingCodeStatus:empty {
+  display:none;
+}
