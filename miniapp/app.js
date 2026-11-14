@@ -652,9 +652,9 @@
     const accountRows = $("#whatsappAccountRows");
     if (accountRows) {
       // [MODIFIED] Hide newly-created secondary sessions until WhatsApp pairing succeeds.
+      // [MODIFIED] Keep account rows in their original positions; selection only changes the checkmark.
       accountRows.innerHTML = (state.whatsappSessions || []).filter((session) => {
-        // [MODIFIED] Show every other linked account, including the primary account when a secondary is selected.
-        if (session.session_id === state.activeSessionId) return false;
+        if (session.is_primary) return false;
         const status = session.status || session.connection_status || "disconnected";
         return Boolean(session.phone_number) || status === "connected" || status === "paused";
       }).map((session, index) => {
@@ -697,10 +697,36 @@
       connectButton.hidden = selectedStatus === "connected";
       connectButton.textContent = selectedStatus === "qr" ? "Tampilkan QR" : "Hubungkan session";
     }
-    // [ADDED] The top row always represents the currently selected session.
+    // [MODIFIED] The first row always represents the primary account; the checkmark follows the active session.
+    const primary = (state.whatsappSessions || []).find((item) => item.is_primary);
+    const primaryAvatar = $("#accountWhatsAppAvatar");
+    const primaryPhoto = $("#accountWhatsAppPhoto");
+    const primaryName = $("#accountWhatsAppName");
+    const primaryPhone = $("#accountWhatsAppPhone");
+    const primaryState = $("#accountWhatsAppState");
+    if (primary) {
+      const primaryActive = primary.session_id === state.activeSessionId;
+      primaryAvatar?.classList.toggle("is-selected", primaryActive);
+      if (primaryPhoto) {
+        if (primary.picture_url) {
+          primaryPhoto.src = primary.picture_url;
+          primaryPhoto.classList.remove("hidden");
+        } else {
+          primaryPhoto.removeAttribute("src");
+          primaryPhoto.classList.add("hidden");
+        }
+      }
+      if (primaryName) primaryName.textContent = primary.display_name || primary.label || "WhatsApp";
+      if (primaryPhone) primaryPhone.textContent = primary.phone_number ? "+" + String(primary.phone_number).replace(/^\\+/, "") : "Nomor belum tersedia";
+      if (primaryState) {
+        const status = primary.status || primary.connection_status || "disconnected";
+        primaryState.classList.toggle("is-connected", status === "connected");
+        primaryState.classList.toggle("is-paused", status === "paused");
+        primaryState.innerHTML = status === "connected" ? "<i></i> Connected" : status === "paused" ? "<i></i> Pause" : "<i></i> Connect";
+      }
+    }
     const primarySettingsSlot = $("#primaryWhatsAppSettingsSlot");
-    if (primarySettingsSlot) primarySettingsSlot.dataset.accountSettingsSlot = state.activeSessionId || "";
-    $("#accountWhatsAppAvatar")?.classList.toggle("is-selected", Boolean(state.activeSessionId));
+    if (primarySettingsSlot) primarySettingsSlot.dataset.accountSettingsSlot = primary?.session_id || "";
     mountWhatsAppSessionSettings();
   }
 
@@ -736,6 +762,7 @@
       await loadWhatsAppSessions();
       if (!state.activeSessionId) throw new Error("Session WhatsApp belum tersedia.");
       const data = await api("/sessions/" + enc(state.activeSessionId) + "/connection");
+      // [MODIFIED] Connection actions follow the active session; account identity rows stay fixed.
       const connected = data.status === "connected";
       const paused = data.status === "paused";
       phone.textContent = data.phoneNumber ? `+${String(data.phoneNumber).replace(/^\+/, "")}` : "Nomor belum tersedia";
@@ -2509,17 +2536,17 @@
       }
       const accountSettingsToggle = event.target.closest("[data-account-settings-toggle]");
       if (accountSettingsToggle) {
+        // [MODIFIED] Opening a dropdown never changes the active WhatsApp session.
         const sessionId = accountSettingsToggle.dataset.accountSettingsToggle;
-        selectWhatsAppSession(sessionId).then(() => {
-          state.expandedSettingsSessionId = state.expandedSettingsSessionId === sessionId ? null : sessionId;
-          mountWhatsAppSessionSettings();
-          renderNotificationPreferences();
-        });
+        state.expandedSettingsSessionId = state.expandedSettingsSessionId === sessionId ? null : sessionId;
+        mountWhatsAppSessionSettings();
+        renderNotificationPreferences();
         return;
       }
       const primaryAccountSelect = event.target.closest("[data-primary-account-select]");
       if (primaryAccountSelect) {
-        selectWhatsAppSession(primaryAccountSelect.dataset.primaryAccountSelect);
+        const primary = state.whatsappSessions.find((item) => item.is_primary);
+        if (primary) selectWhatsAppSession(primary.session_id);
         return;
       }
       const accountDisconnectButton = event.target.closest("[data-account-disconnect]");
