@@ -436,6 +436,37 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
   } catch (error) {
     entry.pairingCodeRequested = false; // [ADDED]
     entry.pairingCodeRequestedAt = null; // [ADDED]
+
+    // [ADDED] requestPairingCode writes provisional creds.me before sending the request.
+    // Roll back those credentials when pairing fails before the account is registered.
+    try {
+      const authPath = getAuthPath(id);
+      const { state } = await useMultiFileAuthState(authPath);
+
+      if (state.creds?.registered !== true && connections.get(id) === entry && !entry.stopping) {
+        const failedSocket = entry.socket;
+        entry.socket = null;
+
+        try {
+          failedSocket?.end(undefined);
+        } catch {
+          // The failed pairing socket may already be closed.
+        }
+
+        fs.rmSync(authPath, { recursive: true, force: true });
+        entry.connectionStarted = false;
+        entry.qr = null;
+        entry.status = "connecting";
+        await createSocket(id, entry.ownerId, entry);
+      }
+    } catch (cleanupError) {
+      logger.warn({
+        sessionId: id,
+        errorName: cleanupError?.name || "Error",
+        errorMessage: String(cleanupError?.message || "unknown").slice(0, 200)
+      }, "Could not roll back provisional WhatsApp pairing credentials");
+    }
+
     logger.warn({
       sessionId: id,
       errorName: error?.name || "Error",
