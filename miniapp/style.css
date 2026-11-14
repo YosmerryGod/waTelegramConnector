@@ -7834,3 +7834,75 @@ body.in-chat #topbar {
 #accountWhatsAppAvatar > .i {
   border-radius: inherit;
 }
+
+
+/* [MODIFIED] Each WhatsApp session has its own selectable row and settings dropdown slot. */
+.whatsapp-primary-account-row {
+  align-items:center;
+}
+.whatsapp-primary-account-select {
+  flex:1;
+  min-width:0;
+  padding:0;
+  border:0;
+  background:transparent;
+  color:inherit;
+  text-align:left;
+}
+.whatsapp-primary-account-select .whatsapp-account-avatar {
+  flex:0 0 48px;
+}
+.whatsapp-primary-account-select .whatsapp-account-copy {
+  flex:1;
+  min-width:0;
+}
+.whatsapp-account-row-chevron {
+  display:grid;
+  flex:0 0 34px;
+  width:34px;
+  height:34px;
+  padding:0;
+  place-items:center;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--surface-2);
+  color:var(--muted);
+}
+.whatsapp-account-row-chevron .i {
+  width:17px;
+  height:17px;
+  transform:rotate(180deg);
+}
+.whatsapp-account-row-chevron[aria-expanded="true"] .i {
+  transform:rotate(90deg);
+}
+.whatsapp-account-settings-slot {
+  width:100%;
+  min-width:0;
+}
+.whatsapp-account-settings-slot:empty {
+  display:none;
+}
+.whatsapp-account-controls {
+  width:100%;
+  min-width:0;
+}
+.whatsapp-account-controls.is-collapsed {
+  display:none;
+}
+.whatsapp-primary-account-select:active,
+.whatsapp-account-select:active {
+  opacity:.82;
+}
+@media(max-width:380px) {
+  .whatsapp-primary-account-select .whatsapp-account-avatar {
+    flex-basis:42px;
+    width:42px;
+    height:42px;
+  }
+  .whatsapp-account-row-chevron {
+    flex-basis:28px;
+    width:28px;
+    height:28px;
+  }
+}
