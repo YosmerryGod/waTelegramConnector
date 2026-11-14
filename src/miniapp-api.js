@@ -550,13 +550,14 @@ router.get("/sessions", (req, res) => {
     // [MODIFIED] Count unique registered WhatsApp accounts, not duplicate/alias session records.
     const linkedPhoneNumbers = new Set(
       sessions
-        .filter((session) => !session.is_primary && session.phone_number)
+        .filter((session) => session.phone_number)
         .map((session) => String(session.phone_number).replace(/\D/g, ""))
         .filter(Boolean)
     );
-    const linkedSessionCount = sessions.some((session) => session.is_primary)
-      ? 1 + linkedPhoneNumbers.size
-      : linkedPhoneNumbers.size;
+    const hasUnnumberedPrimary = sessions.some(
+      (session) => session.is_primary && !session.phone_number
+    );
+    const linkedSessionCount = linkedPhoneNumbers.size + (hasUnnumberedPrimary ? 1 : 0);
 
     res.json({
       ok: true,
