@@ -660,14 +660,17 @@
         const status = session.status || session.connection_status || "disconnected";
         const labels = { connected: "Connected", connecting: "Connecting", qr: "Menunggu QR", paused: "Pause", disconnected: "Connect", logged_out: "Disconnected" };
         const number = session.phone_number ? "+" + String(session.phone_number).replace(/^\\+/, "") : "Nomor belum terhubung";
-        const label = session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
+        const label = session.display_name || session.label || (session.is_primary ? "WhatsApp utama" : "WhatsApp " + (index + 1));
         const active = session.session_id === state.activeSessionId;
+        const picture = session.picture_url
+          ? '<img src="' + escapeHTML(session.picture_url) + '" alt="" loading="lazy" referrerpolicy="no-referrer">'
+          : icon("whatsapp");
         return '<div class="whatsapp-account-row' + (active ? ' is-active' : '') + '" data-account-row="' + escapeHTML(session.session_id) + '">' +
-          '<button class="whatsapp-account-select" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pengaturan ' + escapeHTML(label) + '">' +
-          '<span class="whatsapp-account-avatar">' + icon("whatsapp") + '</span><span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
-          '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span></button>' +
-          '<button class="whatsapp-account-disconnect" type="button" data-account-disconnect="' + escapeHTML(session.session_id) + '"' + (status !== "connected" && status !== "paused" ? ' disabled' : '') + '>Disconnect</button>' +
-          '</div>';
+          '<button class="whatsapp-account-select" type="button" data-account-settings="' + escapeHTML(session.session_id) + '" aria-label="Pilih akun ' + escapeHTML(label) + '">' +
+          '<span class="whatsapp-account-avatar' + (active ? ' is-selected' : '') + '">' + picture + (active ? '<span class="whatsapp-account-selected-check" aria-label="Dipilih">✓</span>' : '') + '</span>' +
+          '<span class="whatsapp-account-copy"><strong>' + escapeHTML(label) + '</strong><span>' + escapeHTML(number) + '</span></span>' +
+          '<span class="whatsapp-connection-state' + (status === "connected" ? ' is-connected' : status === "paused" ? ' is-paused' : status === "connecting" ? ' is-connecting' : '') + '"><i></i> ' + escapeHTML(labels[status] || status) + '</span>' +
+          '<span class="whatsapp-account-row-chevron" aria-hidden="true">' + icon("back") + '</span></button></div>';
       }).join("");
     }
     // [MODIFIED] Pending secondary sessions are hidden from linked-account capacity calculations.
