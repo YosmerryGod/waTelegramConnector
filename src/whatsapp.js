@@ -315,6 +315,29 @@ export async function requestWhatsAppPairingCode(sessionId, phoneNumber) {
     throw new Error("Versi Baileys yang terpasang belum mendukung kode tautan.");
   }
 
+  // [ADDED] Baileys requires the socket to emit its initial connecting/QR update first.
+  if (!entry.connectionStarted) {
+    const socket = entry.socket;
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        socket.ev.off("connection.update", onConnectionUpdate);
+        reject(new Error("Koneksi WhatsApp belum siap. Coba lagi beberapa detik."));
+      }, 10000);
+      const onConnectionUpdate = (update) => {
+        if (update.connection === "connecting" || update.qr) {
+          clearTimeout(timeout);
+          socket.ev.off("connection.update", onConnectionUpdate);
+          resolve();
+        }
+      };
+      socket.ev.on("connection.update", onConnectionUpdate);
+    });
+  }
+
+  if (connections.get(id) !== entry || entry.socket === null || entry.stopping) {
+    throw new Error("Koneksi WhatsApp terputus. Coba lagi.");
+  }
+
   try {
     return await entry.socket.requestPairingCode(digits);
   } catch (error) {
@@ -594,6 +617,9 @@ async function createSocket(id, ownerId, entry) {
       }
 
       const { connection, lastDisconnect, qr } = update;
+      if (connection === "connecting" || qr) {
+        entry.connectionStarted = true; // [ADDED] Track when Baileys is ready for a pairing-code request.
+      }
 
       if (qr) {
         entry.qr = qr; // [ADDED] Keep the latest QR until it is scanned or replaced.
