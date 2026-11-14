@@ -7238,9 +7238,34 @@ body.in-chat #topbar {
   font-size: 11px;
   white-space: nowrap;
 }
+/* [MODIFIED] Match locked channel cards: warm gold card tint and crown floating above the WAMO avatar. */
+#wagramAiPinnedRow.is-premium-locked .chat-row-content {
+  background: color-mix(in srgb, #f59e0b 9%, var(--surface));
+  border-color: color-mix(in srgb, #f59e0b 28%, var(--border));
+}
+#wagramAiPinnedRow.is-premium-locked .item-title {
+  color: #f5a623;
+}
 #wagramAiPinnedRow .wagram-ai-lock-indicator {
-  flex: 0 0 26px;
-  margin: 0;
+  position: absolute;
+  top: -9px;
+  right: -7px;
+  z-index: 4;
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+#wagramAiPinnedRow .wagram-ai-lock-indicator .premium-crown-svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  transform: rotate(22deg);
+}
+#wagramAiPinnedRow .wagram-ai-lock-indicator.hidden {
+  display: none !important;
 }
 #chatList {
   padding: 0 10px 12px !important;
