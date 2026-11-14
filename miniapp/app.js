@@ -4952,6 +4952,16 @@
     // [ADDED] Keep the WAGRAM splash visible until the first account, WhatsApp
     // connection, and chat requests have all completed (successfully or with an error).
     const loadingScreen = $("#appLoadingScreen");
+    // [ADDED] Never leave the Mini App trapped on its splash screen if an API request hangs.
+    let initialLoadingFinished = false;
+    const finishInitialLoading = () => {
+      if (initialLoadingFinished) return;
+      initialLoadingFinished = true;
+      loadingScreen?.classList.add("is-hidden");
+      window.setTimeout(() => loadingScreen?.remove(), 380);
+      initOnboarding();
+    };
+    const loadingFallbackTimer = window.setTimeout(finishInitialLoading, 8000);
     // [MODIFIED] Resolve the authenticated membership through loadMe() before the first chat render.
     // This prevents Premium groups from being rendered as locked while /account is still loading.
     loadMe().finally(() => {
@@ -4968,11 +4978,8 @@
       }
 
       loadChats().finally(() => {
-        requestAnimationFrame(() => {
-          loadingScreen?.classList.add("is-hidden");
-          window.setTimeout(() => loadingScreen?.remove(), 380);
-          initOnboarding(); // [ADDED] Show onboarding after the initial app load settles.
-        });
+        window.clearTimeout(loadingFallbackTimer);
+        requestAnimationFrame(finishInitialLoading);
       });
     });
 
