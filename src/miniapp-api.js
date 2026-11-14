@@ -218,9 +218,22 @@ function requireMiniAppAuth(req, res, next) {
     req.query.sessionId || req.body?.sessionId ||
     req.get("X-WAGRAM-Session-ID") || authenticated.id
   );
-  if (!getWhatsAppAccount(authenticated.id, requestedSessionId)) {
+  const requestedSession = getWhatsAppAccount(authenticated.id, requestedSessionId);
+  if (!requestedSession) {
     return res.status(404).json({ ok: false, error: "WHATSAPP_SESSION_NOT_FOUND" });
   }
+
+  // [ADDED] Enforce expired/Free session restrictions on every API request.
+  // A user may keep their linked secondary accounts, but only the primary account remains accessible.
+  const membership = getMembership(authenticated.id);
+  if (!requestedSession.is_primary && (!membership || membership.plan === "free")) {
+    return res.status(403).json({
+      ok: false,
+      error: "PREMIUM_REQUIRED",
+      message: "Session tambahan terkunci. Aktifkan kembali Premium untuk menggunakannya."
+    });
+  }
+
   req.miniAppUser = authenticated.user;
   req.telegramId = authenticated.id;
   req.sessionId = requestedSessionId;
