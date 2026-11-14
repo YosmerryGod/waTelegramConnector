@@ -701,15 +701,14 @@
     }).join("");
     // [ADDED] Keep all linked accounts visible in one Profile card, each with its own actions.
     const accountRows = $("#whatsappAccountRows");
+    // [MODIFIED] Only render genuinely linked or explicitly paused WhatsApp accounts.
+    const visibleSessions = (state.whatsappSessions || []).filter((session) => {
+      const status = session.status || session.connection_status || "disconnected";
+      return status === "connected" || status === "paused";
+    });
+    const hasVisibleSessions = visibleSessions.length > 0;
     if (accountRows) {
-      // [MODIFIED] Hide newly-created secondary sessions until WhatsApp pairing succeeds.
       // [MODIFIED] Keep account rows in their original positions; selection only changes the checkmark.
-      // [MODIFIED] Only render genuinely linked or explicitly paused WhatsApp accounts.
-      const visibleSessions = (state.whatsappSessions || []).filter((session) => {
-        const status = session.status || session.connection_status || "disconnected";
-        return status === "connected" || status === "paused";
-      });
-      const hasVisibleSessions = visibleSessions.length > 0;
       accountRows.innerHTML = visibleSessions.filter((session) => !session.is_primary).map((session, index) => {
         const status = session.status || session.connection_status || "disconnected";
         const labels = { connected: "Connected", connecting: "Connecting", qr: "Menunggu QR", paused: "Pause", disconnected: "Connect", logged_out: "Disconnected" };
