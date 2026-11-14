@@ -654,6 +654,10 @@ router.post("/sessions/:sessionId/pairing-code", express.json(), async (req, res
     if (!session) return res.status(404).json({ ok: false, error: "SESSION_NOT_FOUND" });
 
     const phoneNumber = String(req.body?.phoneNumber || "").replace(/\D/g, "");
+    console.warn("[WAGRAM Pairing] Pairing-code request received", {
+      sessionId: String(req.params.sessionId || ""),
+      phoneNumberLength: phoneNumber.length
+    });
     if (!/^\d{8,15}$/.test(phoneNumber)) {
       return res.status(400).json({
         ok: false,
@@ -695,10 +699,19 @@ router.post("/sessions/:sessionId/pairing-code", express.json(), async (req, res
     }
 
     const code = await requestWhatsAppPairingCode(session.session_id, phoneNumber);
+    console.warn("[WAGRAM Pairing] Pairing-code response sent", {
+      sessionId: session.session_id,
+      codeLength: String(code || "").length
+    });
     res.setHeader("Cache-Control", "no-store");
     res.json({ ok: true, sessionId: session.session_id, code });
   } catch (error) {
     const message = error.message || "Could not generate WhatsApp pairing code";
+    console.warn("[WAGRAM Pairing] Pairing-code API failed", {
+      sessionId: String(req.params.sessionId || ""),
+      errorName: error?.name || "Error",
+      errorMessage: String(message).slice(0, 240)
+    });
     const status = /belum siap|belum dapat dibuat|belum mendukung|Masukkan nomor/i.test(message) ? 400 : 500;
     res.status(status).json({ ok: false, error: "PAIRING_CODE_FAILED", message });
   }
