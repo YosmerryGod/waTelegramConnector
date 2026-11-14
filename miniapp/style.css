@@ -7948,3 +7948,23 @@ body.in-chat #topbar {
     height:28px;
   }
 }
+
+
+/* [ADDED] Visually mark secondary WhatsApp sessions that require an active Premium plan. */
+.whatsapp-account-select.is-session-locked,
+.whatsapp-session-item.is-session-locked {
+  opacity: .62;
+}
+.whatsapp-session-lock {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f5c542;
+  color: #3b2b00;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
