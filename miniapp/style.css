@@ -8418,50 +8418,71 @@ body.in-chat #topbar {
 }
 
 
+
 /* =========================================================
-   [ADDED] WAGRAM Modern Minimalist UI Layer
-   Visual-only refresh. Existing markup, interactions and API
-   behavior remain unchanged.
+   [MODIFIED] WAGRAM Modern Bold Design System
+   Visual-only styling for the existing vanilla frontend.
+   Existing DOM hooks, IDs, gestures and business logic remain intact.
    ========================================================= */
 
 :root {
-  --bg: #f6f8f7;
+  --bg: #f5f8f6;
   --surface: #ffffff;
-  --surface-2: #f0f4f1;
-  --border: #e4ebe6;
-  --divider: #edf1ee;
-  --text: #17231c;
-  --muted: #738078;
-  --accent: #079b59;
-  --accent-soft: rgba(7, 155, 89, .09);
+  --surface-2: #edf3ef;
+  --border: #dce8e0;
+  --divider: #e7eee9;
+  --text: #101c15;
+  --muted: #718078;
+  --accent: #079b55;
+  --accent-soft: rgba(7, 155, 85, .10);
   --on-accent: #ffffff;
-  --info: #3478d4;
-  --info-soft: rgba(52, 120, 212, .09);
-  --danger: #d94b45;
-  --danger-soft: rgba(217, 75, 69, .08);
-  --shadow: 0 10px 30px rgba(27, 55, 39, .055);
-  --nav-h: calc(68px + env(safe-area-inset-bottom));
+  --info: #2876d2;
+  --info-soft: rgba(40, 118, 210, .10);
+  --danger: #d94343;
+  --danger-soft: rgba(217, 67, 67, .10);
+  --shadow: 0 8px 24px rgba(16, 43, 27, .07);
+  --nav-h: calc(76px + env(safe-area-inset-bottom));
+  color-scheme: light;
 }
 
 html[data-theme="dark"] {
-  --bg: #101713;
-  --surface: #17211b;
-  --surface-2: #1d2a22;
-  --border: #2a3a30;
-  --divider: #233128;
-  --text: #edf5ef;
+  --bg: #090e0b;
+  --surface: #111a14;
+  --surface-2: #17231b;
+  --border: #26382c;
+  --divider: rgba(164, 194, 173, .12);
+  --text: #f1f7f2;
   --muted: #9aaa9f;
-  --accent: #38c982;
-  --accent-soft: rgba(56, 201, 130, .13);
-  --on-accent: #062415;
-  --info: #82b6ff;
-  --info-soft: rgba(130, 182, 255, .12);
-  --danger: #ff8179;
-  --danger-soft: rgba(255, 129, 121, .12);
-  --shadow: 0 12px 34px rgba(0, 0, 0, .2);
+  --accent: #22d477;
+  --accent-soft: rgba(34, 212, 119, .13);
+  --on-accent: #06170d;
+  --info: #83b8ff;
+  --info-soft: rgba(131, 184, 255, .13);
+  --danger: #ff7777;
+  --danger-soft: rgba(255, 119, 119, .12);
+  --shadow: 0 12px 30px rgba(0, 0, 0, .24);
+  color-scheme: dark;
 }
 
-html, body {
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme]) {
+    --bg: #090e0b;
+    --surface: #111a14;
+    --surface-2: #17231b;
+    --border: #26382c;
+    --divider: rgba(164, 194, 173, .12);
+    --text: #f1f7f2;
+    --muted: #9aaa9f;
+    --accent: #22d477;
+    --accent-soft: rgba(34, 212, 119, .13);
+    --on-accent: #06170d;
+    --shadow: 0 12px 30px rgba(0, 0, 0, .24);
+    color-scheme: dark;
+  }
+}
+
+html,
+body {
   min-height: 100%;
   background: var(--bg);
 }
@@ -8469,11 +8490,14 @@ html, body {
 body {
   color: var(--text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  letter-spacing: -.01em;
+  letter-spacing: -.015em;
   text-rendering: optimizeLegibility;
 }
 
-button, input, textarea, select {
+button,
+input,
+textarea,
+select {
   font: inherit;
 }
 
@@ -8486,7 +8510,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  outline: 3px solid color-mix(in srgb, var(--accent) 38%, transparent);
   outline-offset: 2px;
 }
 
@@ -8498,81 +8522,85 @@ select:focus-visible,
 @media (min-width: 760px) {
   .app {
     border-color: var(--border);
-    box-shadow: 0 0 48px rgba(24, 54, 36, .035);
+    box-shadow: 0 0 54px rgba(10, 35, 19, .06);
   }
 }
 
-/* [ADDED] Shared page and heading rhythm. */
+/* Global app header */
+.app .topbar {
+  min-height: 66px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--divider);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+.app .topbar-brand {
+  gap: 11px;
+}
+
+.app .topbar-brand .brand-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  padding: 7px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.app .topbar-title {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 820;
+  letter-spacing: -.8px;
+}
+
+.app .topbar-actions {
+  gap: 9px;
+}
+
+.app .topbar-actions > .icon-button,
+.app .topbar-search-wrap > .icon-button {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.app .topbar-actions > .icon-button:active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Page titles and search */
 .page {
   min-width: 0;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
 }
 
 .page-title {
   align-items: center;
-  padding: 12px 18px 16px;
+  padding: 16px 18px;
 }
 
 .page-title h2 {
-  font-size: clamp(22px, 5vw, 26px);
-  font-weight: 760;
-  letter-spacing: -.85px;
+  color: var(--text);
+  font-size: 25px;
+  font-weight: 820;
+  letter-spacing: -.9px;
 }
 
 .page-title p {
   color: var(--muted);
   font-size: 13px;
-  line-height: 1.5;
 }
 
-/* [ADDED] Quiet translucent app header and crisp controls. */
-.topbar {
-  min-height: 64px;
-  padding: 10px 16px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
-  background: color-mix(in srgb, var(--bg) 90%, transparent);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-}
-
-.brand {
-  gap: 10px;
-}
-
-.brand-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  background: var(--accent);
-  box-shadow: 0 4px 12px rgba(7, 155, 89, .16);
-}
-
-.brand h1 {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: -.35px;
-}
-
-.brand p {
-  font-size: 11px;
-}
-
-.icon-button {
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: 0 2px 6px rgba(20, 40, 27, .025);
-  transition: transform .18s ease, background .18s ease, border-color .18s ease;
-}
-
-.icon-button:active {
-  transform: scale(.96);
-  background: var(--surface-2);
-}
-
-/* [ADDED] Search and filter controls use a consistent pill system. */
 .topbar-search,
 .topbar-search-wrap input,
 #topbarSearchInput,
@@ -8591,165 +8619,297 @@ select {
 input::placeholder,
 textarea::placeholder {
   color: var(--muted);
-  opacity: .78;
+  opacity: .8;
 }
 
-.chips,
+/* Message filters */
+#chatPage .chips,
+#callsPage .chips,
 #chatFilters,
 #callFilters {
   gap: 8px;
-  padding: 4px 16px 12px;
+  padding: 10px 16px 14px;
+  scrollbar-width: none;
 }
 
-.chip {
-  min-height: 36px;
-  padding: 0 14px;
+#chatPage .chips::-webkit-scrollbar,
+#callsPage .chips::-webkit-scrollbar {
+  display: none;
+}
+
+#chatPage .chip,
+#callsPage .chip {
+  min-height: 39px;
+  padding: 0 15px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 12px;
   background: var(--surface);
   color: var(--muted);
   font-size: 12px;
+  font-weight: 720;
+  letter-spacing: -.1px;
+  box-shadow: none;
+}
+
+#chatPage .chip.active,
+#callsPage .chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+#chatPage .chip-count,
+#callsPage .chip-count {
+  min-width: 19px;
+  height: 19px;
+  margin-left: 4px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--muted) 13%, transparent);
+  color: inherit;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+#chatPage .chip.active .chip-count,
+#callsPage .chip.active .chip-count {
+  background: rgba(255, 255, 255, .2);
+  color: #ffffff;
+}
+
+/* Main conversation list: compact rows, no repeated floating cards */
+#chatPage .list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 2px 0 18px;
+}
+
+#chatPage #chatList .chat-swipe-row {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#chatPage #chatList .chat-row-content,
+#chatPage #chatList .list-item {
+  min-height: 78px;
+  padding: 13px 18px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+}
+
+#chatPage #chatList .chat-swipe-row:not(:last-child) .chat-row-content::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  bottom: 0;
+  left: 82px;
+  height: 1px;
+  background: var(--divider);
+}
+
+#chatPage #chatList .chat-row-content:active {
+  background: var(--surface-2);
+}
+
+#chatPage #chatList .chat-avatar-wrap {
+  width: 54px;
+  height: 54px;
+  flex: 0 0 54px;
+}
+
+#chatPage #chatList .avatar {
+  width: 52px;
+  height: 52px;
+  border: 0;
+  border-radius: 17px;
+  box-shadow: none;
+}
+
+#chatPage #chatList .item-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 780;
+  letter-spacing: -.35px;
+}
+
+#chatPage #chatList .item-sub {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+#chatPage #chatList .item-time {
+  color: var(--muted);
+  font-size: 11px;
   font-weight: 650;
-  transition: background .18s ease, color .18s ease, border-color .18s ease;
-}
-
-.chip.active {
-  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.chip-count {
-  margin-left: 6px;
   font-variant-numeric: tabular-nums;
 }
 
-/* [ADDED] Chat, calls and contacts become calm, readable list rows. */
-.list {
-  gap: 2px;
-  padding: 0 10px 12px;
+#chatPage #chatList .item-time.is-unread {
+  color: var(--accent);
 }
 
-.list-item {
+#chatPage #chatList .badge {
+  min-width: 21px;
+  height: 21px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* WAMO AI becomes a distinct brand feature, not another generic chat row */
+#chatPage #wagramAiPinnedRow {
+  margin: 2px 16px 10px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, transparent);
+  border-radius: 19px;
+  background: var(--accent);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+#chatPage #wagramAiPinnedRow .chat-row-content {
+  min-height: 82px;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+#chatPage #wagramAiPinnedRow .chat-avatar-wrap {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+}
+
+#chatPage #wagramAiPinnedRow .wagram-ai-avatar {
+  width: 54px;
+  height: 54px;
+  border: 2px solid rgba(255, 255, 255, .48);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, .15);
+}
+
+#chatPage #wagramAiPinnedRow .item-title,
+#chatPage #wagramAiPinnedRow .item-time {
+  color: #ffffff;
+}
+
+#chatPage #wagramAiPinnedRow .item-title {
+  font-size: 16px;
+  font-weight: 850;
+}
+
+#chatPage #wagramAiPinnedRow .item-sub {
+  color: rgba(255, 255, 255, .82);
+  font-size: 12px;
+}
+
+#chatPage #wagramAiPinnedRow .premium-chat-crown {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .22));
+}
+
+/* Calls and contacts */
+#callsPage .list,
+#contactsPage .list {
+  gap: 0;
+  padding: 0 0 18px;
+}
+
+#callsPage .list-item,
+#contactsPage .list-item {
   min-height: 72px;
-  padding: 11px 12px;
+  padding: 12px 18px;
   border: 0;
   border-bottom: 1px solid var(--divider);
-  border-radius: 14px;
+  border-radius: 0;
   background: transparent;
-  color: var(--text);
-  transition: background .16s ease, transform .16s ease;
+  box-shadow: none;
 }
 
-.list-item:active,
-button.list-item:active {
-  background: var(--surface-2);
-  transform: scale(.995);
+#callsPage .avatar,
+#contactsPage .avatar,
+#callsPage .call-icon {
+  border-radius: 16px;
+  box-shadow: none;
 }
 
-.item-title {
+#callsPage .item-title,
+#contactsPage .item-title {
   color: var(--text);
   font-size: 14px;
-  font-weight: 720;
-  letter-spacing: -.2px;
+  font-weight: 760;
 }
 
-.item-sub,
-.item-time {
+#callsPage .item-sub,
+#contactsPage .item-sub {
   color: var(--muted);
   font-size: 12px;
 }
 
-.avatar {
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  box-shadow: none;
-}
-
-.chat-row-content,
-.call-row-content,
-.contact-row-content {
-  border-radius: 14px;
-}
-
-.wagram-ai-chat-row .chat-row-content {
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
-  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
-}
-
-.empty,
-.error-state,
-.automation-empty,
-.ai-business-empty-state {
-  color: var(--muted);
-}
-
-.empty h3,
-.error-state h3 {
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 750;
-}
-
-.empty p,
-.error-state p,
-.automation-empty p {
-  max-width: 300px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-/* [ADDED] Conversation header and message timeline. */
-.conversation {
+/* Conversation view */
+.conversation,
+.ai-business-page {
   background: var(--bg);
 }
 
-.conversation-header {
-  min-height: 62px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+.conversation-header,
+.ai-business-page .ai-business-conversation-header {
+  min-height: 66px;
+  border-bottom: 1px solid var(--divider);
+  background: var(--surface);
 }
 
-.conversation-info strong,
-.conversation-info .conversation-name {
+.conversation-info h2,
+.ai-business-conversation-header .conversation-info h2 {
   color: var(--text);
-  font-size: 14px;
-  font-weight: 750;
+  font-size: 15px;
+  font-weight: 800;
 }
 
-.conversation-info small,
-.conversation-info .conversation-subtitle {
+.conversation-info p,
+.ai-business-conversation-header .conversation-info p {
   color: var(--muted);
   font-size: 11px;
 }
 
 .message-list {
-  padding: 16px 12px 24px;
-  scroll-padding-bottom: 24px;
+  padding: 16px 14px 26px;
 }
 
 .message {
-  max-width: min(82%, 520px);
-  margin-bottom: 8px;
-  padding: 10px 12px;
+  max-width: min(84%, 540px);
+  margin-bottom: 9px;
+  padding: 11px 13px;
   border: 1px solid var(--border);
   border-radius: 17px 17px 17px 5px;
   background: var(--surface);
-  box-shadow: 0 2px 8px rgba(20, 40, 27, .025);
-  line-height: 1.48;
+  color: var(--text);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, .035);
+  line-height: 1.5;
 }
 
 .message.outgoing {
-  border-color: color-mix(in srgb, var(--accent) 15%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
   border-radius: 17px 17px 5px 17px;
-  background: var(--accent-soft);
+  background: var(--accent);
+  color: #ffffff;
 }
 
-.message-meta {
-  color: var(--muted);
-  font-size: 10px;
+.message.outgoing .message-meta,
+.message.outgoing .message-time {
+  color: rgba(255, 255, 255, .76);
 }
 
 .message-text {
@@ -8757,35 +8917,58 @@ button.list-item:active {
   overflow-wrap: anywhere;
 }
 
-.ai-business-composer,
-.ai-business-page .ai-business-composer {
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  background: var(--surface);
-  box-shadow: 0 6px 22px rgba(20, 40, 27, .06);
+.message-meta {
+  color: var(--muted);
+  font-size: 10px;
 }
 
-.ai-business-composer input,
-.ai-business-composer textarea {
+/* WAMO AI conversation and composer */
+.ai-business-page {
+  background: var(--bg);
+}
+
+.ai-business-page .ai-business-conversation-header {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+}
+
+.ai-business-page .ai-business-composer {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
+}
+
+.ai-business-page .ai-business-composer textarea,
+.ai-business-page .ai-business-composer input {
   border: 0;
   background: transparent;
   box-shadow: none;
 }
 
-/* [ADDED] Profile and settings hierarchy. */
-#accountPage {
-  padding: 12px 14px 24px;
+.ai-business-page .ai-business-composer button {
+  border-radius: 13px;
+  background: var(--accent);
+  color: #ffffff;
 }
 
+/* Profile, settings and connected accounts */
+#accountPage {
+  padding: 14px 14px 28px;
+}
+
+#accountPage > .card,
 #accountPage .profile-identity-card,
 #accountPage .whatsapp-account-card,
 #accountPage .notification-card,
 #accountPage .tips-card,
-#accountPage .card,
+#connectionsPage .connection-status-card,
+#connectionsPage .card,
+#automationPage .automation-empty,
 .profile-panel,
 .ai-business-settings-panel {
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 18px;
   background: var(--surface);
   box-shadow: var(--shadow);
 }
@@ -8797,140 +8980,64 @@ button.list-item:active {
   margin-bottom: 12px;
 }
 
-.profile-identity-card {
+#accountPage .profile-identity-card {
   padding: 16px;
 }
 
-.profile-identity-copy strong,
-.profile-display-name {
+#accountPage .profile-identity-copy h3 {
   color: var(--text);
   font-size: 16px;
-  font-weight: 760;
+  font-weight: 820;
 }
 
-.profile-identity-copy small,
-.profile-detail,
-.profile-updated,
-.profile-membership-meta {
+#accountPage .profile-identity-copy p,
+#accountPage .profile-membership-meta {
   color: var(--muted);
   font-size: 12px;
 }
 
-.settings-section-heading,
-.notification-card-heading {
+#accountPage .settings-section-heading,
+#accountPage .notification-card-heading {
   color: var(--text);
-  font-size: 13px;
-  font-weight: 760;
 }
 
-.whatsapp-account-row {
+#accountPage .whatsapp-account-row,
+#accountPage .notification-option {
   border-color: var(--divider);
 }
 
-.whatsapp-account-select,
-.whatsapp-controls-toggle,
-.history-cleanup-item {
-  transition: background .16s ease, border-color .16s ease;
-}
-
-button.history-cleanup-item {
-  min-height: 48px;
-  border-radius: 12px;
+#accountPage .history-cleanup-item {
+  border: 1px solid var(--border);
+  border-radius: 13px;
   background: var(--surface-2);
 }
 
-button.history-cleanup-item:active {
-  background: var(--accent-soft);
-}
-
-/* [ADDED] AI Business settings and chat surface. */
-.ai-business-page {
-  background: var(--bg);
-}
-
-.ai-business-page .ai-business-conversation-header {
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.ai-business-page .ai-business-suggestions button,
-.ai-business-more-menu button,
-.ai-business-setting-tile {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
-  color: var(--text);
-}
-
-.ai-business-settings-modal {
-  background: color-mix(in srgb, var(--bg) 72%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.ai-business-settings-panel {
-  border-radius: 22px;
-  background: var(--surface);
-}
-
-/* [ADDED] Bottom navigation: compact floating dock with clear selected state. */
-.bottom-nav {
-  min-height: var(--nav-h);
-  padding: 7px 12px calc(7px + env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  box-shadow: 0 -8px 28px rgba(20, 40, 27, .045);
-  backdrop-filter: blur(18px) saturate(145%);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
-}
-
-.nav-item {
-  min-width: 0;
-  min-height: 48px;
-  border-radius: 15px;
-  color: var(--muted);
-  transition: color .18s ease, background .18s ease, transform .18s ease;
-}
-
-.nav-item.selected {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.nav-item .i {
-  width: 21px;
-  height: 21px;
-}
-
-.nav-item.selected span {
-  font-weight: 750;
-}
-
-/* [ADDED] Sheets, dialogs and session manager share one surface language. */
+/* Shared dialogs and sheets */
 .sheet-backdrop,
 .whatsapp-sessions-backdrop,
 .premium-payment-modal,
 .premium-proof-modal {
-  background: rgba(8, 18, 12, .48);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
+  background: rgba(2, 10, 5, .62);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
 }
 
 .sheet-panel,
-.sheet,
 .whatsapp-sessions-panel,
 .premium-payment-content,
-.premium-proof-content {
+.premium-proof-content,
+.ai-business-settings-panel {
   border: 1px solid var(--border);
   border-radius: 24px 24px 18px 18px;
   background: var(--surface);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, .18);
+  color: var(--text);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, .28);
 }
 
 .sheet-handle {
   width: 38px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: 99px;
   background: var(--border);
 }
 
@@ -8939,33 +9046,24 @@ button.history-cleanup-item:active {
 }
 
 .whatsapp-session-list {
-  gap: 8px;
+  gap: 9px;
 }
 
-.whatsapp-account-card,
-.whatsapp-session-list > * {
+.whatsapp-session-list > *,
+.whatsapp-account-card {
   border-color: var(--border);
 }
 
 .primary-button,
 .premium-continue-button,
-.premium-payment-actions button.primary,
 .premium-proof-confirm {
   min-height: 48px;
   border: 0;
   border-radius: 14px;
   background: var(--accent);
-  color: var(--on-accent);
-  font-weight: 760;
-  box-shadow: 0 6px 16px rgba(7, 155, 89, .16);
-  transition: transform .16s ease, filter .16s ease;
-}
-
-.primary-button:active,
-.premium-continue-button:active,
-.premium-payment-actions button:active,
-.premium-proof-confirm:active {
-  transform: translateY(1px) scale(.99);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .secondary-button,
@@ -8983,16 +9081,15 @@ button.history-cleanup-item:active {
   box-shadow: var(--shadow);
 }
 
-/* [ADDED] Premium page and payment flow receive a calmer, consistent hierarchy. */
-body.premium-page-active {
-  background: var(--bg);
-}
-
+/* Premium and QRIS */
+body.premium-page-active,
 body.premium-page-active #premiumPage {
   background: var(--bg);
 }
 
 body.premium-page-active .premium-heading h2 {
+  color: var(--text);
+  font-weight: 850;
   letter-spacing: -1px;
 }
 
@@ -9008,8 +9105,9 @@ body.premium-page-active .premium-duration-tab {
 }
 
 body.premium-page-active .premium-duration-tab.active {
-  background: var(--surface);
-  box-shadow: 0 2px 8px rgba(20, 40, 27, .08);
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: none;
 }
 
 body.premium-page-active .premium-price-panel {
@@ -9035,7 +9133,7 @@ body.premium-page-active .premium-comparison-table td {
 
 .premium-payment-qr-wrap {
   border: 1px solid var(--border);
-  background: #fff;
+  background: #ffffff;
 }
 
 .premium-payment-status,
@@ -9044,25 +9142,64 @@ body.premium-page-active .premium-comparison-table td {
   line-height: 1.5;
 }
 
-/* [ADDED] Responsive refinements for compact phones, tablets and reduced motion. */
+/* Navigation: stable dock, bold selected state */
+.app .bottom-nav {
+  min-height: var(--nav-h);
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 22px 22px 0 0;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, .10);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+}
+
+.app .bottom-nav .nav-item {
+  min-height: 52px;
+  border: 0;
+  border-radius: 15px;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.app .bottom-nav .nav-item.selected {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.app .bottom-nav .nav-item .i {
+  width: 22px;
+  height: 22px;
+}
+
+.app .bottom-nav .nav-item.selected span {
+  color: #ffffff;
+  font-weight: 820;
+}
+
+html[data-theme="dark"] .app .bottom-nav {
+  border-color: rgba(164, 194, 173, .13);
+  background: rgba(12, 19, 14, .96);
+  box-shadow: 0 -12px 30px rgba(0, 0, 0, .32);
+}
+
 @media (max-width: 420px) {
-  .page-title {
+  .app .topbar {
+    padding-right: 13px;
+    padding-left: 13px;
+  }
+
+  #chatPage #chatList .chat-row-content,
+  #chatPage #chatList .list-item {
     padding-right: 14px;
     padding-left: 14px;
   }
 
-  .list {
-    padding-right: 7px;
-    padding-left: 7px;
-  }
-
-  .list-item {
-    padding-right: 9px;
-    padding-left: 9px;
-  }
-
-  .message {
-    max-width: 88%;
+  #chatPage #wagramAiPinnedRow {
+    margin-right: 12px;
+    margin-left: 12px;
   }
 
   #accountPage {
@@ -9070,26 +9207,22 @@ body.premium-page-active .premium-comparison-table td {
     padding-left: 10px;
   }
 
-  .bottom-nav {
+  .app .bottom-nav {
     padding-right: 8px;
     padding-left: 8px;
   }
 }
 
 @media (min-width: 760px) {
-  .page-title {
+  #chatPage #chatList .chat-row-content,
+  #chatPage #chatList .list-item {
     padding-right: 22px;
     padding-left: 22px;
   }
 
-  .list {
-    padding-right: 16px;
-    padding-left: 16px;
-  }
-
-  #accountPage {
-    padding-right: 20px;
-    padding-left: 20px;
+  #chatPage #wagramAiPinnedRow {
+    margin-right: 22px;
+    margin-left: 22px;
   }
 }
 
