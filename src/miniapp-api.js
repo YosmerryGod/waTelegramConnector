@@ -64,6 +64,8 @@ import {
   completePremiumPaymentByAmount, // [ADDED] Match DANA notification amounts and activate Premium atomically.
   getAIBusinessProfile,
   saveAIBusinessProfile,
+  getAIBusinessAutoReplyEnabled, // [ADDED] Read the per-session Auto Reply switch.
+  setAIBusinessAutoReplyEnabled, // [ADDED] Persist the per-session Auto Reply switch.
   addAIBusinessExample
 } from "./database.js";
 
@@ -1925,6 +1927,39 @@ router.post("/ai/suggest/:chatId", async (req, res) => {
 });
 
 
+
+// [ADDED] Read the WhatsApp Auto Reply switch independently from WAMO AI chat/settings.
+router.get("/ai-business/auto-reply", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan !== "premium-c") {
+      return res.status(403).json({ ok: false, error: "AI_BUSINESS_REQUIRES_PREMIUM_C" });
+    }
+    const enabled = getAIBusinessAutoReplyEnabled(req.telegramId, req.sessionId);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, enabled });
+  } catch (error) {
+    return sendServerError(res, error, "Could not load WAGRAM AI Auto Reply preference");
+  }
+});
+
+// [ADDED] Update only automatic WhatsApp replies; WAMO AI chat and business data remain untouched.
+router.put("/ai-business/auto-reply", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan !== "premium-c") {
+      return res.status(403).json({ ok: false, error: "AI_BUSINESS_REQUIRES_PREMIUM_C" });
+    }
+    if (typeof req.body?.enabled !== "boolean") {
+      return res.status(400).json({ ok: false, error: "INVALID_AI_AUTO_REPLY_STATE" });
+    }
+    const enabled = setAIBusinessAutoReplyEnabled(req.telegramId, req.sessionId, req.body.enabled);
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, enabled });
+  } catch (error) {
+    return sendServerError(res, error, "Could not save WAGRAM AI Auto Reply preference");
+  }
+});
 
 /* [ADDED] Read persistent WAGRAM AI settings scoped to the authenticated owner and WhatsApp session. */
 router.get("/ai-business/settings", (req, res) => {
