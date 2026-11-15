@@ -272,11 +272,20 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     const conversation=listMessages(ownerId,chat,20,accountId).filter((item)=>item.body&&!item.is_deleted).reverse().map((item)=>({role:item.direction==="outgoing"?"business":"customer",text:String(item.body||"").slice(0,1000)}));
     const products=Array.isArray(profile.settings?.products)?profile.settings.products.slice(0,100):[];
     const result=await analyzeAIPaymentProofImage({imageBuffer,mimetype,conversation,products});
+    // [ADDED] Stop an in-flight image workflow if Auto Reply was switched off during analysis.
+    if (!getAIBusinessAutoReplyEnabled(ownerId,accountId)) {
+      updateAutoReply(ownerId,accountId,chat,incomingId,{status:"skipped",error:"Business Auto Reply was disabled during image analysis."});
+      return {handled:false,reason:"business_auto_reply_disabled"};
+    }
     if (!socket||typeof socket.sendMessage!=="function") throw new Error("WHATSAPP_SOCKET_UNAVAILABLE");
     if (!result.isPaymentProof) {
       saveCustomerImageContext(ownerId, accountId, chat, incomingId, result);
       const customerReply = await createAIBusinessImageCustomerReply(ownerId, accountId, chat, result);
       if (!customerReply) throw new Error("AI_IMAGE_REPLY_EMPTY");
+      if (!getAIBusinessAutoReplyEnabled(ownerId,accountId)) {
+        updateAutoReply(ownerId,accountId,chat,incomingId,{status:"skipped",error:"Business Auto Reply was disabled before sending."});
+        return {handled:false,reason:"business_auto_reply_disabled"};
+      }
       updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
       await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
       updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
@@ -293,6 +302,10 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     const managerLookup=await socket.onWhatsApp(managerInternational);
     const managerJid=managerLookup?.find((entry)=>entry?.exists&&entry?.jid)?.jid;
     if (!managerJid) throw new Error("PAYMENT_MANAGER_WHATSAPP_NOT_REGISTERED");
+    if (!getAIBusinessAutoReplyEnabled(ownerId,accountId)) {
+      updateAutoReply(ownerId,accountId,chat,incomingId,{status:"skipped",error:"Business Auto Reply was disabled before payment-proof forwarding."});
+      return {handled:false,reason:"business_auto_reply_disabled"};
+    }
     const val=(v)=>v===null||v===undefined||String(v).trim()===""?"Belum terbaca":String(v).trim();
     const p=result.payment||{}, o=result.order||{};
     const caption=["BUKTI PEMBAYARAN BARU — PERLU VERIFIKASI","Pelanggan: "+val(customerName),"WhatsApp: "+val(phoneNumber?"+"+phoneNumber:chat),"DETAIL PESANAN","Produk: "+val(o.product),"Jumlah: "+val(o.quantity),"Harga satuan: "+val(o.unit_price),"Total pesanan: "+val(o.total),"INFORMASI BUKTI","Nominal: "+val(p.amount)+" "+val(p.currency),"Tanggal/waktu: "+val(p.date)+" "+val(p.time),"Pengirim: "+val(p.payer),"Penerima: "+val(p.recipient),"Metode: "+val(p.method),"Referensi: "+val(p.reference),"Status tertulis: "+val(p.status_text),"Keyakinan klasifikasi: "+Math.round(result.confidence*100)+"%","PERLU VERIFIKASI MUTASI. Gambar bukan bukti dana sudah masuk."].join("\n").slice(0,1024);
@@ -303,6 +316,10 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
     });
     const customerReply = await createAIPaymentProofCustomerReply(ownerId,accountId,chat,result);
     if (!customerReply) throw new Error("AI_PAYMENT_PROOF_REPLY_EMPTY");
+    if (!getAIBusinessAutoReplyEnabled(ownerId,accountId)) {
+      updateAutoReply(ownerId,accountId,chat,incomingId,{status:"skipped",error:"Business Auto Reply was disabled before customer response."});
+      return {handled:false,reason:"business_auto_reply_disabled"};
+    }
     updateAutoReply(ownerId,accountId,chat,incomingId,{generatedReply:customerReply});
     await socket.sendMessage(chat,{text:customerReply},quotedMessage?{quoted:quotedMessage}:{});
     updateAutoReply(ownerId,accountId,chat,incomingId,{status:"sent"});
