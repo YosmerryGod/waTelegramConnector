@@ -26,6 +26,9 @@
     whatsappSessionLimit: 1,
     activeSessionId: null,
     expandedSettingsSessionId: null, // [ADDED] Session whose individual settings dropdown is open.
+    aiBusinessAutoReplyEnabled: false, // [ADDED] Server-backed Auto Reply state for the selected session.
+    aiBusinessAutoReplySessionId: null, // [ADDED] Session associated with the loaded Auto Reply state.
+    aiBusinessAutoReplyLoadingSessionId: null, // [ADDED] Prevent duplicate preference fetches.
 
     chats: [],
     chatsLoaded: false,
@@ -948,18 +951,34 @@
     renderAIBusinessToggle();
   }
 
-  // [ADDED] Store the AI Business UI preference separately for each WhatsApp session.
-  const AI_BUSINESS_PREFS_KEY = "wagram-ai-business-preferences";
+  // [ADDED] Resolve the WhatsApp session controlled by the Profile Auto Reply switch.
+  function getAIBusinessToggleSessionId() {
+    return String(state.expandedSettingsSessionId || state.activeSessionId || "");
+  }
 
-  function getAIBusinessPreferences() {
+  // [ADDED] Load the persistent Auto Reply preference for the selected WhatsApp session.
+  async function loadAIBusinessAutoReplyPreference(sessionId) {
+    if (!sessionId || state.aiBusinessAutoReplyLoadingSessionId === sessionId) return;
+    state.aiBusinessAutoReplyLoadingSessionId = sessionId;
     try {
-      return JSON.parse(localStorage.getItem(AI_BUSINESS_PREFS_KEY) || "{}");
-    } catch {
-      return {};
+      const data = await api("/ai-business/auto-reply", {
+        headers: { "X-WAGRAM-Session-ID": sessionId }
+      });
+      if (getAIBusinessToggleSessionId() === sessionId) {
+        state.aiBusinessAutoReplyEnabled = data.enabled === true;
+        state.aiBusinessAutoReplySessionId = sessionId;
+        renderAIBusinessToggle();
+      }
+    } catch (error) {
+      console.error("Could not load WAGRAM AI Auto Reply preference:", error);
+    } finally {
+      if (state.aiBusinessAutoReplyLoadingSessionId === sessionId) {
+        state.aiBusinessAutoReplyLoadingSessionId = null;
+      }
     }
   }
 
-  // [ADDED] Reflect Premium access and the saved switch state in the Profile UI.
+  // [MODIFIED] Reflect Premium access and the server-backed Auto Reply state in Profile.
   function renderAIBusinessToggle() {
     const button = $("#aiBusinessToggle");
     const description = $("#aiBusinessSettingDescription");
@@ -967,51 +986,61 @@
     if (!button) return;
 
     const premium = isAIBusinessEligible();
-    const preferences = getAIBusinessPreferences();
-    const sessionId = String(state.expandedSettingsSessionId || state.activeSessionId || "default");
-    const enabled = premium && preferences[sessionId] === true;
+    const sessionId = getAIBusinessToggleSessionId();
+    const hasLoadedPreference = Boolean(sessionId) && state.aiBusinessAutoReplySessionId === sessionId;
+    const enabled = premium && hasLoadedPreference && state.aiBusinessAutoReplyEnabled === true;
 
     button.setAttribute("aria-checked", String(enabled));
-    button.setAttribute("aria-disabled", String(!premium));
-    button.disabled = !premium;
+    button.setAttribute("aria-disabled", String(!premium || !sessionId));
+    button.disabled = !premium || !sessionId;
     option?.classList.toggle("is-premium-locked", !premium);
     option?.classList.toggle("is-ai-business-enabled", enabled);
 
     if (description) {
       description.textContent = !premium
         ? "Khusus Premium C (30 hari)"
-        : enabled
-          ? "AI Business aktif untuk session ini"
-          : "Asisten bisnis dan pencatatan stok harian";
+        : !sessionId
+          ? "Pilih session WhatsApp terlebih dahulu"
+          : enabled
+            ? "Auto Reply WhatsApp aktif untuk session ini"
+            : "Auto Reply WhatsApp nonaktif";
+    }
+
+    if (premium && sessionId && !hasLoadedPreference) {
+      loadAIBusinessAutoReplyPreference(sessionId);
     }
   }
 
-  // [ADDED] Toggle the AI Business UI preference for the selected WhatsApp session.
-  function toggleAIBusinessPreference() {
+  // [MODIFIED] Toggle only automatic WhatsApp replies; WAMO AI remains available.
+  async function toggleAIBusinessPreference() {
     if (!isAIBusinessEligible()) {
       openPremiumSheet();
       return;
     }
 
     const button = $("#aiBusinessToggle");
-    if (!button) return;
+    const sessionId = getAIBusinessToggleSessionId();
+    if (!button || !sessionId || button.disabled) return;
 
-    const sessionId = String(state.expandedSettingsSessionId || state.activeSessionId || "default");
-    const preferences = getAIBusinessPreferences();
     const enabled = button.getAttribute("aria-checked") !== "true";
-    preferences[sessionId] = enabled;
+    button.disabled = true;
 
     try {
-      localStorage.setItem(AI_BUSINESS_PREFS_KEY, JSON.stringify(preferences));
-    } catch {
-      showToast("Pengaturan AI Business tidak dapat disimpan di perangkat ini.");
-      return;
+      const data = await api("/ai-business/auto-reply", {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
+        headers: { "X-WAGRAM-Session-ID": sessionId }
+      });
+      state.aiBusinessAutoReplyEnabled = data.enabled === true;
+      state.aiBusinessAutoReplySessionId = sessionId;
+      renderAIBusinessToggle();
+      showToast(data.enabled
+        ? "Auto Reply WhatsApp diaktifkan."
+        : "Auto Reply WhatsApp dinonaktifkan. WAMO AI tetap aktif.");
+    } catch (error) {
+      showToast(error.message || "Pengaturan Auto Reply gagal disimpan.");
+      renderAIBusinessToggle();
     }
-
-    renderAIBusinessToggle();
-    showToast(enabled
-      ? "Toggle AI Business diaktifkan."
-      : "Toggle AI Business dinonaktifkan.");
   }
 
   function toggleNotificationPreference(button) {
@@ -4140,7 +4169,7 @@
       $("#historyCleanupToggle").setAttribute("aria-expanded", String(!collapsed));
     });
 
-    // [ADDED] AI Business switch is a UI preference until its AI workflow is connected.
+    // [MODIFIED] Profile switch controls server-side WhatsApp Auto Reply only.
     $("#aiBusinessToggle")?.addEventListener("click", toggleAIBusinessPreference);
 
     // [ADDED] Notification switches are saved locally on this device.
