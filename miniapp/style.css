@@ -8416,3 +8416,690 @@ body.in-chat #topbar {
 .whatsapp-primary-account-row[hidden] {
   display: none !important;
 }
+
+
+/* =========================================================
+   [ADDED] WAGRAM Modern Minimalist UI Layer
+   Visual-only refresh. Existing markup, interactions and API
+   behavior remain unchanged.
+   ========================================================= */
+
+:root {
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --surface-2: #f0f4f1;
+  --border: #e4ebe6;
+  --divider: #edf1ee;
+  --text: #17231c;
+  --muted: #738078;
+  --accent: #079b59;
+  --accent-soft: rgba(7, 155, 89, .09);
+  --on-accent: #ffffff;
+  --info: #3478d4;
+  --info-soft: rgba(52, 120, 212, .09);
+  --danger: #d94b45;
+  --danger-soft: rgba(217, 75, 69, .08);
+  --shadow: 0 10px 30px rgba(27, 55, 39, .055);
+  --nav-h: calc(68px + env(safe-area-inset-bottom));
+}
+
+html[data-theme="dark"] {
+  --bg: #101713;
+  --surface: #17211b;
+  --surface-2: #1d2a22;
+  --border: #2a3a30;
+  --divider: #233128;
+  --text: #edf5ef;
+  --muted: #9aaa9f;
+  --accent: #38c982;
+  --accent-soft: rgba(56, 201, 130, .13);
+  --on-accent: #062415;
+  --info: #82b6ff;
+  --info-soft: rgba(130, 182, 255, .12);
+  --danger: #ff8179;
+  --danger-soft: rgba(255, 129, 121, .12);
+  --shadow: 0 12px 34px rgba(0, 0, 0, .2);
+}
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  color: var(--text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -.01em;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  outline-offset: 2px;
+}
+
+.app {
+  max-width: 760px;
+  background: var(--bg);
+}
+
+@media (min-width: 760px) {
+  .app {
+    border-color: var(--border);
+    box-shadow: 0 0 48px rgba(24, 54, 36, .035);
+  }
+}
+
+/* [ADDED] Shared page and heading rhythm. */
+.page {
+  min-width: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.page-title {
+  align-items: center;
+  padding: 12px 18px 16px;
+}
+
+.page-title h2 {
+  font-size: clamp(22px, 5vw, 26px);
+  font-weight: 760;
+  letter-spacing: -.85px;
+}
+
+.page-title p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* [ADDED] Quiet translucent app header and crisp controls. */
+.topbar {
+  min-height: 64px;
+  padding: 10px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+}
+
+.brand {
+  gap: 10px;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--accent);
+  box-shadow: 0 4px 12px rgba(7, 155, 89, .16);
+}
+
+.brand h1 {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -.35px;
+}
+
+.brand p {
+  font-size: 11px;
+}
+
+.icon-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(20, 40, 27, .025);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.icon-button:active {
+  transform: scale(.96);
+  background: var(--surface-2);
+}
+
+/* [ADDED] Search and filter controls use a consistent pill system. */
+.topbar-search,
+.topbar-search-wrap input,
+#topbarSearchInput,
+#searchInput,
+#callsSearchInput,
+#contactsSearchInput,
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+textarea,
+select {
+  border-color: var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: .78;
+}
+
+.chips,
+#chatFilters,
+#callFilters {
+  gap: 8px;
+  padding: 4px 16px 12px;
+}
+
+.chip {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+
+.chip.active {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.chip-count {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* [ADDED] Chat, calls and contacts become calm, readable list rows. */
+.list {
+  gap: 2px;
+  padding: 0 10px 12px;
+}
+
+.list-item {
+  min-height: 72px;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--divider);
+  border-radius: 14px;
+  background: transparent;
+  color: var(--text);
+  transition: background .16s ease, transform .16s ease;
+}
+
+.list-item:active,
+button.list-item:active {
+  background: var(--surface-2);
+  transform: scale(.995);
+}
+
+.item-title {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 720;
+  letter-spacing: -.2px;
+}
+
+.item-sub,
+.item-time {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.avatar {
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  box-shadow: none;
+}
+
+.chat-row-content,
+.call-row-content,
+.contact-row-content {
+  border-radius: 14px;
+}
+
+.wagram-ai-chat-row .chat-row-content {
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface));
+}
+
+.empty,
+.error-state,
+.automation-empty,
+.ai-business-empty-state {
+  color: var(--muted);
+}
+
+.empty h3,
+.error-state h3 {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 750;
+}
+
+.empty p,
+.error-state p,
+.automation-empty p {
+  max-width: 300px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+/* [ADDED] Conversation header and message timeline. */
+.conversation {
+  background: var(--bg);
+}
+
+.conversation-header {
+  min-height: 62px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.conversation-info strong,
+.conversation-info .conversation-name {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.conversation-info small,
+.conversation-info .conversation-subtitle {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.message-list {
+  padding: 16px 12px 24px;
+  scroll-padding-bottom: 24px;
+}
+
+.message {
+  max-width: min(82%, 520px);
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 17px 17px 17px 5px;
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(20, 40, 27, .025);
+  line-height: 1.48;
+}
+
+.message.outgoing {
+  border-color: color-mix(in srgb, var(--accent) 15%, var(--border));
+  border-radius: 17px 17px 5px 17px;
+  background: var(--accent-soft);
+}
+
+.message-meta {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.message-text {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.ai-business-composer,
+.ai-business-page .ai-business-composer {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: 0 6px 22px rgba(20, 40, 27, .06);
+}
+
+.ai-business-composer input,
+.ai-business-composer textarea {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* [ADDED] Profile and settings hierarchy. */
+#accountPage {
+  padding: 12px 14px 24px;
+}
+
+#accountPage .profile-identity-card,
+#accountPage .whatsapp-account-card,
+#accountPage .notification-card,
+#accountPage .tips-card,
+#accountPage .card,
+.profile-panel,
+.ai-business-settings-panel {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+#accountPage .profile-identity-card,
+#accountPage .whatsapp-account-card,
+#accountPage .notification-card,
+#accountPage .tips-card {
+  margin-bottom: 12px;
+}
+
+.profile-identity-card {
+  padding: 16px;
+}
+
+.profile-identity-copy strong,
+.profile-display-name {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 760;
+}
+
+.profile-identity-copy small,
+.profile-detail,
+.profile-updated,
+.profile-membership-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.settings-section-heading,
+.notification-card-heading {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.whatsapp-account-row {
+  border-color: var(--divider);
+}
+
+.whatsapp-account-select,
+.whatsapp-controls-toggle,
+.history-cleanup-item {
+  transition: background .16s ease, border-color .16s ease;
+}
+
+button.history-cleanup-item {
+  min-height: 48px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+button.history-cleanup-item:active {
+  background: var(--accent-soft);
+}
+
+/* [ADDED] AI Business settings and chat surface. */
+.ai-business-page {
+  background: var(--bg);
+}
+
+.ai-business-page .ai-business-conversation-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.ai-business-page .ai-business-suggestions button,
+.ai-business-more-menu button,
+.ai-business-setting-tile {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.ai-business-settings-modal {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.ai-business-settings-panel {
+  border-radius: 22px;
+  background: var(--surface);
+}
+
+/* [ADDED] Bottom navigation: compact floating dock with clear selected state. */
+.bottom-nav {
+  min-height: var(--nav-h);
+  padding: 7px 12px calc(7px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 -8px 28px rgba(20, 40, 27, .045);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+.nav-item {
+  min-width: 0;
+  min-height: 48px;
+  border-radius: 15px;
+  color: var(--muted);
+  transition: color .18s ease, background .18s ease, transform .18s ease;
+}
+
+.nav-item.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.nav-item .i {
+  width: 21px;
+  height: 21px;
+}
+
+.nav-item.selected span {
+  font-weight: 750;
+}
+
+/* [ADDED] Sheets, dialogs and session manager share one surface language. */
+.sheet-backdrop,
+.whatsapp-sessions-backdrop,
+.premium-payment-modal,
+.premium-proof-modal {
+  background: rgba(8, 18, 12, .48);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.sheet-panel,
+.sheet,
+.whatsapp-sessions-panel,
+.premium-payment-content,
+.premium-proof-content {
+  border: 1px solid var(--border);
+  border-radius: 24px 24px 18px 18px;
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .18);
+}
+
+.sheet-handle {
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.whatsapp-sessions-header {
+  border-bottom: 1px solid var(--divider);
+}
+
+.whatsapp-session-list {
+  gap: 8px;
+}
+
+.whatsapp-account-card,
+.whatsapp-session-list > * {
+  border-color: var(--border);
+}
+
+.primary-button,
+.premium-continue-button,
+.premium-payment-actions button.primary,
+.premium-proof-confirm {
+  min-height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 760;
+  box-shadow: 0 6px 16px rgba(7, 155, 89, .16);
+  transition: transform .16s ease, filter .16s ease;
+}
+
+.primary-button:active,
+.premium-continue-button:active,
+.premium-payment-actions button:active,
+.premium-proof-confirm:active {
+  transform: translateY(1px) scale(.99);
+}
+
+.secondary-button,
+.danger-button,
+.disconnect-button {
+  min-height: 44px;
+  border-radius: 13px;
+}
+
+.toast {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+/* [ADDED] Premium page and payment flow receive a calmer, consistent hierarchy. */
+body.premium-page-active {
+  background: var(--bg);
+}
+
+body.premium-page-active #premiumPage {
+  background: var(--bg);
+}
+
+body.premium-page-active .premium-heading h2 {
+  letter-spacing: -1px;
+}
+
+body.premium-page-active .premium-duration-tabs {
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+
+body.premium-page-active .premium-duration-tab {
+  border-radius: 10px;
+}
+
+body.premium-page-active .premium-duration-tab.active {
+  background: var(--surface);
+  box-shadow: 0 2px 8px rgba(20, 40, 27, .08);
+}
+
+body.premium-page-active .premium-price-panel {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+body.premium-page-active .premium-comparison-table {
+  border-color: var(--border);
+}
+
+body.premium-page-active .premium-comparison-table th,
+body.premium-page-active .premium-comparison-table td {
+  border-color: var(--divider);
+}
+
+.premium-payment-content,
+.premium-proof-content {
+  color: var(--text);
+}
+
+.premium-payment-qr-wrap {
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.premium-payment-status,
+.premium-proof-error {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* [ADDED] Responsive refinements for compact phones, tablets and reduced motion. */
+@media (max-width: 420px) {
+  .page-title {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .list {
+    padding-right: 7px;
+    padding-left: 7px;
+  }
+
+  .list-item {
+    padding-right: 9px;
+    padding-left: 9px;
+  }
+
+  .message {
+    max-width: 88%;
+  }
+
+  #accountPage {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .bottom-nav {
+    padding-right: 8px;
+    padding-left: 8px;
+  }
+}
+
+@media (min-width: 760px) {
+  .page-title {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+
+  .list {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  #accountPage {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
