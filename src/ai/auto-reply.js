@@ -1,6 +1,10 @@
 import "dotenv/config";
 import db from "../database.js";
-import { listMessages, getAIBusinessProfile } from "../database.js";
+import {
+  listMessages,
+  getAIBusinessProfile,
+  getAIBusinessAutoReplyEnabled
+} from "../database.js"; // [MODIFIED] Include the server-side Auto Reply preference.
 import {
   getAICustomerServiceStatus,
   createAICustomerServiceSuggestion,
@@ -261,6 +265,8 @@ export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,
   if (!ownerId||!accountId||!chat||!incomingId) return {handled:false,reason:"invalid_input"};
   const profile=getAIBusinessProfile(ownerId,accountId);
   if (!profile||!Buffer.isBuffer(imageBuffer)||!imageBuffer.length) return {handled:false,reason:"business_ai_or_image_missing"};
+  // [ADDED] Respect the Profile switch before analyzing or forwarding payment-proof images.
+  if (!getAIBusinessAutoReplyEnabled(ownerId,accountId)) return {handled:false,reason:"business_auto_reply_disabled"};
   if (!claimAIAutoReplyJob(ownerId,accountId,chat,incomingId)) return {handled:false,reason:"duplicate"};
   try {
     const conversation=listMessages(ownerId,chat,20,accountId).filter((item)=>item.body&&!item.is_deleted).reverse().map((item)=>({role:item.direction==="outgoing"?"business":"customer",text:String(item.body||"").slice(0,1000)}));
@@ -335,6 +341,10 @@ export async function handleIncomingAIAutoReply({
   // now connects that answer to the live Baileys socket.sendMessage() path.
   const businessProfile = getAIBusinessProfile(ownerId, accountId);
   const useBusinessAI = Boolean(businessProfile);
+  // [ADDED] The Profile switch gates only automatic WhatsApp replies, not WAMO AI chat.
+  if (useBusinessAI && !getAIBusinessAutoReplyEnabled(ownerId, accountId)) {
+    return { sent: false, reason: "business_auto_reply_disabled" };
+  }
   const aiStatus = useBusinessAI ? null : getAICustomerServiceStatus(ownerId, accountId);
   if (!useBusinessAI && (!aiStatus?.eligible || !aiStatus?.enabled)) {
     return { sent: false, reason: "ai_disabled" };
@@ -465,11 +475,14 @@ export async function handleIncomingAIAutoReply({
     const latestBusinessProfile = useBusinessAI
       ? getAIBusinessProfile(ownerId, accountId)
       : null;
+    const latestBusinessAutoReplyEnabled = useBusinessAI
+      ? getAIBusinessAutoReplyEnabled(ownerId, accountId)
+      : true;
     const latestAIStatus = useBusinessAI
       ? null
       : getAICustomerServiceStatus(ownerId, accountId);
     if (
-      (useBusinessAI && !latestBusinessProfile) ||
+      (useBusinessAI && (!latestBusinessProfile || !latestBusinessAutoReplyEnabled)) ||
       (!useBusinessAI && (!latestAIStatus?.eligible || !latestAIStatus?.enabled))
     ) {
       updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
