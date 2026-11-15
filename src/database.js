@@ -286,6 +286,18 @@ db.exec(`
   );
 `);
 
+// [ADDED] Persist the AI Business WhatsApp auto-reply switch per owner and session.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_business_auto_reply_preferences (
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (telegram_id, session_id),
+    FOREIGN KEY (telegram_id) REFERENCES telegram_users(telegram_id) ON DELETE CASCADE
+  );
+`);
+
 // [ADDED] Persistent, owner/session-scoped WAGRAM AI business configuration and feedback examples.
 db.exec(`
   CREATE TABLE IF NOT EXISTS ai_business_profiles (
@@ -2204,6 +2216,30 @@ export function getAIBusinessProfile(telegramId, sessionId = telegramId) {
     fallbackConfig: parse(row.fallback_config_json, {}),
     updatedAt: row.updated_at
   };
+}
+
+// [ADDED] Read whether automatic WhatsApp replies are enabled for this business session.
+export function getAIBusinessAutoReplyEnabled(telegramId, sessionId = telegramId) {
+  const row = db.prepare(`
+    SELECT enabled
+    FROM ai_business_auto_reply_preferences
+    WHERE telegram_id = ? AND session_id = ?
+  `).get(String(telegramId), canonicalWhatsAppSessionId(telegramId, sessionId || telegramId));
+  return Boolean(row?.enabled);
+}
+
+// [ADDED] Save the Auto Reply switch without modifying AI Business settings or training data.
+export function setAIBusinessAutoReplyEnabled(telegramId, sessionId = telegramId, enabled = false) {
+  const ownerId = String(telegramId);
+  const scopedSessionId = canonicalWhatsAppSessionId(ownerId, sessionId || telegramId);
+  db.prepare(`
+    INSERT INTO ai_business_auto_reply_preferences (telegram_id, session_id, enabled, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(telegram_id, session_id) DO UPDATE SET
+      enabled = excluded.enabled,
+      updated_at = excluded.updated_at
+  `).run(ownerId, scopedSessionId, enabled ? 1 : 0, Date.now());
+  return Boolean(enabled);
 }
 
 export function saveAIBusinessProfile(telegramId, sessionId = telegramId, profile = {}) {
