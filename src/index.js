@@ -13,12 +13,14 @@ import { bot, createWhatsAppCallbacks } from "./telegram.js";
 
 import {
   getAllSessions,
+  getAllWhatsAppAccounts,
   updateWhatsAppAccountSession,
   cleanupForwardedMessages,
   closeDatabase,
   updateSession,
   getMembership,
   setFreePauseDate,
+  getAppSetting
 } from "./database.js";
 
 import {
@@ -26,11 +28,9 @@ import {
   shutdownWhatsApp,
   disconnectWhatsApp
 } from "./whatsapp.js";
-
 import miniAppApi, { verifyTelegramInitData } from "./miniapp-api.js";
 import { getUser } from "./database.js";
 import { addMiniAppClient, closeMiniAppClients, publishToMiniApp } from "./realtime.js";
-
 // Keep all other application logs and errors unchanged.
 const originalConsoleLog = console.log.bind(console);
 const originalConsoleInfo = console.info.bind(console);
@@ -44,13 +44,11 @@ console.log = (...args) => {
 console.info = (...args) => {
   if (!isVerboseSessionDump(args)) originalConsoleInfo(...args);
 };
-
 const LOG_LEVEL = process.env.LOG_LEVEL || "warn";
 const FREE_PAUSE_HOUR = Number(process.env.FREE_PAUSE_HOUR || 8);
 const AUTH_DIR = path.resolve(
   process.env.WHATSAPP_AUTH_DIR || "./auth"
 );
-
 const MINIAPP_API_HOST = process.env.MINIAPP_API_HOST || "127.0.0.1";
 const MINIAPP_API_PORT = Math.max(
   1,
@@ -64,7 +62,6 @@ const logger = pino({
     censor: "[REDACTED]"
   }
 });
-
 const app = express();
 app.use(helmet());
 app.use(rateLimit({
@@ -75,7 +72,6 @@ app.use(rateLimit({
 }));
 
 let apiServer = null;
-
 const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
 let webSocketHeartbeat = null;
 
@@ -85,7 +81,6 @@ webSocketServer.on("connection", (socket) => {
 
   socket.isAlive = true;
   socket.on("pong", () => { socket.isAlive = true; });
-
   const authTimer = setTimeout(() => {
     if (!authenticated) socket.close(1008, "Authentication timeout");
   }, 5000);
@@ -125,12 +120,9 @@ webSocketServer.on("connection", (socket) => {
     logger.warn({ err: error, telegramId }, "Mini App WebSocket error");
   });
 });
-
 let shuttingDown = false;
-
 let cleanupTimer = null;
 let freePauseTimer = null;
-
 app.disable("x-powered-by");
 
 app.use((req, res, next) => {
@@ -138,24 +130,20 @@ app.use((req, res, next) => {
   res.setHeader("Referrer-Policy", "no-referrer");
   next();
 });
-
-
+app.use(express.json({ limit: "8mb" }));
 app.use("/api/miniapp", miniAppApi);
-
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
     service: "whatsapp-telegram-bridge"
   });
 });
-
 app.use("/api", (_req, res) => {
   res.status(404).json({
     ok: false,
     error: "API_NOT_FOUND"
   });
 });
-
 app.use((error, _req, res, _next) => {
   logger.error(
     { err: error },
@@ -173,7 +161,6 @@ app.use((error, _req, res, _next) => {
       : "INTERNAL_SERVER_ERROR"
   });
 });
-
 function hasSavedAuth(sessionId) {
   const authPath = path.join(AUTH_DIR, String(sessionId));
 
@@ -193,7 +180,6 @@ function hasSavedAuth(sessionId) {
     return false;
   }
 }
-
 async function restoreSessions() {
   const sessions = getAllWhatsAppAccounts().filter((session) => {
     const membership = getMembership(session.telegram_id);
@@ -220,11 +206,9 @@ async function restoreSessions() {
     })
   );
 }
-
 function startApiServer() {
   return new Promise((resolve, reject) => {
     const server = createServer(app);
-
     server.on("upgrade", (request, socket, head) => {
       let requestUrl;
       try {
@@ -264,7 +248,6 @@ function startApiServer() {
     });
 
     server.listen(MINIAPP_API_PORT, MINIAPP_API_HOST);
-
     webSocketHeartbeat = setInterval(() => {
       for (const socket of webSocketServer.clients) {
         if (socket.isAlive === false) {
@@ -278,7 +261,6 @@ function startApiServer() {
     webSocketHeartbeat.unref?.();
   });
 }
-
 function getWitaClock() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Makassar",
@@ -291,7 +273,6 @@ function getWitaClock() {
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return { date: `${values.year}-${values.month}-${values.day}`, hour: Number(values.hour) };
 }
-
 async function enforceFreeDailyPause() {
   if (getAppSetting("free_daily_pause_enabled", "1") !== "1") return;
 
@@ -317,7 +298,6 @@ async function enforceFreeDailyPause() {
     }
   }
 }
-
 async function enforceTierSessionLimits() {
   const grouped = new Map();
   for (const account of getAllWhatsAppAccounts()) {
@@ -356,7 +336,6 @@ async function enforceTierSessionLimits() {
     }
   }
 }
-
 function startMaintenance() {
   freePauseTimer = setInterval(() => {
     void enforceFreeDailyPause();
@@ -384,7 +363,6 @@ function startMaintenance() {
 
   cleanupTimer.unref?.();
 }
-
 async function stopApiServer() {
   if (!apiServer) {
     return;
@@ -409,11 +387,9 @@ async function stopApiServer() {
 
       resolve();
     });
-
     server.closeIdleConnections?.();
   });
 }
-
 async function shutdown(signal) {
   if (shuttingDown) {
     return;
@@ -441,10 +417,8 @@ async function shutdown(signal) {
         "Could not cleanly close the Mini App API server."
       );
     }
-
     const sessionsBeforeShutdown = getAllSessions();
     await shutdownWhatsApp();
-
     // Preserve sessions already paused by the scheduler; mark other sessions
     // disconnected so valid saved credentials can be restored on startup.
     for (const session of sessionsBeforeShutdown) {
@@ -480,12 +454,9 @@ async function shutdown(signal) {
     process.exitCode = 1;
   }
 }
-
 async function main() {
   logger.info("Starting WhatsApp Telegram Bridge.");
-
   fs.mkdirSync(AUTH_DIR, { recursive: true });
-
   process.once("SIGINT", () => {
     void shutdown("SIGINT");
   });
@@ -509,7 +480,6 @@ async function main() {
       "Unhandled promise rejection."
     );
   });
-
   try {
     cleanupForwardedMessages();
   } catch (error) {
@@ -520,7 +490,6 @@ async function main() {
   }
 
   startMaintenance();
-
   await startApiServer();
 
   // Telegram polling starts when telegram.js is imported.
