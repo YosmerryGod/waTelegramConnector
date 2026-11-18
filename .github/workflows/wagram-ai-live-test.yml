@@ -28,7 +28,7 @@ jobs:
           test -f "$SQLITE_PATH"
           test -f "$WAGRAM_APP_DIR/node_modules/better-sqlite3/package.json"
           cd "$WAGRAM_APP_DIR"
-          node --input-type=module -e "import \"dotenv/config\"; if (!process.env.OPENROUTER_API_KEY) { console.error(\"OPENROUTER_API_KEY is missing from the VPS environment.\"); process.exit(1); } console.log(\"OpenRouter API key is configured.\");"
+          node --input-type=module -e 'import "dotenv/config"; if (!process.env.OPENROUTER_API_KEY) { console.error("OPENROUTER_API_KEY is missing from the VPS environment."); process.exit(1); } console.log("OpenRouter API key is configured.")'
           echo "VPS application, SQLite database, dependencies, and OpenRouter configuration are ready."
 
       - name: Run Premium C WAGRAM AI tests
