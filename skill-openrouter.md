@@ -71,7 +71,7 @@ Tugas:
 
 ### 3.2 Target runtime
 
-Runtime produksi sudah menggunakan OpenRouter Chat Completions dengan struktur `messages` berisi role `system`, `user`, dan `assistant`. Tidak ada rencana migrasi dari endpoint Ollama `/api/generate` ke `/api/chat`; runtime saat ini sudah memakai OpenRouter Chat Completions.
+Runtime produksi sudah menggunakan OpenRouter Chat Completions dengan struktur `messages` berisi role `system`, `user`, dan `assistant`. Runtime saat ini sudah memakai OpenRouter Chat Completions dan format messages multi-turn.
 
 Contoh endpoint:
 `https://openrouter.ai/api/v1/chat/completions`
@@ -285,7 +285,13 @@ Setiap tool harus benar-benar terdaftar di backend, memiliki schema input, valid
 | `handoff_admin(alasan, chat_id)` | Menyerahkan percakapan kepada manusia |
 | `get_business_faq(query)` | Mencari informasi FAQ bisnis |
 
-Tools di atas adalah **TARGET**, bukan klaim bahwa semuanya sudah tersedia.
+**Status implementasi saat ini:**
+- `get_business_profile`, `list_products`, dan `cek_stok(produk)` sudah tersedia sebagai backend read-only tools.
+- Ketiganya memvalidasi schema input, mengambil identitas tenant/session dari konteks backend terautentikasi, dan menulis audit log tanpa menyimpan hasil bisnis sensitif.
+- Ketiga tool sudah didaftarkan pada agent WAGRAM AI pemilik.
+- Tool mutasi, order, pembayaran, dan handoff yang belum memiliki executor tetap berstatus TARGET.
+
+Tools lain pada tabel di atas adalah **TARGET**, bukan klaim bahwa semuanya sudah tersedia.
 
 ### 7.3 Siklus tool calling
 
