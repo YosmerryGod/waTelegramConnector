@@ -14,22 +14,22 @@ jobs:
     env:
       WAGRAM_APP_DIR: /opt/waTelegramConnector
       SQLITE_PATH: /opt/waTelegramConnector/data/bridge.db
-      OLLAMA_URL: http://127.0.0.1:11434
-      OLLAMA_MODEL: qwen3:4b
+      OPENROUTER_MODEL: deepseek/deepseek-v4.1-flash-1017
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify VPS app, database, and Ollama
+      - name: Verify VPS app, database, and OpenRouter configuration
         shell: bash
         run: |
           set -euo pipefail
           test -d "$WAGRAM_APP_DIR"
           test -f "$SQLITE_PATH"
           test -f "$WAGRAM_APP_DIR/node_modules/better-sqlite3/package.json"
-          curl --fail --silent --show-error "$OLLAMA_URL/api/tags" >/dev/null
-          echo "VPS application, SQLite database, dependencies, and Ollama are reachable."
+          cd "$WAGRAM_APP_DIR"
+          node --input-type=module -e "import \"dotenv/config\"; if (!process.env.OPENROUTER_API_KEY) { console.error(\"OPENROUTER_API_KEY is missing from the VPS environment.\"); process.exit(1); } console.log(\"OpenRouter API key is configured.\");"
+          echo "VPS application, SQLite database, dependencies, and OpenRouter configuration are ready."
 
       - name: Run Premium C WAGRAM AI tests
         run: node "$GITHUB_WORKSPACE/.github/scripts/wagram-ai-live-test.mjs"
