@@ -114,8 +114,9 @@ Salin .env.example sebagai titik awal. Variabel yang tidak wajib memiliki nilai 
 | /me | Menampilkan informasi akun Telegram terdaftar. |
 | /status | Memeriksa status koneksi WhatsApp. |
 | /help | Menampilkan panduan penggunaan singkat. |
-| /connect | Memulai atau mengulang proses koneksi WhatsApp jika sesi belum tersambung. |
 | /set | Perintah administratif untuk membership dan pause; hanya untuk admin. |
+| /users | Menampilkan daftar pengguna; hanya untuk admin. |
+| /user TELEGRAM_ID | Melihat detail pengguna; hanya untuk admin. |
 
 ### Mini App
 1. Kirim /start ke bot Telegram.
