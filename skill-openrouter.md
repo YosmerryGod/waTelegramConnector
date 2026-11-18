@@ -11,7 +11,7 @@ Dokumen ini menjadi acuan utama pengembangan seluruh fitur AI WAGRAM. Jangan men
 
 ## 1. Tujuan dan ruang lingkup
 
-WAGRAM menggunakan AI lokal melalui OpenRouter untuk dua kebutuhan berbeda:
+WAGRAM menggunakan AI berbasis cloud melalui OpenRouter untuk dua kebutuhan berbeda:
 
 ### A. WAGRAM AI — asisten pemilik usaha
 
@@ -71,7 +71,7 @@ Tugas:
 
 ### 3.2 Target runtime
 
-Runtime produksi sudah menggunakan OpenRouter Chat Completions dengan struktur `messages` berisi role `system`, `user`, dan `assistant`. Tidak ada rencana migrasi dari endpoint OpenRouter `OpenRouter Chat Completions completions` ke `OpenRouter Chat Completions`.
+Runtime produksi sudah menggunakan OpenRouter Chat Completions dengan struktur `messages` berisi role `system`, `user`, dan `assistant`. Tidak ada rencana migrasi dari endpoint Ollama `/api/generate` ke `/api/chat`; runtime saat ini sudah memakai OpenRouter Chat Completions.
 
 Contoh endpoint:
 `https://openrouter.ai/api/v1/chat/completions`
