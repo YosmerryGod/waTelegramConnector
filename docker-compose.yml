@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wagram-connector
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      MINIAPP_API_HOST: 0.0.0.0
+      MINIAPP_API_PORT: 3000
+      WHATSAPP_AUTH_DIR: /app/auth
+      WHATSAPP_MEDIA_DIR: /app/data/media
+      SQLITE_PATH: /app/data/bridge.db
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./auth:/app/auth
+      - ./data:/app/data
