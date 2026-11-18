@@ -31,5 +31,8 @@ jobs:
           node --input-type=module -e 'import "dotenv/config"; if (!process.env.OPENROUTER_API_KEY) { console.error("OPENROUTER_API_KEY is missing from the VPS environment."); process.exit(1); } console.log("OpenRouter API key is configured.")'
           echo "VPS application, SQLite database, dependencies, and OpenRouter configuration are ready."
 
+      - name: Test read-only business tools and tenant isolation
+        run: node "$GITHUB_WORKSPACE/.github/scripts/wagram-ai-tools-test.mjs"
+
       - name: Run Premium C WAGRAM AI tests
         run: node "$GITHUB_WORKSPACE/.github/scripts/wagram-ai-live-test.mjs"
