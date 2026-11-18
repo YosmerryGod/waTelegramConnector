@@ -3513,7 +3513,7 @@
     sendAIBusinessMessage($("#aiBusinessInput")?.value || "");
   });
 
-  // [ADDED] Quick prompts use the same real Ollama request path as typed messages.
+  // [ADDED] Quick prompts use the same OpenRouter request path as typed messages.
   $("#aiBusinessIntro")?.addEventListener("click", (event) => {
     const suggestion = event.target.closest("[data-ai-prompt]");
     if (!suggestion) return;
