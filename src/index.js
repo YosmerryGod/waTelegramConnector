@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import pino from "pino";
 import express from "express";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
 
@@ -11,14 +13,12 @@ import { bot, createWhatsAppCallbacks } from "./telegram.js";
 
 import {
   getAllSessions,
-  getAllWhatsAppAccounts, // [ADDED] Restore every account allowed by its membership.
   updateWhatsAppAccountSession,
   cleanupForwardedMessages,
   closeDatabase,
   updateSession,
   getMembership,
   setFreePauseDate,
-  getAppSetting // [ADDED] Read persisted Free pause mode.
 } from "./database.js";
 
 import {
@@ -27,12 +27,10 @@ import {
   disconnectWhatsApp
 } from "./whatsapp.js";
 
-// [ADDED] Mini App REST API router.
 import miniAppApi, { verifyTelegramInitData } from "./miniapp-api.js";
 import { getUser } from "./database.js";
 import { addMiniAppClient, closeMiniAppClients, publishToMiniApp } from "./realtime.js";
 
-// [ADDED] Suppress verbose libsignal session dumps emitted directly to stdout.
 // Keep all other application logs and errors unchanged.
 const originalConsoleLog = console.log.bind(console);
 const originalConsoleInfo = console.info.bind(console);
@@ -47,13 +45,12 @@ console.info = (...args) => {
   if (!isVerboseSessionDump(args)) originalConsoleInfo(...args);
 };
 
-// [ADDED] Application configuration.
 const LOG_LEVEL = process.env.LOG_LEVEL || "warn";
+const FREE_PAUSE_HOUR = Number(process.env.FREE_PAUSE_HOUR || 8);
 const AUTH_DIR = path.resolve(
   process.env.WHATSAPP_AUTH_DIR || "./auth"
 );
 
-// [ADDED] API server configuration.
 const MINIAPP_API_HOST = process.env.MINIAPP_API_HOST || "127.0.0.1";
 const MINIAPP_API_PORT = Math.max(
   1,
@@ -62,19 +59,23 @@ const MINIAPP_API_PORT = Math.max(
 
 const logger = pino({
   level: LOG_LEVEL,
-  // [ADDED] Redact account/session identifiers from application logs.
   redact: {
     paths: ["telegramId", "*.telegramId"],
     censor: "[REDACTED]"
   }
 });
 
-// [ADDED] Express application and HTTP server.
 const app = express();
+app.use(helmet());
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: "draft-8",
+  legacyHeaders: false
+}));
 
 let apiServer = null;
 
-// [ADDED] Authenticated WebSocket endpoint for Mini App updates.
 const webSocketServer = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
 let webSocketHeartbeat = null;
 
@@ -85,7 +86,6 @@ webSocketServer.on("connection", (socket) => {
   socket.isAlive = true;
   socket.on("pong", () => { socket.isAlive = true; });
 
-  // [ADDED] initData is sent as the first frame, not in the URL or access logs.
   const authTimer = setTimeout(() => {
     if (!authenticated) socket.close(1008, "Authentication timeout");
   }, 5000);
@@ -126,15 +126,11 @@ webSocketServer.on("connection", (socket) => {
   });
 });
 
-// [ADDED] Prevent simultaneous shutdown execution.
 let shuttingDown = false;
 
-// [ADDED] Periodic cleanup timer.
 let cleanupTimer = null;
-// [ADDED] Dedicated scheduler for the 08:00 WITA Free-tier pause.
 let freePauseTimer = null;
 
-// [ADDED] Basic security headers for API responses.
 app.disable("x-powered-by");
 
 app.use((req, res, next) => {
@@ -143,13 +139,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// [ADDED] Parse JSON bodies for Mini App API requests.
-app.use(express.json({ limit: "8mb" })); // [MODIFIED] Allow payment proof image payloads.
 
-// [ADDED] Mount Mini App API.
 app.use("/api/miniapp", miniAppApi);
 
-// [ADDED] Root health endpoint for deployment checks.
 app.get("/health", (_req, res) => {
   res.json({
     ok: true,
@@ -157,7 +149,6 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// [ADDED] Handle unknown API endpoints.
 app.use("/api", (_req, res) => {
   res.status(404).json({
     ok: false,
@@ -165,7 +156,6 @@ app.use("/api", (_req, res) => {
   });
 });
 
-// [ADDED] Handle unexpected Express errors without exposing internals.
 app.use((error, _req, res, _next) => {
   logger.error(
     { err: error },
@@ -184,7 +174,6 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-// [ADDED] Check whether a user has a persisted WhatsApp auth directory.
 function hasSavedAuth(sessionId) {
   const authPath = path.join(AUTH_DIR, String(sessionId));
 
@@ -205,7 +194,6 @@ function hasSavedAuth(sessionId) {
   }
 }
 
-// [ADDED] Restore valid sessions for active Telegram users.
 async function restoreSessions() {
   const sessions = getAllWhatsAppAccounts().filter((session) => {
     const membership = getMembership(session.telegram_id);
@@ -226,7 +214,6 @@ async function restoreSessions() {
 
   await restoreWhatsAppSessions(
     sessions,
-    // [MODIFIED] Restore sessions quietly so PM2/server restarts do not spam Telegram.
     (telegramId, sessionId) => createWhatsAppCallbacks(telegramId, {
       silentStartup: true,
       sessionId
@@ -234,12 +221,10 @@ async function restoreSessions() {
   );
 }
 
-// [ADDED] Start the API server before restoring WhatsApp sessions.
 function startApiServer() {
   return new Promise((resolve, reject) => {
     const server = createServer(app);
 
-    // [ADDED] Verify Telegram initData before upgrading to WebSocket.
     server.on("upgrade", (request, socket, head) => {
       let requestUrl;
       try {
@@ -280,7 +265,6 @@ function startApiServer() {
 
     server.listen(MINIAPP_API_PORT, MINIAPP_API_HOST);
 
-    // [ADDED] Detect dead mobile WebSocket connections.
     webSocketHeartbeat = setInterval(() => {
       for (const socket of webSocketServer.clients) {
         if (socket.isAlive === false) {
@@ -295,7 +279,6 @@ function startApiServer() {
   });
 }
 
-// [ADDED] WITA calendar date and hour for the daily Free-tier pause.
 function getWitaClock() {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Makassar",
@@ -309,13 +292,11 @@ function getWitaClock() {
   return { date: `${values.year}-${values.month}-${values.day}`, hour: Number(values.hour) };
 }
 
-// [ADDED] Pause Free sessions at 08:00 WITA. Auth files are preserved.
 async function enforceFreeDailyPause() {
-  // [ADDED] The admin can disable the daily Free pause with /set time-normal.
   if (getAppSetting("free_daily_pause_enabled", "1") !== "1") return;
 
   const { date, hour } = getWitaClock();
-  if (hour < 14) return; // [MODIFIED] Temporary test pause time: 14:00 WITA.
+  if (hour < FREE_PAUSE_HOUR) return;
 
   for (const session of getAllSessions()) {
     if (session.connection_status !== "connected") continue;
@@ -337,7 +318,6 @@ async function enforceFreeDailyPause() {
   }
 }
 
-// [ADDED] Pause accounts that exceed the owner's current tier limit.
 async function enforceTierSessionLimits() {
   const grouped = new Map();
   for (const account of getAllWhatsAppAccounts()) {
@@ -377,7 +357,6 @@ async function enforceTierSessionLimits() {
   }
 }
 
-// [ADDED] Periodically remove expired message deduplication records.
 function startMaintenance() {
   freePauseTimer = setInterval(() => {
     void enforceFreeDailyPause();
@@ -406,7 +385,6 @@ function startMaintenance() {
   cleanupTimer.unref?.();
 }
 
-// [ADDED] Gracefully close the HTTP server.
 async function stopApiServer() {
   if (!apiServer) {
     return;
@@ -432,12 +410,10 @@ async function stopApiServer() {
       resolve();
     });
 
-    // [ADDED] Close idle HTTP connections where supported.
     server.closeIdleConnections?.();
   });
 }
 
-// [ADDED] Gracefully stop WhatsApp, API, Telegram polling, and SQLite.
 async function shutdown(signal) {
   if (shuttingDown) {
     return;
@@ -457,7 +433,6 @@ async function shutdown(signal) {
   }
 
   try {
-    // [ADDED] Stop accepting new API requests.
     try {
       await stopApiServer();
     } catch (error) {
@@ -467,11 +442,9 @@ async function shutdown(signal) {
       );
     }
 
-    // [MODIFIED] Stop sockets while preserving saved authentication.
     const sessionsBeforeShutdown = getAllSessions();
     await shutdownWhatsApp();
 
-    // [MODIFIED] A server restart is not a daily Free-tier pause.
     // Preserve sessions already paused by the scheduler; mark other sessions
     // disconnected so valid saved credentials can be restored on startup.
     for (const session of sessionsBeforeShutdown) {
@@ -508,14 +481,11 @@ async function shutdown(signal) {
   }
 }
 
-// [ADDED] Start the application.
 async function main() {
   logger.info("Starting WhatsApp Telegram Bridge.");
 
-  // [ADDED] Ensure the authentication directory exists.
   fs.mkdirSync(AUTH_DIR, { recursive: true });
 
-  // [ADDED] Register graceful shutdown handlers.
   process.once("SIGINT", () => {
     void shutdown("SIGINT");
   });
@@ -540,7 +510,6 @@ async function main() {
     );
   });
 
-  // [ADDED] Clean up stale deduplication records at startup.
   try {
     cleanupForwardedMessages();
   } catch (error) {
@@ -552,7 +521,6 @@ async function main() {
 
   startMaintenance();
 
-  // [ADDED] Start the API before restoring WhatsApp sessions.
   await startApiServer();
 
   // Telegram polling starts when telegram.js is imported.
