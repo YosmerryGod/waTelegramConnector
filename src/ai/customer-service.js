@@ -2,6 +2,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import db from "../database.js";
+import { WAGRAM_TOOL_DECLARATIONS, executeWagramTool } from "./tools.js";
 import {
   getMembership,
   canonicalWhatsAppSessionId,
@@ -742,6 +743,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
 
   const tools = [{
     functionDeclarations: [
+      ...WAGRAM_TOOL_DECLARATIONS,
       {
         name: "read_business_profile",
         description: "Read the authenticated owner's saved business information when additional facts are needed.",
@@ -796,6 +798,18 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   }}];
 
   const executeTool = (name, args) => {
+    if (["get_business_profile", "list_products", "cek_stok"].includes(name)) {
+      const result = executeWagramTool(name, args || {}, { telegramId, sessionId });
+      toolAudit.push({
+        tool: name,
+        resultSummary: name === "list_products"
+          ? String(result.length) + " products"
+          : name === "cek_stok"
+            ? (result.found ? String(result.products.length) + " matching product" : "not found")
+            : Object.keys(result)
+      });
+      return result;
+    }
     if (name === "read_business_profile") {
       const allowed = new Set(["manager", "outlets", "products", "payment", "aiRules"]);
       const sections = Array.isArray(args?.sections) ? args.sections.filter((item) => allowed.has(item)) : [];
