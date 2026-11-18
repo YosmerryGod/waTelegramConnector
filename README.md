@@ -46,7 +46,7 @@
 - Akun Telegram dan bot token dari BotFather.
 - OpenRouter API key untuk fitur AI.
 - Akun WhatsApp yang akan ditautkan. Perhatikan disclaimer Baileys.
-- Ollama tidak diperlukan; AI dijalankan melalui OpenRouter.
+- AI dijalankan melalui OpenRouter.
 
 ## Installation
 1. Clone repository:
