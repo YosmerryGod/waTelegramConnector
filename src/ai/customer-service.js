@@ -171,6 +171,17 @@ function assertEnabled(telegramId, sessionId) {
 
 // [MODIFIED] All AI text generation now uses the OpenRouter API.
 // [MODIFIED] OpenRouter adapter preserves the existing WAGRAM AI conversation and tool workflow.
+function normalizeToolSchema(schema) {
+  if (Array.isArray(schema)) return schema.map(normalizeToolSchema);
+  if (!schema || typeof schema !== "object") return schema;
+  return Object.fromEntries(Object.entries(schema).map(([key, value]) => [
+    key,
+    key === "type" && typeof value === "string"
+      ? value.toLowerCase()
+      : normalizeToolSchema(value)
+  ]));
+}
+
 async function openRouterGenerate(contents, options = {}) {
   if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY_MISSING");
   const messages = [];
@@ -218,7 +229,7 @@ async function openRouterGenerate(contents, options = {}) {
         function: {
           name: String(declaration.name || ""),
           description: String(declaration.description || ""),
-          parameters: declaration.parameters || { type: "object", properties: {} }
+          parameters: normalizeToolSchema(declaration.parameters || { type: "object", properties: {} })
         }
       })))
     : undefined;
