@@ -140,6 +140,7 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
 
   try {
     args = validateArguments(name, rawArgs);
+    outcome = "error";
     const profile = getAIBusinessProfile(context.telegramId, context.sessionId);
     const settings = profile?.settings && typeof profile.settings === "object"
       ? profile.settings
