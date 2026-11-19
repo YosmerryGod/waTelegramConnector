@@ -4,27 +4,38 @@
 (() => {
   "use strict";
 
-  const API_BASE = String(window.MINIAPP_API_BASE || "/api/miniapp").replace(/\/+$/, "");
+  const API_BASE = String(window.MINIAPP_API_BASE || "/api/miniapp").replace(/\\/+$/, "");
   const HISTORY_KEY = "wagram-ai-business-history-v1";
   const ACTIVE_SESSION_KEY = "wagram-active-whatsapp-session";
   let observer = null;
   let modal = null;
+  let noticeTimer = null;
 
   const escapeHTML = (value) => String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+  function activeSessionId() {
+    return localStorage.getItem(ACTIVE_SESSION_KEY) || "default";
+  }
 
   function getHistory() {
     try {
       const all = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
-      const sessionId = localStorage.getItem(ACTIVE_SESSION_KEY) || "default";
-      const history = all[String(sessionId)];
+      const history = all[activeSessionId()];
       return Array.isArray(history) ? history.slice(-30) : [];
     } catch {
       return [];
+    }
+  }
+
+  function saveHistory(history) {
+    try {
+      const all = JSON.parse(localStorage.getItem(HISTORY_KEY) || "{}");
+      all[activeSessionId()] = history.slice(-30);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(all));
+    } catch {
+      throw new Error("Riwayat chat tidak dapat disimpan di perangkat ini.");
     }
   }
 
@@ -37,21 +48,16 @@
     };
   }
 
-  async function saveCorrection(question, idealAnswer) {
-    const response = await fetch(API_BASE + "/ai-business/examples", {
+  async function requestJSON(path, body) {
+    const response = await fetch(API_BASE + path, {
       method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify({
-        question,
-        idealAnswer,
-        intent: "owner_correction",
-        data: { source: "wamo_ai_reply_correction" }
-      })
+      body: JSON.stringify(body)
     });
     let result = {};
     try { result = await response.json(); } catch {}
     if (!response.ok || result.ok === false) {
-      throw new Error(result.message || "Koreksi belum berhasil disimpan.");
+      throw new Error(result.message || "Permintaan belum berhasil disimpan.");
     }
     return result;
   }
@@ -66,12 +72,118 @@
     }
     notice.textContent = message;
     notice.classList.add("is-visible");
-    window.setTimeout(() => notice.classList.remove("is-visible"), 2600);
+    if (noticeTimer) window.clearTimeout(noticeTimer);
+    noticeTimer = window.setTimeout(() => notice.classList.remove("is-visible"), 2800);
   }
 
   function closeModal() {
     if (modal) modal.remove();
     modal = null;
+  }
+
+  function appendChatMessage(role, content) {
+    const history = getHistory();
+    const time = new Intl.DateTimeFormat("id-ID", { hour: "2-digit", minute: "2-digit" }).format(new Date());
+    history.push({ role, content, time });
+    saveHistory(history);
+    const container = document.getElementById("aiBusinessMessages");
+    const intro = document.getElementById("aiBusinessIntro");
+    if (intro) intro.classList.add("hidden");
+    if (container) {
+      const bubble = document.createElement("div");
+      bubble.className = "message " + (role === "user" ? "outgoing" : "ai-business-reply");
+      bubble.innerHTML = '<div class="message-text">' + escapeHTML(content) + '</div><div class="message-time">' + escapeHTML(time) + '</div>';
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+    }
+    decorateReplies();
+  }
+
+  function parsePrice(raw, multiplier) {
+    const digits = String(raw || "").replace(/[^0-9]/g, "");
+    if (!digits) return null;
+    const amount = Number(digits) * (multiplier || 1);
+    return Number.isSafeInteger(amount) && amount <= 1000000000000 ? amount : null;
+  }
+
+  function parseProductCommand(raw) {
+    const text = String(raw || "").trim();
+    const actionMatch = text.match(/^(tambahkan|tambah|catat|input|masukkan|ubah|update|perbarui)\\s+(?:menu|produk)\\s+/i);
+    if (!actionMatch) return null;
+
+    const match = text.match(/^(tambahkan|tambah|catat|input|masukkan|ubah|update|perbarui)\\s+(?:menu|produk)\\s+(.+?)\\s*[,;]\\s*harga\\s*(?:rp\\.?\\s*)?([0-9][0-9.,]*)\\s*(ribu|rb|k)?\\s*[,;]\\s*stok\\s*([0-9]+)\\s*$/i);
+    if (!match) return { invalid: true };
+
+    const action = /^(ubah|update|perbarui)$/i.test(match[1]) ? "update" : "create";
+    const name = String(match[2] || "").trim().replace(/[.,;]+$/, "");
+    const multiplier = /^(ribu|rb|k)$/i.test(match[4] || "") ? 1000 : 1;
+    const price = parsePrice(match[3], multiplier);
+    const stock = Number(match[5]);
+    if (!name || name.length > 120 || price === null || !Number.isSafeInteger(stock) || stock < 0 || stock > 100000000) {
+      return { invalid: true };
+    }
+    return { action, product: { name, price, stock } };
+  }
+
+  function openProductConfirmation(command, originalText, submitButton) {
+    closeModal();
+    modal = document.createElement("div");
+    modal.className = "wamo-correction-modal";
+    const actionLabel = command.action === "create" ? "Tambahkan produk" : "Ubah produk";
+    modal.innerHTML = `
+      <button class="wamo-correction-backdrop" type="button" data-correction-close aria-label="Tutup"></button>
+      <section class="wamo-correction-panel" role="dialog" aria-modal="true" aria-labelledby="wamoDataChangeTitle">
+        <header>
+          <div><small>PERUBAHAN DATA BISNIS</small><h2 id="wamoDataChangeTitle">Konfirmasi perubahan</h2></div>
+          <button type="button" class="wamo-correction-close" data-correction-close aria-label="Tutup">×</button>
+        </header>
+        <div class="wamo-correction-question"><strong>${actionLabel}</strong>
+          <p>Nama: ${escapeHTML(command.product.name)}</p>
+          <p>Harga: Rp${command.product.price.toLocaleString("id-ID")}</p>
+          <p>Stok: ${command.product.stock}</p>
+        </div>
+        <p class="wamo-correction-question">Data hanya disimpan setelah kamu menekan tombol konfirmasi.</p>
+        <div class="wamo-correction-actions">
+          <button type="button" data-correction-close class="wamo-correction-cancel">Batal</button>
+          <button type="button" id="wamoDataChangeConfirm" class="wamo-correction-save">Konfirmasi & simpan</button>
+        </div>
+      </section>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (event) => {
+      if (event.target.closest("[data-correction-close]")) closeModal();
+    });
+
+    const confirm = modal.querySelector("#wamoDataChangeConfirm");
+    confirm.addEventListener("click", async () => {
+      confirm.disabled = true;
+      confirm.textContent = "Menyimpan…";
+      try {
+        const result = await requestJSON("/ai-business/data-change", {
+          action: command.action,
+          product: command.product
+        });
+        closeModal();
+        appendChatMessage("user", originalText);
+        appendChatMessage("assistant", (result.action === "create" ? "Produk berhasil ditambahkan: " : "Produk berhasil diperbarui: ") +
+          result.product.name + " · Rp" + Number(result.product.price).toLocaleString("id-ID") +
+          " · Stok " + result.product.stock + ".");
+        if (submitButton) submitButton.disabled = false;
+        showNotice("Data produk tersimpan di profil bisnis sesi ini.");
+      } catch (error) {
+        confirm.disabled = false;
+        confirm.textContent = "Konfirmasi & simpan";
+        showNotice(error.message || "Perubahan data gagal disimpan.");
+      }
+    });
+  }
+
+  async function saveCorrection(question, idealAnswer) {
+    return requestJSON("/ai-business/examples", {
+      question,
+      idealAnswer,
+      intent: "owner_correction",
+      data: { source: "wamo_ai_reply_correction" }
+    });
   }
 
   function openCorrection(index, button) {
@@ -203,10 +315,33 @@
     document.head.appendChild(style);
   }
 
+  function bindProductCommand() {
+    const form = document.getElementById("aiBusinessComposer");
+    const input = document.getElementById("aiBusinessInput");
+    const button = document.getElementById("sendAIBusinessMessageButton");
+    if (!form || form.dataset.wamoDataChangeBound === "true") return;
+    form.dataset.wamoDataChangeBound = "true";
+    form.addEventListener("submit", (event) => {
+      const text = String(input?.value || "").trim();
+      if (!text) return;
+      const command = parseProductCommand(text);
+      if (!command) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (command.invalid) {
+        showNotice("Format: Tambahkan menu Nama Produk, harga 25 ribu, stok 30.");
+        return;
+      }
+      if (input) input.value = "";
+      openProductConfirmation(command, text, button);
+    }, true);
+  }
+
   function init() {
     const container = document.getElementById("aiBusinessMessages");
     if (!container) return;
     installStyles();
+    bindProductCommand();
     decorateReplies();
     observer?.disconnect();
     observer = new MutationObserver(decorateReplies);
