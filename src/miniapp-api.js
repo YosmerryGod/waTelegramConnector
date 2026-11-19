@@ -16,7 +16,6 @@ import {
   learnAICustomerServiceHistory,
   createAICustomerServiceSuggestion,
   createAIBusinessReply, // [MODIFIED] WAGRAM AI Business chat powered by OpenRouter.
-  createAIBusinessTrainingQuestion, // [MODIFIED] OpenRouter-generated simulated customer for owner training.
   checkOpenRouterHealth
 } from "./ai/customer-service.js";
 
@@ -2036,33 +2035,7 @@ router.post("/ai-business/examples", (req, res) => {
   }
 });
 
-/* [ADDED] Generate the next simulated customer message and save the owner's previous training answer. */
-router.post("/ai-business/training-question", async (req, res) => {
-  try {
-    const membership = getMembership(req.telegramId);
-    if (membership?.plan !== "premium-c") {
-      return res.status(403).json({ ok: false, error: "AI_BUSINESS_REQUIRES_PREMIUM_C" });
-    }
-    const previousQuestion = String(req.body?.previousQuestion || "").trim();
-    const ownerAnswer = String(req.body?.ownerAnswer || "").trim();
-    if (previousQuestion.length > 4000 || ownerAnswer.length > 2000 || Boolean(previousQuestion) !== Boolean(ownerAnswer)) {
-      return res.status(400).json({ ok: false, error: "INVALID_AI_BUSINESS_TRAINING_TURN" });
-    }
-    const result = await createAIBusinessTrainingQuestion(
-      req.telegramId,
-      req.sessionId,
-      previousQuestion,
-      ownerAnswer
-    );
-    res.setHeader("Cache-Control", "no-store");
-    return res.json({ ok: true, ...result });
-  } catch (error) {
-    const status = error.status || 500;
-    console.error("[WAGRAM AI Training] Request failed:", error.message);
-    return res.status(status).json({ ok: false, error: error.message || "AI_BUSINESS_TRAINING_FAILED" });
-  }
-});
-
+/* [MODIFIED] WAMO AI exposes only the standard chat endpoint; training route removed. */
 /* [ADDED] WAGRAM AI Business chat. Premium expiry is enforced server-side by getMembership(). */
 router.post("/ai-business/chat", async (req, res) => {
   try {
