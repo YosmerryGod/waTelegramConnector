@@ -2744,8 +2744,6 @@
     $("#backButton").addEventListener("click", () => setPage("chats"));
     // [ADDED] Return from the WAMO AI page to the chat list.
     $("#backFromAIBusinessButton")?.addEventListener("click", () => setPage("chats"));
-    // [ADDED] Restore the current session's training indicator when opening WAMO AI.
-    renderAIBusinessTrainingState();
     // [MODIFIED] Restore chat and migrate legacy local settings to the server when opening WAMO AI.
     $("#openAIBusinessButton")?.addEventListener("click", async () => {
       renderAIBusinessHistory();
@@ -2769,32 +2767,6 @@
       const isOpen = !menu?.classList.contains("hidden");
       menu?.classList.toggle("hidden", isOpen);
       button?.setAttribute("aria-expanded", String(!isOpen));
-    });
-    // [MODIFIED] Toggle AI training in the existing WAMO AI chat, with OpenRouter simulating customers.
-    $("#toggleAIBusinessTrainingButton")?.addEventListener("click", async () => {
-      $("#aiBusinessMoreMenu")?.classList.add("hidden");
-      $("#aiBusinessMoreButton")?.setAttribute("aria-expanded", "false");
-      const active = isAIBusinessTrainingActive();
-      if (active) {
-        setAIBusinessTrainingActive(false);
-        showToast("Mode Training diakhiri.");
-        return;
-      }
-      if (aiBusinessSettingsSyncedSession !== String(state.activeSessionId || "default")) {
-        try {
-          await syncAIBusinessSettingsFromServer();
-        } catch (error) {
-          showToast(error.message || "Data bisnis belum berhasil dimuat dari server.");
-          return;
-        }
-      }
-      setAIBusinessTrainingActive(true);
-      try {
-        await requestAIBusinessTrainingQuestion();
-      } catch (error) {
-        setAIBusinessTrainingActive(false);
-        showToast(error.message || "Mode Training gagal dimulai.");
-      }
     });
     // [ADDED] Clear only the current WhatsApp session's local AI conversation history.
     $("#clearAIBusinessHistoryButton")?.addEventListener("click", async () => {
@@ -3326,55 +3298,6 @@
     }
   }
 
-  // [ADDED] Persist training mode independently for each WhatsApp session.
-  const AI_BUSINESS_TRAINING_KEY = "wagram-ai-business-training-v1";
-
-  function isAIBusinessTrainingActive() {
-    try {
-      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_TRAINING_KEY) || "{}");
-      return Boolean(all[String(state.activeSessionId || "default")]);
-    } catch {
-      return false;
-    }
-  }
-
-  function setAIBusinessTrainingActive(active) {
-    try {
-      const all = JSON.parse(localStorage.getItem(AI_BUSINESS_TRAINING_KEY) || "{}");
-      all[String(state.activeSessionId || "default")] = Boolean(active);
-      localStorage.setItem(AI_BUSINESS_TRAINING_KEY, JSON.stringify(all));
-    } catch {
-      showToast("Mode training tidak dapat disimpan di perangkat ini.");
-    }
-    renderAIBusinessTrainingState();
-  }
-
-  function renderAIBusinessTrainingState() {
-    const active = isAIBusinessTrainingActive();
-    const label = $("#aiBusinessTrainingMenuLabel");
-    const status = $("#aiBusinessStatusText");
-    const button = $("#toggleAIBusinessTrainingButton");
-    const input = $("#aiBusinessInput");
-    if (label) label.textContent = active ? "Akhiri Mode Training" : "Mode Training";
-    if (status) status.textContent = active ? "Training · AI menjadi konsumen" : "Asisten bisnis";
-    if (button) button.classList.toggle("is-training-active", active);
-    if (input) input.placeholder = active ? "Jawab sebagai pemilik usaha…" : "Ketik pesan…";
-    $("#aiBusinessPage")?.classList.toggle("ai-business-training-active", active);
-  }
-
-  async function requestAIBusinessTrainingQuestion(previousQuestion = "", ownerAnswer = "") {
-    const result = await api("/ai-business/training-question", {
-      method: "POST",
-      body: JSON.stringify({ previousQuestion, ownerAnswer })
-    });
-    const question = String(result.question || "").trim();
-    if (!question) throw new Error("AI belum menghasilkan pertanyaan konsumen.");
-    const history = getAIBusinessHistory();
-    history.push({ role: "training_customer", content: question, time: timeOnly(Date.now()) });
-    saveAIBusinessHistory(history);
-    renderAIBusinessHistory();
-  }
-
   function renderAIBusinessHistory() {
     const messages = $("#aiBusinessMessages");
     if (!messages) return;
@@ -3412,9 +3335,7 @@
             <div class="message-time">${escapeHTML(item.time || "")}</div>
           </div>`;
       }
-      // [ADDED] Training customer prompts appear as incoming messages in this same chat.
-      if (item.role === "training_customer") {
-        return `
+      return `
           <div class="message ai-business-reply ai-business-training-customer">
             <div class="ai-business-training-sender">Konsumen simulasi</div>
             <div class="message-text">${escapeHTML(item.content)}</div>
@@ -3452,8 +3373,8 @@
     if (intro) intro.classList.add("hidden");
     const history = getAIBusinessHistory();
     const timestamp = timeOnly(Date.now());
-    // [MODIFIED] Keep owner training answers separate from normal assistant conversation context.
-    history.push({ role: isAIBusinessTrainingActive() ? "training_owner" : "user", content: text, time: timestamp });
+    // [MODIFIED] WAMO AI now uses one standard conversation flow; training mode is removed.
+    history.push({ role: "user", content: text, time: timestamp });
     saveAIBusinessHistory(history);
     renderAIBusinessHistory();
 
@@ -3474,24 +3395,19 @@
     messages.scrollTop = messages.scrollHeight;
 
     try {
-      if (isAIBusinessTrainingActive()) {
-        const previousCustomerMessage = [...history.slice(0, -1)].reverse().find((item) => item.role === "training_customer");
-        await requestAIBusinessTrainingQuestion(previousCustomerMessage?.content || "", text);
-      } else {
-        const result = await api("/ai-business/chat", {
-          method: "POST",
-          body: JSON.stringify({
-            message: text,
-            history: history.slice(0, -1).filter((item) => item.role !== "training_customer" && item.role !== "training_owner").map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
-          })
-        });
-        const reply = String(result.reply || "").trim();
-        if (!reply) throw new Error("WAMO AI mengirim jawaban kosong.");
-        const updated = getAIBusinessHistory();
-        updated.push({ role: "assistant", content: reply, qrisImage: Boolean(result.qrisImage), time: timeOnly(Date.now()), trace: result.trace || null });
-        saveAIBusinessHistory(updated);
-        renderAIBusinessHistory();
-      }
+      const result = await api("/ai-business/chat", {
+        method: "POST",
+        body: JSON.stringify({
+          message: text,
+          history: history.slice(0, -1).map((item) => ({ role: item.role === "user" ? "user" : "assistant", content: item.content }))
+        })
+      });
+      const reply = String(result.reply || "").trim();
+      if (!reply) throw new Error("WAMO AI mengirim jawaban kosong.");
+      const updated = getAIBusinessHistory();
+      updated.push({ role: "assistant", content: reply, qrisImage: Boolean(result.qrisImage), time: timeOnly(Date.now()), trace: result.trace || null });
+      saveAIBusinessHistory(updated);
+      renderAIBusinessHistory();
     } catch (error) {
       document.getElementById(typingId)?.remove();
       messages.insertAdjacentHTML("beforeend", `
@@ -5022,7 +4938,6 @@
       setPage(lastPage);
       if (lastPage === "aiBusiness") {
         renderAIBusinessHistory();
-        renderAIBusinessTrainingState();
         syncAIBusinessSettingsFromServer().catch((error) => {
           console.warn("Could not restore WAMO AI settings:", error.message);
         });
