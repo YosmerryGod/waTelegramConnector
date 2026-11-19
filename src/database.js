@@ -2314,7 +2314,7 @@ export function findAIBusinessExamples(telegramId, sessionId, intent, limit = 3)
     LIMIT ?
   `).all(
     String(telegramId), canonicalWhatsAppSessionId(telegramId, sessionId || telegramId),
-    intent || null, intent || null, Math.max(1, Math.min(3, Number(limit) || 3))
+    intent || null, intent || null, Math.max(1, Math.min(100, Number(limit) || 3))
   ).map((row) => {
     let data = {};
     try { data = JSON.parse(row.data_json); } catch {}
