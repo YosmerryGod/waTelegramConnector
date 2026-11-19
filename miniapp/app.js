@@ -3336,13 +3336,6 @@
           </div>`;
       }
       return `
-          <div class="message ai-business-reply ai-business-training-customer">
-            <div class="ai-business-training-sender">Konsumen simulasi</div>
-            <div class="message-text">${escapeHTML(item.content)}</div>
-            <div class="message-time">${escapeHTML(item.time || "")}</div>
-          </div>`;
-      }
-      return `
         <div class="message ${item.role === "user" || item.role === "training_owner" ? "outgoing" : "ai-business-reply"}">
           <div class="message-text">${escapeHTML(item.content)}</div>
           ${trace}
