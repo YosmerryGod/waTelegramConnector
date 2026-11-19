@@ -341,7 +341,7 @@
     const container = document.getElementById("aiBusinessMessages");
     if (!container) return;
     installStyles();
-    bindProductCommand();
+    // [MODIFIED] Product and business-data requests must reach the AI chat; do not intercept composer submissions.
     decorateReplies();
     observer?.disconnect();
     observer = new MutationObserver(decorateReplies);
