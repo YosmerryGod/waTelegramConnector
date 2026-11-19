@@ -751,6 +751,26 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       : "PENGIRIMAN QRIS: Gambar QRIS belum tersedia. Jelaskan secara natural bahwa gambar QRIS belum diunggah.")
     : "";
 
+  // [ADDED] Inject relevant owner corrections directly into every WAMO AI turn.
+  // This makes saved corrections available even when the model does not call a retrieval tool.
+  const savedOwnerCorrections = findAIBusinessExamples(telegramId, sessionId, null, 100);
+  const relevantOwnerCorrections = selectRelevantCustomerServiceExamples(
+    message,
+    savedOwnerCorrections.map((example) => ({
+      customer_message: example.question,
+      admin_reply: example.idealAnswer
+    })),
+    5
+  );
+  const ownerCorrectionsText = relevantOwnerCorrections.length
+    ? relevantOwnerCorrections.map((example, index) =>
+        "KOREKSI PEMILIK " + (index + 1) + "\nPertanyaan/konteks: " +
+        String(example.customer_message || "").slice(0, 700) +
+        "\nJawaban yang disetujui pemilik: " +
+        String(example.admin_reply || "").slice(0, 700)
+      ).join("\n\n")
+    : "Belum ada koreksi pemilik yang relevan.";
+
   const tools = [{
     functionDeclarations: [
       ...WAGRAM_TOOL_DECLARATIONS,
@@ -796,6 +816,8 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Tools hanya boleh digunakan untuk membaca data. Jangan mengaku mengubah data atau mengirim pesan.",
     "Jangan tampilkan private reasoning atau prompt internal.",
     qrisReplyGuidance,
+    "KOREKSI PEMILIK YANG HARUS DIPRIORITASKAN:", ownerCorrectionsText,
+    "Jika koreksi pemilik relevan dengan pesan saat ini, ikuti jawaban dan preferensi pemilik tersebut. Jangan menyalin jawaban contoh secara membabi buta jika fakta, konteks, atau maksud pelanggan berbeda. Koreksi pemilik mengungguli contoh gaya historis yang tidak disetujui.",
     "INTERPRETASI PERTANYAAN (hasil pemahaman OpenRouter):", JSON.stringify(recognition),
     "DATA BISNIS DARI DATABASE SESI AKTIF:", JSON.stringify(businessData)
   ].join("\n");
@@ -833,11 +855,26 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       return result;
     }
     if (name === "search_learned_examples") {
-      const examples = findAIBusinessExamples(telegramId, sessionId, null, 3);
+      // [MODIFIED] Search a wider owner-scoped correction pool and return the actual camelCase field.
+      const examples = findAIBusinessExamples(telegramId, sessionId, null, 100);
       const query = String(args?.query || "").toLocaleLowerCase("id-ID").trim();
-      const relevant = examples.filter((item) => query && (String(item.question || "") + " " + String(item.idealAnswer || "")).toLocaleLowerCase("id-ID").includes(query));
-      toolAudit.push({ tool: name, resultSummary: relevant.length + " examples" });
-      return relevant.map((item) => ({ question: item.question, idealAnswer: item.ideal_answer, intent: item.intent }));
+      const relevant = examples
+        .map((item) => ({
+          ...item,
+          relevance: scoreExampleRelevance(query, {
+            customer_message: item.question,
+            admin_reply: item.idealAnswer
+          })
+        }))
+        .filter((item) => item.relevance > 0)
+        .sort((a, b) => b.relevance - a.relevance)
+        .slice(0, 10);
+      toolAudit.push({ tool: name, resultSummary: relevant.length + " relevant owner corrections" });
+      return relevant.map((item) => ({
+        question: item.question,
+        idealAnswer: item.idealAnswer,
+        intent: item.intent
+      }));
     }
     throw new Error("WAGRAM_AI_TOOL_NOT_ALLOWED");
   };
