@@ -63,6 +63,7 @@ const logger = pino({
   }
 });
 const app = express();
+app.set("trust proxy", "loopback"); // [ADDED] Trust only a local reverse proxy for client IP resolution.
 app.use(helmet());
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
