@@ -3281,8 +3281,20 @@
   function getAIBusinessHistory() {
     try {
       const all = JSON.parse(localStorage.getItem(AI_BUSINESS_HISTORY_KEY) || "{}");
-      const history = all[String(state.activeSessionId || "default")];
-      return Array.isArray(history) ? history.slice(-30) : [];
+      const sessionKey = String(state.activeSessionId || "default");
+      const history = all[sessionKey];
+      if (!Array.isArray(history)) return [];
+      // [MODIFIED] Remove legacy training/simulated-customer messages from existing local chat history.
+      const standardHistory = history.filter((item) => (
+        !String(item?.role || "").startsWith("training_") &&
+        item?.training !== true &&
+        item?.simulatedCustomer !== true
+      ));
+      if (standardHistory.length !== history.length) {
+        all[sessionKey] = standardHistory.slice(-30);
+        localStorage.setItem(AI_BUSINESS_HISTORY_KEY, JSON.stringify(all));
+      }
+      return standardHistory.slice(-30);
     } catch {
       return [];
     }
@@ -3336,7 +3348,7 @@
           </div>`;
       }
       return `
-        <div class="message ${item.role === "user" || item.role === "training_owner" ? "outgoing" : "ai-business-reply"}">
+        <div class="message ${item.role === "user" ? "outgoing" : "ai-business-reply"}">
           <div class="message-text">${escapeHTML(item.content)}</div>
           ${trace}
           <div class="message-time">${escapeHTML(item.time || "")}</div>
