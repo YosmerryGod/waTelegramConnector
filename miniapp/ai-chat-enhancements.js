@@ -4,7 +4,7 @@
 (() => {
   "use strict";
 
-  const API_BASE = String(window.MINIAPP_API_BASE || "/api/miniapp").replace(/\\/+$/, "");
+  const API_BASE = String(window.MINIAPP_API_BASE || "/api/miniapp").replace(/\/+$/, "");
   const HISTORY_KEY = "wagram-ai-business-history-v1";
   const ACTIVE_SESSION_KEY = "wagram-active-whatsapp-session";
   let observer = null;
@@ -108,10 +108,10 @@
 
   function parseProductCommand(raw) {
     const text = String(raw || "").trim();
-    const actionMatch = text.match(/^(tambahkan|tambah|catat|input|masukkan|ubah|update|perbarui)\\s+(?:menu|produk)\\s+/i);
+    const actionMatch = text.match(/^(tambahkan|tambah|catat|input|masukkan|ubah|update|perbarui)\s+(?:menu|produk)\s+/i);
     if (!actionMatch) return null;
 
-    const match = text.match(/^(tambahkan|tambah|catat|input|masukkan|ubah|update|perbarui)\\s+(?:menu|produk)\\s+(.+?)\\s*[,;]\\s*harga\\s*(?:rp\\.?\\s*)?([0-9][0-9.,]*)\\s*(ribu|rb|k)?\\s*[,;]\\s*stok\\s*([0-9]+)\\s*$/i);
+    const match = text.match(/^(tambahkan|tambah|catat|input|masukkan|ubah|update|perbarui)\s+(?:menu|produk)\s+(.+?)\s*[,;]\s*harga\s*(?:rp\.?\s*)?([0-9][0-9.,]*)\s*(ribu|rb|k)?\s*[,;]\s*stok\s*([0-9]+)\s*$/i);
     if (!match) return { invalid: true };
 
     const action = /^(ubah|update|perbarui)$/i.test(match[1]) ? "update" : "create";
