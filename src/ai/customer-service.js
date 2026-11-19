@@ -835,7 +835,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     if (name === "search_learned_examples") {
       const examples = findAIBusinessExamples(telegramId, sessionId, null, 3);
       const query = String(args?.query || "").toLocaleLowerCase("id-ID").trim();
-      const relevant = examples.filter((item) => query && (String(item.question || "") + " " + String(item.ideal_answer || "")).toLocaleLowerCase("id-ID").includes(query));
+      const relevant = examples.filter((item) => query && (String(item.question || "") + " " + String(item.idealAnswer || "")).toLocaleLowerCase("id-ID").includes(query));
       toolAudit.push({ tool: name, resultSummary: relevant.length + " examples" });
       return relevant.map((item) => ({ question: item.question, idealAnswer: item.ideal_answer, intent: item.intent }));
     }
