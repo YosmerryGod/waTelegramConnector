@@ -2035,6 +2035,70 @@ router.post("/ai-business/examples", (req, res) => {
   }
 });
 
+/* [ADDED] Apply an explicitly confirmed product change to the authenticated owner's active business profile. */
+router.post("/ai-business/data-change", (req, res) => {
+  try {
+    const membership = getMembership(req.telegramId);
+    if (membership?.plan !== "premium-c") {
+      return res.status(403).json({ ok: false, error: "AI_BUSINESS_REQUIRES_PREMIUM_C", message: "WAMO AI membutuhkan Premium 30 hari yang masih aktif." });
+    }
+
+    const action = String(req.body?.action || "").trim();
+    const product = req.body?.product;
+    if (!["create", "update"].includes(action) || !product || typeof product !== "object" || Array.isArray(product)) {
+      return res.status(400).json({ ok: false, error: "INVALID_AI_BUSINESS_DATA_CHANGE" });
+    }
+
+    const name = String(product.name || "").trim();
+    const price = Number(product.price);
+    const stock = Number(product.stock);
+    if (!name || name.length > 120 || !Number.isSafeInteger(price) || price < 0 || price > 1000000000000 ||
+        !Number.isSafeInteger(stock) || stock < 0 || stock > 100000000) {
+      return res.status(400).json({ ok: false, error: "INVALID_AI_BUSINESS_PRODUCT", message: "Nama, harga, atau stok produk tidak valid." });
+    }
+
+    const profile = getAIBusinessProfile(req.telegramId, req.sessionId);
+    const settings = profile?.settings && typeof profile.settings === "object" ? profile.settings : {};
+    const products = Array.isArray(settings.products) ? settings.products.slice(0, 100) : [];
+    const normalizedName = name.toLocaleLowerCase("id-ID");
+    const existingIndex = products.findIndex((item) =>
+      String(item?.name || "").trim().toLocaleLowerCase("id-ID") === normalizedName
+    );
+
+    if (action === "create" && existingIndex >= 0) {
+      return res.status(409).json({ ok: false, error: "AI_BUSINESS_PRODUCT_ALREADY_EXISTS", message: "Produk dengan nama tersebut sudah ada. Gunakan perintah ubah produk." });
+    }
+    if (action === "create" && products.length >= 100) {
+      return res.status(409).json({ ok: false, error: "AI_BUSINESS_PRODUCT_LIMIT_REACHED", message: "Maksimal 100 produk dapat disimpan." });
+    }
+    if (action === "update" && existingIndex < 0) {
+      return res.status(404).json({ ok: false, error: "AI_BUSINESS_PRODUCT_NOT_FOUND", message: "Produk yang ingin diubah tidak ditemukan." });
+    }
+
+    const savedProduct = {
+      ...(existingIndex >= 0 ? products[existingIndex] : {}),
+      name,
+      price,
+      stock
+    };
+    if (action === "create") products.push(savedProduct);
+    else products[existingIndex] = savedProduct;
+
+    const updatedProfile = saveAIBusinessProfile(req.telegramId, req.sessionId, {
+      settings: { ...settings, products }
+    });
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(action === "create" ? 201 : 200).json({
+      ok: true,
+      action,
+      product: savedProduct,
+      profileUpdatedAt: updatedProfile?.updatedAt || Date.now()
+    });
+  } catch (error) {
+    return sendServerError(res, error, "Could not apply WAGRAM AI business data change");
+  }
+});
+
 /* [MODIFIED] WAMO AI exposes only the standard chat endpoint; training route removed. */
 /* [ADDED] WAGRAM AI Business chat. Premium expiry is enforced server-side by getMembership(). */
 router.post("/ai-business/chat", async (req, res) => {
