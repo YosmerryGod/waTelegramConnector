@@ -754,14 +754,19 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   // [ADDED] Inject relevant owner corrections directly into every WAMO AI turn.
   // This makes saved corrections available even when the model does not call a retrieval tool.
   const savedOwnerCorrections = findAIBusinessExamples(telegramId, sessionId, null, 100);
-  const relevantOwnerCorrections = selectRelevantCustomerServiceExamples(
-    message,
-    savedOwnerCorrections.map((example) => ({
+  const relevantOwnerCorrections = savedOwnerCorrections
+    .map((example, index) => ({
       customer_message: example.question,
-      admin_reply: example.idealAnswer
-    })),
-    5
-  );
+      admin_reply: example.idealAnswer,
+      relevance: scoreExampleRelevance(message, {
+        customer_message: example.question,
+        admin_reply: example.idealAnswer
+      }),
+      recency: index
+    }))
+    .filter((example) => example.relevance > 0)
+    .sort((a, b) => b.relevance - a.relevance || a.recency - b.recency)
+    .slice(0, 5);
   const ownerCorrectionsText = relevantOwnerCorrections.length
     ? relevantOwnerCorrections.map((example, index) =>
         "KOREKSI PEMILIK " + (index + 1) + "\nPertanyaan/konteks: " +
