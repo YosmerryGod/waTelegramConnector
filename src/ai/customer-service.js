@@ -483,6 +483,16 @@ function tokenizeForSimilarity(value) {
     .filter((word) => word.length > 1);
 }
 
+// [ADDED] Normalize customer messages so an exact owner correction can be reused reliably.
+function normalizeOwnerCorrectionQuestion(value) {
+  return String(value || "")
+    .toLocaleLowerCase("id-ID")
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function scoreExampleRelevance(message, example) {
   const queryTokens = new Set(tokenizeForSimilarity(message));
   const exampleTokens = new Set(tokenizeForSimilarity(example.customer_message));
@@ -754,6 +764,37 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   // [ADDED] Inject relevant owner corrections directly into every WAMO AI turn.
   // This makes saved corrections available even when the model does not call a retrieval tool.
   const savedOwnerCorrections = findAIBusinessExamples(telegramId, sessionId, null, 100);
+
+  // [ADDED] An exact repeat of a question corrected by the owner uses the
+  // approved answer directly instead of asking the language model to rewrite it.
+  const normalizedIncomingQuestion = normalizeOwnerCorrectionQuestion(message);
+  const exactOwnerCorrection = normalizedIncomingQuestion
+    ? savedOwnerCorrections.find((example) =>
+        normalizeOwnerCorrectionQuestion(example.question) === normalizedIncomingQuestion &&
+        String(example.idealAnswer || "").trim()
+      )
+    : null;
+  if (exactOwnerCorrection) {
+    const approvedAnswer = String(exactOwnerCorrection.idealAnswer).trim().slice(0, 700);
+    return {
+      reply: approvedAnswer,
+      needsManager: false,
+      managerQuestion: "",
+      trace: {
+        recognition: "exact_owner_correction",
+        intent: String(exactOwnerCorrection.intent || "owner_correction"),
+        entity: null,
+        requestedFields: [],
+        confidence: 1,
+        action: "Menggunakan jawaban koreksi pemilik karena pertanyaan sama persis.",
+        dataUsed: ["Koreksi pemilik tersimpan"],
+        status: "Jawaban koreksi pemilik diterapkan langsung.",
+        expectedAnswer: approvedAnswer,
+        toolCalls: []
+      }
+    };
+  }
+
   const relevantOwnerCorrections = savedOwnerCorrections
     .map((example, index) => ({
       customer_message: example.question,
