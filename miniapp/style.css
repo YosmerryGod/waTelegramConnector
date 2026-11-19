@@ -6877,10 +6877,19 @@ body.in-chat #topbar {
   font-size: 23px;
 }
 .ai-business-settings-menu {
+  flex: 1 1 auto; /* [MODIFIED] Keep the settings menu scrollable inside the fixed-height panel. */
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+}
+/* [ADDED] Outlet/product detail forms need their own scroll container; the panel clips overflow. */
+.ai-business-settings-detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .ai-business-settings-group + .ai-business-settings-group { margin-top: 24px; }
 .ai-business-section-heading {
