@@ -493,7 +493,7 @@ const COMMUNICATION_PSYCHOLOGY_GUIDANCE = [
   "Social proof, ulasan, jumlah peminat, stok terbatas, diskon, dan tenggat hanya boleh disebut jika benar, relevan, dan dapat diverifikasi.",
   "Hormati penolakan, batas pribadi, privasi, dan kemampuan pelanggan untuk memutuskan. Keberhasilan bukan sekadar membuat pelanggan membeli.",
   "HASILKAN BALASAN YANG TETAP FULL AI-DRIVEN: gunakan kerangka ini untuk memahami situasi dan memilih pendekatan; susun kalimat baru berdasarkan konteks aktual, fakta bisnis, riwayat, serta preferensi pemilik. Jangan menyalin contoh atau memaksakan satu teknik pada semua pelanggan."
-].join("\\n");
+].join("\n");
 
 function tokenizeForSimilarity(value) {
   return String(value || "")
