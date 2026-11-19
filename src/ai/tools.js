@@ -85,7 +85,7 @@ export const WAGRAM_TOOL_DECLARATIONS = [
             name: { type: "STRING", maxLength: 120 },
             description: { type: "STRING", maxLength: 500 },
             price: { type: "NUMBER", minimum: 0 },
-            stock: { type: ["NUMBER", "NULL"], minimum: 0 },
+            stock: { type: "NUMBER", minimum: 0 },
             address: { type: "STRING", maxLength: 500 },
             phone: { type: "STRING", maxLength: 40 },
             openTime: { type: "STRING", maxLength: 20 },
