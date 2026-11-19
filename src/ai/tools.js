@@ -1,12 +1,14 @@
 import db, {
   canonicalWhatsAppSessionId,
-  getAIBusinessProfile
+  getAIBusinessProfile,
+  saveAIBusinessProfile
 } from "../database.js";
 
 const TOOL_NAMES = new Set([
   "get_business_profile",
   "list_products",
-  "cek_stok"
+  "cek_stok",
+  "manage_business_data"
 ]);
 
 db.exec(`
@@ -67,6 +69,35 @@ export const WAGRAM_TOOL_DECLARATIONS = [
       },
       required: ["produk"]
     }
+  },
+  {
+    name: "manage_business_data",
+    description: "Mengelola data bisnis milik pemilik yang terautentikasi. Gunakan hanya setelah memahami maksud dan mengumpulkan semua informasi wajib dari percakapan. Mendukung produk, outlet, profil manager, dan aturan bisnis. Untuk penghapusan wajib minta persetujuan eksplisit terlebih dahulu dan kirim confirmed=true hanya setelah persetujuan diberikan. Untuk stok yang belum diketahui gunakan null, bukan nol.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        resource: { type: "STRING", enum: ["products", "outlets", "manager", "aiRules"] },
+        operation: { type: "STRING", enum: ["create", "update", "delete", "replace"] },
+        identifier: { type: "STRING", maxLength: 120 },
+        data: {
+          type: "OBJECT",
+          properties: {
+            name: { type: "STRING", maxLength: 120 },
+            description: { type: "STRING", maxLength: 500 },
+            price: { type: "NUMBER", minimum: 0 },
+            stock: { type: ["NUMBER", "NULL"], minimum: 0 },
+            address: { type: "STRING", maxLength: 500 },
+            phone: { type: "STRING", maxLength: 40 },
+            openTime: { type: "STRING", maxLength: 20 },
+            closeTime: { type: "STRING", maxLength: 20 },
+            fullName: { type: "STRING", maxLength: 120 },
+            aiRules: { type: "STRING", maxLength: 3000 }
+          }
+        },
+        confirmed: { type: "BOOLEAN" }
+      },
+      required: ["resource", "operation"]
+    }
   }
 ];
 
@@ -104,6 +135,22 @@ function validateArguments(name, args) {
       args.sections.some((item) => !["identity", "manager", "outlets"].includes(item))
     )) throw new Error("TOOL_SECTIONS_INVALID");
     return { sections: args.sections || ["identity", "manager", "outlets"] };
+  }
+
+  if (name === "manage_business_data") {
+    const allowedKeys = new Set(["resource", "operation", "identifier", "data", "confirmed"]);
+    if (Object.keys(args).some((key) => !allowedKeys.has(key))) throw new Error("TOOL_ARGUMENTS_INVALID");
+    const resource = String(args.resource || "");
+    const operation = String(args.operation || "");
+    if (!["products", "outlets", "manager", "aiRules"].includes(resource)) throw new Error("TOOL_RESOURCE_INVALID");
+    if (!["create", "update", "delete", "replace"].includes(operation)) throw new Error("TOOL_OPERATION_INVALID");
+    if (args.identifier !== undefined && (typeof args.identifier !== "string" || args.identifier.length > 120)) throw new Error("TOOL_IDENTIFIER_INVALID");
+    if (args.confirmed !== undefined && typeof args.confirmed !== "boolean") throw new Error("TOOL_CONFIRMATION_INVALID");
+    if (args.data !== undefined && (!args.data || typeof args.data !== "object" || Array.isArray(args.data))) throw new Error("TOOL_DATA_INVALID");
+    const data = args.data || {};
+    const allowedData = new Set(["name", "description", "price", "stock", "address", "phone", "openTime", "closeTime", "fullName", "aiRules"]);
+    if (Object.keys(data).some((key) => !allowedData.has(key))) throw new Error("TOOL_DATA_FIELD_INVALID");
+    return { resource, operation, identifier: String(args.identifier || "").trim(), data, confirmed: args.confirmed === true };
   }
 
   if (Object.keys(args).length) throw new Error("TOOL_ARGUMENTS_INVALID");
@@ -176,7 +223,7 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
       result = sections;
     } else if (name === "list_products") {
       result = getProducts(settings);
-    } else {
+    } else if (name === "cek_stok") {
       const query = args.produk.toLocaleLowerCase("id-ID");
       const products = getProducts(settings);
       const matches = products.filter((product) =>
@@ -187,6 +234,87 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
         found: matches.length > 0,
         products: matches
       };
+    } else if (name === "manage_business_data") {
+      const { resource, operation, identifier, data, confirmed } = args;
+      if (operation === "delete" && !confirmed) throw new Error("TOOL_DELETION_REQUIRES_CONFIRMATION");
+      const nextSettings = { ...settings };
+      const matchByName = (items, key) => items.findIndex((item) =>
+        String(item?.[key] || "").trim().toLocaleLowerCase("id-ID") === identifier.toLocaleLowerCase("id-ID")
+      );
+
+      if (resource === "products" || resource === "outlets") {
+        const field = resource;
+        const items = Array.isArray(settings[field]) ? settings[field].slice(0, 100) : [];
+        const index = identifier ? matchByName(items, "name") : -1;
+        if (operation === "create") {
+          const name = String(data.name || "").trim();
+          if (!name || name.length > 120) throw new Error("TOOL_ITEM_NAME_REQUIRED");
+          if (items.length >= 100) throw new Error("TOOL_ITEM_LIMIT_REACHED");
+          if (items.some((item) => String(item?.name || "").trim().toLocaleLowerCase("id-ID") === name.toLocaleLowerCase("id-ID"))) {
+            throw new Error("TOOL_ITEM_ALREADY_EXISTS");
+          }
+          if (resource === "products") {
+            if (!Number.isSafeInteger(data.price) || data.price < 0) throw new Error("TOOL_PRODUCT_PRICE_REQUIRED");
+            if (data.stock !== undefined && data.stock !== null && (!Number.isSafeInteger(data.stock) || data.stock < 0)) throw new Error("TOOL_PRODUCT_STOCK_INVALID");
+            items.push({ name, description: String(data.description || "").slice(0, 500), price: data.price, stock: data.stock ?? null });
+          } else {
+            items.push({
+              name,
+              address: String(data.address || "").slice(0, 500),
+              phone: String(data.phone || "").slice(0, 40),
+              openTime: String(data.openTime || "").slice(0, 20),
+              closeTime: String(data.closeTime || "").slice(0, 20)
+            });
+          }
+          result = { saved: true, operation, resource, item: items[items.length - 1] };
+        } else {
+          if (index < 0) throw new Error("TOOL_ITEM_NOT_FOUND");
+          if (operation === "delete") {
+            const [removed] = items.splice(index, 1);
+            result = { saved: true, operation, resource, item: removed };
+          } else if (operation === "update") {
+            const current = items[index];
+            const updated = { ...current };
+            for (const [key, value] of Object.entries(data)) {
+              if (resource === "products" && ["name", "description", "price", "stock"].includes(key)) updated[key] = value;
+              if (resource === "outlets" && ["name", "address", "phone", "openTime", "closeTime"].includes(key)) updated[key] = value;
+            }
+            if (resource === "products") {
+              if (updated.name === undefined || !String(updated.name).trim()) throw new Error("TOOL_PRODUCT_NAME_INVALID");
+              if (updated.price !== undefined && (!Number.isSafeInteger(updated.price) || updated.price < 0)) throw new Error("TOOL_PRODUCT_PRICE_INVALID");
+              if (updated.stock !== undefined && updated.stock !== null && (!Number.isSafeInteger(updated.stock) || updated.stock < 0)) throw new Error("TOOL_PRODUCT_STOCK_INVALID");
+            }
+            items[index] = updated;
+            result = { saved: true, operation, resource, item: updated };
+          } else {
+            throw new Error("TOOL_OPERATION_NOT_SUPPORTED");
+          }
+        }
+        nextSettings[field] = items;
+      } else if (resource === "manager") {
+        if (operation === "delete") {
+          if (!confirmed) throw new Error("TOOL_DELETION_REQUIRES_CONFIRMATION");
+          nextSettings.manager = {};
+          result = { saved: true, operation, resource };
+        } else if (operation === "create" || operation === "update" || operation === "replace") {
+          const current = settings.manager && typeof settings.manager === "object" ? settings.manager : {};
+          const updated = { ...current };
+          if (data.name !== undefined) updated.name = String(data.name).trim().slice(0, 120);
+          if (data.fullName !== undefined) updated.fullName = String(data.fullName).trim().slice(0, 120);
+          if (data.phone !== undefined) updated.phone = String(data.phone).trim().slice(0, 40);
+          if (!Object.keys(updated).length) throw new Error("TOOL_MANAGER_DATA_REQUIRED");
+          nextSettings.manager = updated;
+          result = { saved: true, operation, resource, item: updated };
+        } else throw new Error("TOOL_OPERATION_NOT_SUPPORTED");
+      } else if (resource === "aiRules") {
+        if (!["update", "replace"].includes(operation)) throw new Error("TOOL_OPERATION_NOT_SUPPORTED");
+        const rules = String(data.aiRules ?? "").trim();
+        if (rules.length > 3000) throw new Error("TOOL_AI_RULES_TOO_LONG");
+        nextSettings.aiRules = rules;
+        result = { saved: true, operation, resource, item: { aiRules: rules } };
+      }
+
+      saveAIBusinessProfile(context.telegramId, context.sessionId, { settings: nextSettings });
     }
 
     outcome = "success";
