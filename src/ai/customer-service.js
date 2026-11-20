@@ -991,11 +991,16 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
     "sesuai", "lanjut", "boleh", "silakan", "gas", "sip", "cocok",
     "pas", "deal", "fix"
   ]);
-  const hasNegationOrChange = /\b(?:tidak|enggak|nggak|gak|ga|jangan|belum|bukan|tapi|namun|kalau|asal|kecuali|ubah|ganti|rubah|koreksi|salah|kurang|beda|mungkin|barangkali|nanti|coba)\b/u.test(confirmation);
+  const disallowedWords = new Set([
+    "tidak", "enggak", "nggak", "gak", "ga", "jangan", "belum",
+    "bukan", "tapi", "namun", "kalau", "asal", "kecuali", "ubah",
+    "ganti", "rubah", "koreksi", "salah", "kurang", "beda",
+    "mungkin", "barangkali", "nanti", "coba"
+  ]);
   const explicitApproval = confirmationTokens.length > 0 &&
     confirmationTokens.some((token) => affirmativeWords.has(token)) &&
     confirmationTokens.every((token) => approvalWords.has(token)) &&
-    !hasNegationOrChange;
+    !confirmationTokens.some((token) => disallowedWords.has(token));
   if (!explicitApproval) return { valid: false, reason: "customer_message_not_explicit_approval" };
 
   const previousMessage = Array.isArray(history) ? history[history.length - 1] : null;
@@ -1023,55 +1028,16 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
   for (const item of Array.isArray(items) ? items : []) {
     const itemName = normalize(item?.name);
     if (!itemName || !summary.includes(itemName)) return { valid: false, reason: "summary_item_missing" };
-    const escapedItemName = itemName.replace(/[.*+?^\u0024{}()|[\]\\]/g, "\\export function validateScheduledOrderConfirmation({ message, history, outletName, pickupAt, timezone, items, totalAmount, paymentStatus }) {
-  const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID").normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
-  const confirmation = normalize(message);
-  const explicitApproval = /^(?:ya|iya|iy[a]?|oke|ok|okay|setuju|saya setuju|saya konfirmasi|konfirmasi|betul|benar|sesuai|lanjut|boleh|silakan|gas)(?: kak)?$/u.test(confirmation);
-  if (!explicitApproval) return { valid: false, reason: "customer_message_not_explicit_approval" };
-
-  const previousMessage = Array.isArray(history) ? history[history.length - 1] : null;
-  if (previousMessage?.role !== "assistant" || !String(previousMessage?.content || "").trim()) {
-    return { valid: false, reason: "approved_summary_not_found" };
-  }
-  const summary = normalize(previousMessage.content);
-  const summaryDigits = String(previousMessage.content).replace(/\D/g, "");
-  if (!summary.includes(normalize(outletName))) return { valid: false, reason: "summary_outlet_mismatch" };
-
-  let localParts;
-  try {
-    localParts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
-      timeZone: String(timezone || "Asia/Jakarta"),
-      year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hourCycle: "h23"
-    }).formatToParts(new Date(pickupAt)).map((part) => [part.type, part.value]));
-  } catch {
-    return { valid: false, reason: "summary_timezone_invalid" };
-  }
-  const expectedDate = localParts.day + "/" + localParts.month + "/" + localParts.year;
-  const expectedTime = localParts.hour + ":" + localParts.minute;
-  if (!summary.includes(normalize(expectedDate))) return { valid: false, reason: "summary_pickup_date_missing" };
-  if (!summary.includes(normalize(expectedTime))) return { valid: false, reason: "summary_pickup_time_missing" };
-
-  for (const item of Array.isArray(items) ? items : []) {
-    if (!summary.includes(normalize(item.name))) return { valid: false, reason: "summary_item_missing" };
-    const quantityPattern = new RegExp("(^|\\D)" + Number(item.quantity) + "(\\D|$)");
-    if (!quantityPattern.test(summary)) return { valid: false, reason: "summary_quantity_missing" };
-  }
-  if (!Number.isSafeInteger(totalAmount) || !summaryDigits.includes(String(totalAmount))) {
-    return { valid: false, reason: "summary_total_mismatch" };
-  }
-  if (paymentStatus === "unpaid" && !/(bayar di tempat|belum dibayar)/u.test(summary)) {
-    return { valid: false, reason: "summary_payment_status_missing" };
-  }
-  if (paymentStatus === "pending_verification" && !/(perlu verifikasi|menunggu verifikasi|belum terverifikasi)/u.test(summary)) {
-    return { valid: false, reason: "summary_payment_status_missing" };
-  }
-  return { valid: true, reason: "customer_approval_and_summary_verified" };
-}").replace(/\s+/g, "\\s+");
     const quantity = Number(item.quantity);
-    const quantityBeforeName = new RegExp("(?:^|\\s)" + quantity + "\\s+(?:(?:porsi|pcs|buah|pack|paket|ekor|potong)\\s+)?" + escapedItemName + "(?:\\s|$)", "u");
-    const quantityAfterName = new RegExp(escapedItemName + "\\s+(?:x|×)\\s*" + quantity + "(?:\\s|$)", "u");
-    if (!Number.isSafeInteger(quantity) || quantity < 1 || (!quantityBeforeName.test(summary) && !quantityAfterName.test(summary))) {
+    const quantityPhrases = [
+      quantity + " " + itemName,
+      quantity + " porsi " + itemName,
+      quantity + " pcs " + itemName,
+      quantity + " buah " + itemName,
+      itemName + " x " + quantity,
+      itemName + " " + quantity + " porsi"
+    ].map(normalize);
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || !quantityPhrases.some((phrase) => summary.includes(phrase))) {
       return { valid: false, reason: "summary_quantity_missing" };
     }
   }
