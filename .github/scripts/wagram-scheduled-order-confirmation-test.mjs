@@ -8,7 +8,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "wagram-order-confirmation
 process.env.SQLITE_PATH = path.join(tempDir, "test.sqlite");
 
 const database = await import("../../src/database.js");
-const { buildConversationRecognition, buildScheduledOrderFallbackReply, normalizeOpenRouterMessageContent, normalizeCustomerChatJid, validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
+const { buildAIBusinessDecisionContext, buildConversationRecognition, buildScheduledOrderFallbackReply, normalizeOpenRouterMessageContent, normalizeCustomerChatJid, validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
 
 const order = {
   outletName: "Outlet Banjarbaru",
@@ -27,6 +27,54 @@ try {
   assert.equal(normalizeOpenRouterMessageContent("  respons teks  "), "respons teks");
   assert.equal(normalizeOpenRouterMessageContent([{ text: "bagian satu" }, { type: "text", text: "bagian dua" }]), "bagian satu\nbagian dua");
   assert.equal(normalizeOpenRouterMessageContent(null), "");
+
+  const decisionContext = buildAIBusinessDecisionContext({
+    message: "Saya mau pesan ayam panggang 3 porsi di Outlet Banjarbaru",
+    history: [{ role: "user", content: "Saya mau pesan ayam panggang" }],
+    businessData: {
+      outlets: [{ name: "Outlet Banjarbaru", timezone: "Asia/Makassar" }],
+      products: [
+        { name: "Ayam Panggang", price: 45000, stock: 8 },
+        { name: "Nasi Putih", price: 6000, stock: 20 }
+      ]
+    },
+    recognition: { intent: "purchase_intent", interpretation: "Pelanggan ingin memesan ayam panggang." },
+    toolAudit: [{ tool: "read_business_profile" }],
+    decisionSummary: { action: "Memeriksa opsi pelengkap.", marketingProduct: "Nasi Putih", saveToDatabase: true },
+    createdScheduledOrder: null
+  });
+  assert.equal(decisionContext.time.zoneLabel, "WITA");
+  assert.equal(decisionContext.time.timezone, "Asia/Makassar");
+  assert.equal(decisionContext.psychologySkill.id, "human-behavior-decision-psychology");
+  assert.equal(decisionContext.marketingSkill.id, "consumer-psychology-and-persuasion");
+  assert.equal(decisionContext.productCheck.status, "checked");
+  assert.equal(decisionContext.productCheck.availableProducts.length, 2);
+  assert.equal(decisionContext.database.shouldSave, false, "The model must not authorize business database writes.");
+  assert.equal(decisionContext.database.label, "Tidak");
+
+  const complaintDecision = buildAIBusinessDecisionContext({
+    message: "Saya kecewa ayamnya kering",
+    history: [],
+    businessData: { outlets: [], products: [] },
+    recognition: { intent: "conversation", interpretation: "Pelanggan menyampaikan keluhan." },
+    toolAudit: [],
+    decisionSummary: null,
+    createdScheduledOrder: null
+  });
+  assert.equal(complaintDecision.marketingSkill.id, "service-recovery-marketing-and-trust-building");
+  assert.equal(complaintDecision.productCheck.status, "not_required");
+
+  const savedOrderDecision = buildAIBusinessDecisionContext({
+    message: "iya setuju",
+    history: [],
+    businessData: { outlets: [], products: [] },
+    recognition: { intent: "purchase_intent", interpretation: "Persetujuan pesanan." },
+    toolAudit: [],
+    decisionSummary: null,
+    createdScheduledOrder: { id: 12 }
+  });
+  assert.equal(savedOrderDecision.database.shouldSave, true);
+  assert.equal(savedOrderDecision.database.label, "Ya");
 
   const orderContext = buildConversationRecognition("pesen ayam panggang apakah bisa kak", [
     { role: "user", content: "saya mau pesan ayam panggang 3 porsi" },
