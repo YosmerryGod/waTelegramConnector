@@ -359,7 +359,7 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
   }
   const order = db.prepare(`
     SELECT id, customer_name, outlet_name, pickup_at, order_status,
-      payment_status, payment_verified_at, total_amount
+      payment_status, payment_verified_at, total_amount, customer_chat_id
     FROM ai_scheduled_orders
     WHERE id = ? AND telegram_id = ? AND session_id = ?
   `).get(orderId, ownerId, accountId);
@@ -391,6 +391,11 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
         AND payment_status = 'pending_verification' AND payment_verified_at IS NULL
     `).run(now, managerJid, now, orderId, ownerId, accountId);
     await socket.sendMessage(managerJid, { text: "Verifikasi pembayaran pesanan #" + orderId + " dicatat. Pastikan mutasi dana benar-benar sudah masuk." });
+    try {
+      await socket.sendMessage(order.customer_chat_id, { text: "Pembayaran untuk pesanan #" + orderId + " sudah diverifikasi oleh pengelola." });
+    } catch (error) {
+      console.error("[WAGRAM Scheduled Order] Customer payment status notification failed:", error.message);
+    }
     return { handled: true, success: true };
   }
 
@@ -410,6 +415,17 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
       AND order_status IN (${transition.from.map(() => "?").join(", ")})
   `).run(...values);
   await socket.sendMessage(managerJid, { text: "Pesanan #" + orderId + " diperbarui: " + transition.label + "." });
+  try {
+    const customerStatusMessages = {
+      preparing: "Pesanan #" + orderId + " sedang disiapkan.",
+      ready: "Pesanan #" + orderId + " sudah siap diambil di " + order.outlet_name + ".",
+      completed: "Pesanan #" + orderId + " telah ditandai selesai. Terima kasih.",
+      cancelled: "Pesanan #" + orderId + " telah dibatalkan oleh pengelola."
+    };
+    await socket.sendMessage(order.customer_chat_id, { text: customerStatusMessages[transition.to] });
+  } catch (error) {
+    console.error("[WAGRAM Scheduled Order] Customer status notification failed:", error.message);
+  }
   return { handled: true, success: true, status: transition.to };
 }
 
