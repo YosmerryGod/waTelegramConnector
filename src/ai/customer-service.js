@@ -133,6 +133,27 @@ db.exec(`
   WHERE notification_status = 'pending';
 `);
 
+// [ADDED] Durable reports for rejected scheduled orders; no order row is required.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_scheduled_order_failure_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    report_json TEXT NOT NULL,
+    error_code TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sending', 'sent')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0,
+    claimed_at INTEGER,
+    last_error TEXT,
+    manager_message_id TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_scheduled_order_failure_due
+    ON ai_scheduled_order_failure_outbox(telegram_id, session_id, status, next_attempt_at);
+`);
+
 
 // [ADDED] Load the runtime-safe guidance sections from the repository skill document.
 // The skill is a specification, not a list of executable tools; only policy/persona
@@ -1515,6 +1536,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   }}];
 
   let createdScheduledOrder = null;
+  let scheduledOrderFailure = null;
   const executeTool = (name, args) => {
     if (name === "create_scheduled_order") {
       const orderAttemptId = createOpenRouterRequestId();
@@ -1623,12 +1645,42 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         toolAudit.push({ tool: name, resultSummary: { saved: true, orderId: order.id, newlyCreated: insert.changes === 1 } });
         return { saved: true, orderId: order.id, newlyCreated: insert.changes === 1, paymentStatus };
       } catch (error) {
+        const errorCode = String(error?.message || "SCHEDULED_ORDER_FAILED").slice(0, 160);
+        const rawItems = Array.isArray(args?.items) ? args.items : [];
+        const reportItems = rawItems.map((item) => {
+          const product = (Array.isArray(settings.products) ? settings.products : []).find((entry) =>
+            String(entry?.name || "").trim().toLocaleLowerCase("id-ID") === String(item?.name || "").trim().toLocaleLowerCase("id-ID")
+          );
+          const quantity = Number(item?.quantity) || 0;
+          const unitPrice = normalizeRupiahPrice(product?.price);
+          return { name: String(item?.name || "Menu tidak diketahui").slice(0, 120), quantity, subtotal: unitPrice !== null && quantity > 0 ? unitPrice * quantity : null };
+        });
+        const report = {
+          customerName: String(args?.customerName || "Tidak disebutkan").slice(0, 120),
+          customerChatId: isSimulation ? "SIMULASI" : String(normalizeCustomerChatJid(customerChatId) || "Tidak tersedia"),
+          items: reportItems,
+          totalAmount: reportItems.every((item) => Number.isSafeInteger(item.subtotal)) ? reportItems.reduce((sum, item) => sum + item.subtotal, 0) : null,
+          outletName: String(args?.outletName || "Tidak diketahui").slice(0, 120),
+          pickupAt: String(args?.pickupAt || "Tidak diketahui").slice(0, 80),
+          paymentStatus: String(args?.paymentStatus || "Tidak diketahui"),
+          isSimulation: isSimulation === true
+        };
+        scheduledOrderFailure = { errorCode, report };
+        try {
+          const now = Date.now();
+          db.prepare(`INSERT INTO ai_scheduled_order_failure_outbox
+            (telegram_id, session_id, report_json, error_code, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'pending', ?, ?)`)
+            .run(String(telegramId), String(sessionId || telegramId), JSON.stringify(report), errorCode, now, now);
+        } catch (outboxError) {
+          console.error("[WAGRAM Scheduled Order Failure Outbox] Persistence failed:", outboxError.message);
+        }
         console.error("[WAGRAM Scheduled Order] Tool execution rejected:", JSON.stringify({
-          orderAttemptId, errorName: String(error?.name || "Error"),
-          error: String(error?.message || "SCHEDULED_ORDER_FAILED").slice(0, 500)
+          orderAttemptId, errorName: String(error?.name || "Error"), error: errorCode,
+          failureReportQueued: Boolean(scheduledOrderFailure)
         }));
-        toolAudit.push({ tool: name, resultSummary: "rejected: " + String(error?.message || "order_error") });
-        return { saved: false, error: String(error?.message || "SCHEDULED_ORDER_FAILED") };
+        toolAudit.push({ tool: name, resultSummary: "rejected; manager report queued" });
+        return { saved: false, error: errorCode, managerReportQueued: Boolean(scheduledOrderFailure) };
       }
     }
     if (name === "read_business_profile") {
@@ -1827,7 +1879,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         decision.database.auditLogSaved = false;
         console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
       }
-      return { reply: conciseAnswer, scheduledOrder: createdScheduledOrder, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
+      return { reply: conciseAnswer, scheduledOrder: createdScheduledOrder, orderFailure: scheduledOrderFailure, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
         ...decision,
         recognition: decision.recognition.summary,
         intent: recognition.intent, entity: recognition.entity,
@@ -2054,6 +2106,7 @@ export async function createAIBusinessReply(telegramId, sessionId, message, hist
     reply: result.reply,
     // [ADDED] Preserve the escalation decision so auto-reply can notify the manager.
     scheduledOrder: result.scheduledOrder || null,
+    orderFailure: result.orderFailure || null,
     needsManager: result.needsManager === true,
     managerQuestion: String(result.managerQuestion || "").trim(),
     ...(qrisRequested && qrisImage ? { qrisImage } : {}),
