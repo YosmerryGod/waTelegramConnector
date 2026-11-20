@@ -32,6 +32,7 @@ import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, 
 import {
   getUser,
   getMembership,
+  getAIBusinessProfile,
   getSession,
   getWhatsAppAccounts,
   getWhatsAppAccount,
@@ -2181,14 +2182,35 @@ router.post("/ai-business/chat", async (req, res) => {
       });
     }
 
+    // [ADDED] Mini App requests are owner-authenticated simulations, never real WhatsApp customer chats.
     const result = await createAIBusinessReply(
       req.telegramId,
       req.sessionId,
       message,
-      req.body?.history || []
+      req.body?.history || [],
+      "",
+      { isSimulation: true }
     );
+    const managerPhone = String(getAIBusinessProfile(req.telegramId, req.sessionId)?.settings?.manager?.phone || "").trim();
+    const managerWarning = result.orderFailure && !managerPhone
+      ? "Nomor WhatsApp pengelola belum diatur. Pesanan belum berhasil dicatat; tambahkan nomor pengelola agar laporan dapat dikirim."
+      : "";
+    const safeReply = String(result.orderFailure
+      ? "Maaf, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual."
+      : result.reply || "").trim();
+    // [ADDED] Never return raw model JSON, tool errors, stack traces, or internal traces to the Mini App chat.
     res.setHeader("Cache-Control", "no-store");
-    return res.json({ ok: true, ...result });
+    return res.json({
+      ok: true,
+      reply: safeReply,
+      scheduledOrder: result.scheduledOrder || null,
+      needsManager: result.needsManager === true || Boolean(result.orderFailure),
+      managerQuestion: String(result.managerQuestion || ""),
+      managerWarning,
+      intent: result.intent || "agent",
+      model: result.model,
+      createdAt: result.createdAt
+    });
   } catch (error) {
     const status = error.status || 500;
     console.error("[WAGRAM AI Business] Request failed:", error.message);
