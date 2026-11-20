@@ -2199,9 +2199,13 @@ router.post("/ai-business/chat", async (req, res) => {
       : "";
     const generatedReply = String(result.reply || "").trim();
     const containsInternalOutput = /^\s*[\[{]/.test(generatedReply) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\bJSON\b|\berror\b/i.test(generatedReply);
-    const safeReply = result.orderFailure || containsInternalOutput
+    const safeReply = result.orderFailure
       ? "Maaf, pesanan belum berhasil dicatat. Pengelola perlu membantu memastikan dan mencatat pesanan ini secara manual."
-      : generatedReply;
+      : containsInternalOutput
+        ? result.scheduledOrder
+          ? "Pesanan #" + result.scheduledOrder.id + " sudah berhasil dicatat."
+          : "Maaf, saya belum bisa memastikan informasi tersebut. Pengelola perlu membantu memastikannya."
+        : generatedReply;
     // [ADDED] Never return raw model JSON, tool errors, stack traces, or internal traces to the Mini App chat.
     res.setHeader("Cache-Control", "no-store");
     return res.json({
