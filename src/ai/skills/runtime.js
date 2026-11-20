@@ -41,8 +41,8 @@ db.exec(`
 
 function normalizeText(value) {
   return String(value || "").toLocaleLowerCase("id-ID").normalize("NFKC")
-    .replace(/[^\\p{L}\\p{N}\\s]/gu, " ")
-    .replace(/\\s+/g, " ").trim();
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ").trim();
 }
 
 function tokenize(value) {
@@ -109,7 +109,7 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner" 
       mode: String(mode || "owner"),
       activeSkills: loadedSkills.map((skill) => skill.id)
     },
-    instructions: loadedSkills.map((skill) => "SKILL: " + skill.name + "\\n" + skill.instructions).join("\\n\\n")
+    instructions: loadedSkills.map((skill) => "SKILL: " + skill.name + "\n" + skill.instructions).join("\n\n")
   };
 }
 
