@@ -52,8 +52,8 @@ db.exec(`
 
 function normalizeText(value) {
   return String(value || "").toLocaleLowerCase("id-ID").normalize("NFKC")
-    .replace(/[^\\p{L}\\p{N}\\s]/gu, " ")
-    .replace(/\\s+/g, " ").trim();
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ").trim();
 }
 
 function tokenize(value) {
@@ -79,7 +79,7 @@ export function classifyCustomerState(message = "", history = []) {
   const tokens = new Set(tokenize(current));
   const has = (...words) => words.some((word) => tokens.has(word) || current.includes(normalizeText(word)));
   if (has("komplain", "keluhan", "kecewa", "refund", "salah", "kering", "terlambat", "rusak", "tidak sesuai")) return "complaint";
-  if (has("gak jadi", "nggak jadi", "tidak jadi", "enggak", "gak", "nggak", "tidak", "nanti dulu", "tidak mau")) return "refusal";
+  if (has("gak jadi", "nggak jadi", "tidak jadi", "enggak usah", "nggak usah", "gak usah", "ga usah", "tidak mau", "belum dulu", "lain kali", "skip", "tidak berminat")) return "refusal";
   if (has("mahal", "kemahalan", "budget", "anggaran", "uang pas-pasan")) return "price_objection";
   if (has("banding", "beda", "perbedaan", "yang lebih", "mending", "mana enak")) return "product_comparison";
   if (has("berapa", "harganya", "harga", "rp")) return "price_question";
