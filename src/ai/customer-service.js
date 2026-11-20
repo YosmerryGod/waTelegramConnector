@@ -748,45 +748,120 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
   };
 }
 
-// [ADDED] Resolve each outlet's current operating status using its configured timezone and hours.
-function getOutletOperatingStatus(outlet, now = new Date()) {
+// [MODIFIED] Resolve outlet hours in the outlet timezone, including overnight windows and next opening.
+function getZonedDateTimeParts(date, timezone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    weekday: "long", hour: "2-digit", minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(date);
+  return Object.fromEntries(parts.map((part) => [part.type, part.value]));
+}
+
+// [ADDED] Convert an outlet-local wall-clock time into an exact instant without assuming a fixed UTC offset.
+function zonedDateTimeToDate(year, month, day, hour, minute, timezone) {
+  const targetUtc = Date.UTC(year, month - 1, day, hour, minute);
+  let candidate = targetUtc;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const parts = getZonedDateTimeParts(new Date(candidate), timezone);
+    const representedUtc = Date.UTC(
+      Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+      Number(parts.hour), Number(parts.minute)
+    );
+    const difference = targetUtc - representedUtc;
+    if (difference === 0) break;
+    candidate += difference;
+  }
+  const resolved = new Date(candidate);
+  const check = getZonedDateTimeParts(resolved, timezone);
+  if (
+    Number(check.year) !== year || Number(check.month) !== month ||
+    Number(check.day) !== day || Number(check.hour) !== hour ||
+    Number(check.minute) !== minute
+  ) return null;
+  return resolved;
+}
+
+export function getOutletOperatingStatus(outlet, now = new Date()) {
   const timezone = String(outlet?.timezone || outlet?.timeZone || "Asia/Jakarta").trim();
   const openTime = String(outlet?.openTime || outlet?.open_time || outlet?.open || "").trim();
   const closeTime = String(outlet?.closeTime || outlet?.close_time || outlet?.close || "").trim();
-  const days = Array.isArray(outlet?.openDays) ? outlet.openDays : Array.isArray(outlet?.days) ? outlet.days : [0, 1, 2, 3, 4, 5, 6];
+  const days = Array.isArray(outlet?.openDays)
+    ? outlet.openDays
+    : Array.isArray(outlet?.days) ? outlet.days : [0, 1, 2, 3, 4, 5, 6];
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  let localParts;
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone, weekday: "long", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
-    }).formatToParts(now);
-    localParts = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  } catch {
-    return { isOpen: null, timezone, openTime, closeTime, reason: "invalid_timezone" };
-  }
-  const dayIndex = dayNames.indexOf(localParts.weekday);
-  const currentMinutes = Number(localParts.hour) * 60 + Number(localParts.minute);
   const parseTime = (value) => {
-    const match = value.match(/^(\d{1,2}):(\d{2})$/);
+    const match = String(value).match(/^(\\d{1,2}):(\\d{2})$/);
     if (!match) return null;
     const hour = Number(match[1]), minute = Number(match[2]);
-    return hour <= 23 && minute <= 59 ? hour * 60 + minute : null;
+    return hour <= 23 && minute <= 59 ? { hour, minute, minutes: hour * 60 + minute } : null;
   };
-  const openMinutes = parseTime(openTime);
-  const closeMinutes = parseTime(closeTime);
-  if (openMinutes === null || closeMinutes === null) {
+  const open = parseTime(openTime);
+  const close = parseTime(closeTime);
+  if (!open || !close || open.minutes === close.minutes) {
     return { isOpen: null, timezone, openTime, closeTime, reason: "hours_not_configured" };
   }
-  const openDayValues = days.map((day) => typeof day === "number" ? day : dayNames.indexOf(String(day).trim()));
-  const scheduledToday = openDayValues.includes(dayIndex);
-  const isOpen = scheduledToday && (openMinutes <= closeMinutes
-    ? currentMinutes >= openMinutes && currentMinutes < closeMinutes
-    : currentMinutes >= openMinutes || currentMinutes < closeMinutes);
+
+  let local;
+  try {
+    if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw new Error("INVALID_DATE");
+    local = getZonedDateTimeParts(now, timezone);
+  } catch {
+    return { isOpen: null, timezone, openTime, closeTime, reason: "invalid_timezone_or_date" };
+  }
+
+  const openDayValues = new Set(days.map((day) => {
+    if (typeof day === "number" && Number.isInteger(day)) return day;
+    return dayNames.findIndex((name) => name.toLowerCase() === String(day).trim().toLowerCase());
+  }).filter((day) => day >= 0 && day <= 6));
+  if (openDayValues.size === 0) {
+    return { isOpen: null, timezone, openTime, closeTime, reason: "open_days_not_configured" };
+  }
+
+  const year = Number(local.year);
+  const month = Number(local.month);
+  const day = Number(local.day);
+  const currentMinutes = Number(local.hour) * 60 + Number(local.minute);
+  const todayUtc = Date.UTC(year, month - 1, day);
+  const overnight = open.minutes > close.minutes;
+  const todayIndex = dayNames.indexOf(local.weekday);
+  const yesterdayIndex = (todayIndex + 6) % 7;
+  const scheduledToday = openDayValues.has(todayIndex);
+  const scheduledYesterday = openDayValues.has(yesterdayIndex);
+
+  const openFromToday = scheduledToday && currentMinutes >= open.minutes;
+  const openFromYesterday = overnight && scheduledYesterday && currentMinutes < close.minutes;
+  const isOpen = openFromToday || openFromYesterday ||
+    (!overnight && scheduledToday && currentMinutes >= open.minutes && currentMinutes < close.minutes);
+
+  let nextOpeningAt = null;
+  if (!isOpen) {
+    for (let offset = 0; offset <= 7; offset += 1) {
+      const date = new Date(todayUtc + offset * 86400000);
+      const weekday = date.getUTCDay();
+      if (!openDayValues.has(weekday)) continue;
+      const candidate = zonedDateTimeToDate(
+        date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(),
+        open.hour, open.minute, timezone
+      );
+      if (candidate && candidate.getTime() > now.getTime()) {
+        nextOpeningAt = candidate.toISOString();
+        break;
+      }
+    }
+  }
+
   return {
-    isOpen, timezone, openTime, closeTime,
-    localDay: localParts.weekday,
-    localTime: String(localParts.hour).padStart(2, "0") + ":" + String(localParts.minute).padStart(2, "0"),
-    reason: scheduledToday ? "within_or_outside_hours" : "closed_day"
+    isOpen,
+    timezone,
+    openTime,
+    closeTime,
+    localDay: local.weekday,
+    localDate: String(local.day).padStart(2, "0") + "/" + String(local.month).padStart(2, "0") + "/" + local.year,
+    localTime: String(local.hour).padStart(2, "0") + ":" + String(local.minute).padStart(2, "0"),
+    nextOpeningAt,
+    reason: isOpen ? "within_operating_hours" : nextOpeningAt ? "outside_operating_hours" : "next_opening_not_found"
   };
 }
 
