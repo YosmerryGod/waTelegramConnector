@@ -1659,7 +1659,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           customerName: String(args?.customerName || "Tidak disebutkan").slice(0, 120),
           customerChatId: isSimulation ? "SIMULASI" : String(normalizeCustomerChatJid(customerChatId) || "Tidak tersedia"),
           items: reportItems,
-          totalAmount: reportItems.every((item) => Number.isSafeInteger(item.subtotal)) ? reportItems.reduce((sum, item) => sum + item.subtotal, 0) : null,
+          totalAmount: reportItems.length > 0 && reportItems.every((item) => Number.isSafeInteger(item.subtotal)) ? reportItems.reduce((sum, item) => sum + item.subtotal, 0) : null,
           outletName: String(args?.outletName || "Tidak diketahui").slice(0, 120),
           pickupAt: String(args?.pickupAt || "Tidak diketahui").slice(0, 80),
           paymentStatus: String(args?.paymentStatus || "Tidak diketahui"),
