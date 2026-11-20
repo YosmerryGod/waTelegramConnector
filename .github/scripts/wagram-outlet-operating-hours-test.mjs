@@ -98,6 +98,18 @@ try {
   );
   assert.equal(holiday.isOpen, false);
   assert.equal(holiday.reason, "special_closure");
+  assert.equal(holiday.nextOpeningAt, "2026-11-21T01:00:00.000Z");
+
+  const specialOverridesClosedWeekday = {
+    ...outlet,
+    openDays: ["Monday"],
+    specialHours: [{ date: "2026-11-21", openTime: "10:00", closeTime: "14:00" }]
+  };
+  const specialSaturday = getOutletOperatingStatus(
+    specialOverridesClosedWeekday,
+    new Date("2026-11-21T04:00:00.000Z") // Saturday, 11:00 WIB
+  );
+  assert.equal(specialSaturday.isOpen, true, "Date-specific opening hours override the weekly closed day.");
 
   const invalidHours = getOutletOperatingStatus(
     { ...outlet, openTime: "25:00" },
