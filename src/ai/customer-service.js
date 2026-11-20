@@ -753,6 +753,13 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
       ).join("\\n\\n")
     : "Belum ada contoh balasan historis yang relevan.";
 
+  // [ADDED] Route customer-facing replies through the same progressive skill runtime.
+  const customerSkillRuntime = routeAndLoadSkills({
+    message: latest.body,
+    history: messages.slice(-6).map((item) => ({ role: item.direction === "incoming" ? "customer" : "business", content: item.body })),
+    mode: options.autoReply ? "customer-auto-reply" : "customer-draft"
+  });
+
   const trainingExamplesText = relevantTrainingExamples.length
     ? relevantTrainingExamples.map((example, index) =>
         "Contoh training " + (index + 1) + " (relevansi " + example.relevance.toFixed(2) + ")\\nPelanggan: " +
@@ -763,6 +770,11 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
 
   const prompt = [
     "IDENTITAS: Kamu adalah asisten customer service untuk bisnis pemilik akun ini.",
+    // [ADDED] Keep skill selection bounded and inject only the selected customer-relevant guidance.
+    "SKILL TERSEDIA: " + JSON.stringify(customerSkillRuntime.availableSkills.map(({ id, name, description }) => ({ id, name, description }))),
+    "SKILL AKTIF: " + JSON.stringify(customerSkillRuntime.activeSkillIds),
+    "CONTEXT PACKET: " + JSON.stringify(customerSkillRuntime.contextPacket),
+    "PANDUAN SKILL PROGRESIF:\\n" + customerSkillRuntime.instructions,
     options.autoReply
       ? "TUJUAN: Tulis satu balasan final yang siap dikirim langsung kepada pelanggan melalui WhatsApp. Jangan menyebut bahwa ini draft, AI, atau hasil training."
       : "TUJUAN: Siapkan draft balasan WhatsApp untuk diperiksa manusia. Jangan mengirim pesan.",
