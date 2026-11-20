@@ -99,7 +99,7 @@ test("routes first-contact availability questions to marketing, business facts a
   assert.equal(result.customerState, "availability");
   assert.deepEqual(result.activeSkillIds, ["consumer-psychology", "business-context", "customer-communication"]);
   assert.equal(result.productOfferCandidates.length, 1);
-  assert.match(result.marketingDirective, /respons pembelian/i);
+  assert.match(result.marketingDirective, /sinyal pembelian/i);
   assert.match(result.instructions, /MARKETING STRATEGY/);
 });
 
