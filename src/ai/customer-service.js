@@ -1040,12 +1040,14 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
 // [ADDED] Normalize private WhatsApp JIDs, including Baileys device-qualified JIDs, before storing order recipients.
 export function normalizeCustomerChatJid(value) {
   const jid = String(value || "").trim();
-  const match = jid.match(/^(\d+)(?::\d+)?@(s\.whatsapp\.net|lid)$/);
+  // [MODIFIED] Accept Baileys private-user JID namespaces, including hosted LID accounts.
+  // Group, broadcast, newsletter, and other non-customer destinations remain rejected.
+  const match = jid.match(/^(\d+)(?::\d+)?@(s\.whatsapp\.net|lid|hosted|hosted\.lid)$/);
   if (!match) return null;
 
   const [, userId, server] = match;
   if (server === "s.whatsapp.net" && !/^\d{8,15}$/.test(userId)) return null;
-  if (server === "lid" && !/^\d{1,20}$/.test(userId)) return null;
+  if (server !== "s.whatsapp.net" && !/^\d{1,20}$/.test(userId)) return null;
   return userId + "@" + server;
 }
 
