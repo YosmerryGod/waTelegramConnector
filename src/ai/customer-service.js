@@ -1084,32 +1084,33 @@ export function buildAIBusinessDecisionContext({ message, history, businessData,
     outlet.name && fullText.includes(String(outlet.name).toLocaleLowerCase("id-ID"))
   );
   const timeOutlet = outletMatch || (outlets.length === 1 ? outlets[0] : null);
+  const outletTimezone = timeOutlet ? String(timeOutlet.timezone || timeOutlet.timeZone || "Asia/Jakarta") : null;
   let timeContext = {
     status: timeOutlet ? "available" : "outlet_not_selected",
     outlet: timeOutlet?.name || null,
-    timezone: timeOutlet?.timezone || null,
+    timezone: outletTimezone,
     localDate: null,
     localTime: null,
     utcOffset: null
   };
-  if (timeOutlet?.timezone) {
+  if (timeOutlet && outletTimezone) {
     try {
       const now = new Date();
       const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
-        timeZone: timeOutlet.timezone,
+        timeZone: outletTimezone,
         year: "numeric", month: "2-digit", day: "2-digit",
         hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
       }).formatToParts(now).map((part) => [part.type, part.value]));
-      const zoneLabel = timeOutlet.timezone === "Asia/Jakarta" ? "WIB"
-        : timeOutlet.timezone === "Asia/Makassar" ? "WITA"
-        : timeOutlet.timezone === "Asia/Jayapura" ? "WIT" : timeOutlet.timezone;
+      const zoneLabel = outletTimezone === "Asia/Jakarta" ? "WIB"
+        : outletTimezone === "Asia/Makassar" ? "WITA"
+        : outletTimezone === "Asia/Jayapura" ? "WIT" : outletTimezone;
       const offset = new Intl.DateTimeFormat("en-US", {
-        timeZone: timeOutlet.timezone, timeZoneName: "shortOffset", hour: "2-digit"
+        timeZone: outletTimezone, timeZoneName: "shortOffset", hour: "2-digit"
       }).formatToParts(now).find((part) => part.type === "timeZoneName")?.value || "";
       timeContext = {
         status: "available",
         outlet: String(timeOutlet.name || ""),
-        timezone: timeOutlet.timezone,
+        timezone: outletTimezone,
         zoneLabel,
         localDate: parts.day + "-" + parts.month + "-" + parts.year,
         localTime: parts.hour + ":" + parts.minute,
