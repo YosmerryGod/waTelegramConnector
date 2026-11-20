@@ -177,7 +177,7 @@ async function test(name, message, validate, history = []) {
   const reply = String(response.reply || "").trim();
   assert.ok(reply, `${name}: AI returned an empty response.`);
   assert.ok(!reply.startsWith("{") && !reply.startsWith("["), `${name}: raw JSON reached the customer reply.`);
-  assert.ok(!/CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\\berror\\b|\\bJSON\\b/i.test(reply), `${name}: technical details reached the customer reply.`);
+  assert.ok(!/CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\berror\b|\bJSON\b/i.test(reply), `${name}: technical details reached the customer reply.`);
   console.log("Intent:", response.intent || "not reported");
   console.log("AI reply:", reply);
   validate(reply, response);
