@@ -8,7 +8,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "wagram-order-confirmation
 process.env.SQLITE_PATH = path.join(tempDir, "test.sqlite");
 
 const database = await import("../../src/database.js");
-const { normalizeCustomerChatJid, validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
+const { buildScheduledOrderFallbackReply, normalizeOpenRouterMessageContent, normalizeCustomerChatJid, validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
 
 const order = {
   outletName: "Outlet Banjarbaru",
@@ -24,6 +24,13 @@ const approvedSummary = {
 };
 
 try {
+  assert.equal(normalizeOpenRouterMessageContent("  respons teks  "), "respons teks");
+  assert.equal(normalizeOpenRouterMessageContent([{ text: "bagian satu" }, { type: "text", text: "bagian dua" }]), "bagian satu\\nbagian dua");
+  assert.equal(normalizeOpenRouterMessageContent(null), "");
+  assert.equal(buildScheduledOrderFallbackReply({ id: 42, paymentStatus: "unpaid" }), "Pesanan #42 sudah berhasil dicatat, Kak. Pembayaran di tempat.");
+  assert.equal(buildScheduledOrderFallbackReply({ id: 43, paymentStatus: "pending_verification" }), "Pesanan #43 sudah berhasil dicatat, Kak. Pembayaran menunggu verifikasi pengelola.");
+  assert.equal(buildScheduledOrderFallbackReply(null), "");
+
   assert.equal(normalizeCustomerChatJid("6281234567890@s.whatsapp.net"), "6281234567890@s.whatsapp.net");
   assert.equal(normalizeCustomerChatJid("6281234567890:17@s.whatsapp.net"), "6281234567890@s.whatsapp.net");
   assert.equal(normalizeCustomerChatJid("123456789012345@lid"), "123456789012345@lid");
