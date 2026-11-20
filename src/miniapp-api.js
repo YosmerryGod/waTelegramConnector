@@ -19,6 +19,11 @@ import {
   checkOpenRouterHealth
 } from "./ai/customer-service.js";
 
+import {
+  createSkillChangeProposal,
+  listSkillChangeProposals,
+  reviewSkillChangeProposal
+} from "./ai/skills/runtime.js";
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import { publishToMiniApp } from "./realtime.js";
 import QRCode from "qrcode";
@@ -1817,6 +1822,61 @@ router.get("/messages/:id/media", async (req, res) => {
   }
 });
 
+
+// [ADDED] Owner-controlled skill learning proposals; all records are scoped to the authenticated Telegram account and WhatsApp session.
+router.get("/ai/skill-proposals", (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, proposals: listSkillChangeProposals(req.telegramId, req.sessionId) });
+  } catch (error) {
+    return sendServerError(res, error, "Could not list skill learning proposals");
+  }
+});
+
+router.post("/ai/skill-proposals", (req, res) => {
+  try {
+    const result = createSkillChangeProposal({
+      telegramId: req.telegramId,
+      sessionId: req.sessionId,
+      skillId: req.body?.skillId,
+      proposal: req.body?.proposal,
+      evidenceSummary: req.body?.evidenceSummary
+    });
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(201).json({ ok: true, proposal: result });
+  } catch (error) {
+    const status = error.message === "SKILL_PROPOSAL_INVALID" ? 400 : 500;
+    return res.status(status).json({
+      ok: false,
+      error: error.message || "SKILL_PROPOSAL_CREATE_FAILED",
+      message: status === 400 ? "Skill, usulan, dan bukti harus diisi dengan benar." : "Usulan pembelajaran belum dapat disimpan."
+    });
+  }
+});
+
+router.post("/ai/skill-proposals/:proposalId/review", (req, res) => {
+  try {
+    const proposalId = Number(req.params.proposalId);
+    const approved = req.body?.approved;
+    if (!Number.isSafeInteger(proposalId) || proposalId <= 0 || typeof approved !== "boolean") {
+      return res.status(400).json({ ok: false, error: "INVALID_SKILL_PROPOSAL_REVIEW" });
+    }
+    const result = reviewSkillChangeProposal({
+      telegramId: req.telegramId,
+      sessionId: req.sessionId,
+      proposalId,
+      approved,
+      reviewer: req.telegramId
+    });
+    if (!result.updated) {
+      return res.status(404).json({ ok: false, error: "SKILL_PROPOSAL_NOT_PENDING", message: "Usulan tidak ditemukan atau sudah ditinjau." });
+    }
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, review: result });
+  } catch (error) {
+    return sendServerError(res, error, "Could not review skill learning proposal");
+  }
+});
 
 /* [ADDED] AI Customer Service: available only to Premium 30-day users.
    All actions are scoped to the authenticated Telegram owner and selected WhatsApp session. */
