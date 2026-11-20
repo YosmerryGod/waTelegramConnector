@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import db from "../database.js";
+// [ADDED] Load only contextually relevant skills for each owner AI turn.
+import { routeAndLoadSkills } from "./skills/runtime.js";
 
 import {
   getMembership,
@@ -1356,7 +1358,13 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       }
     ]
   }];
+  // [ADDED] Progressive skill routing: select up to three relevant skills for this turn.
+  const skillRuntimeContext = routeAndLoadSkills({ message, history, mode: "owner" });
   const systemInstruction = [
+    "SKILL ROUTING AKTIF. Skill tersedia: " + JSON.stringify(skillRuntimeContext.availableSkills.map(({ id, name, description }) => ({ id, name, description }))),
+    "SKILL TERPILIH: " + JSON.stringify(skillRuntimeContext.activeSkillIds),
+    "CONTEXT PACKET: " + JSON.stringify(skillRuntimeContext.contextPacket),
+    "PANDUAN SKILL YANG DIMUAT SECARA PROGRESIF:\\n" + skillRuntimeContext.instructions,
     "Kamu WAGRAM AI, asisten bisnis percakapan untuk pemilik akun yang terautentikasi.",
     // [MODIFIED] Keep WhatsApp replies concise and focused on the exact question.
     "Jawab dalam Bahasa Indonesia yang natural seperti admin WhatsApp sungguhan.",
