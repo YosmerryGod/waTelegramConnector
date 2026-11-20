@@ -47,6 +47,28 @@ db.exec(`
     ON ai_scheduled_orders(telegram_id, session_id, created_at DESC);
 `);
 
+// [ADDED] Scheduled-order lifecycle fields are added safely to existing databases.
+const scheduledOrderColumns = new Set(
+  db.prepare("PRAGMA table_info(ai_scheduled_orders)").all().map((column) => column.name)
+);
+for (const [column, definition] of [
+  ["order_status", "TEXT NOT NULL DEFAULT 'scheduled' CHECK (order_status IN ('scheduled', 'preparing', 'ready', 'completed', 'cancelled'))"],
+  ["updated_at", "INTEGER"],
+  ["completed_at", "INTEGER"],
+  ["cancelled_at", "INTEGER"],
+  ["payment_verified_at", "INTEGER"],
+  ["payment_verified_by", "TEXT"]
+]) {
+  if (!scheduledOrderColumns.has(column)) {
+    db.exec("ALTER TABLE ai_scheduled_orders ADD COLUMN " + column + " " + definition);
+  }
+}
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_ai_scheduled_orders_status
+    ON ai_scheduled_orders(telegram_id, session_id, order_status, pickup_at);
+`);
+db.prepare("UPDATE ai_scheduled_orders SET updated_at = created_at WHERE updated_at IS NULL").run();
+
 // [ADDED] Durable notification outbox: persisted atomically with its scheduled order.
 db.exec(`
   CREATE TABLE IF NOT EXISTS ai_scheduled_order_outbox (
