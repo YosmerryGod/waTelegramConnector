@@ -837,14 +837,7 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
   // [ADDED] Date-specific closures and hours override the weekly schedule.
   const specialHours = Array.isArray(outlet?.specialHours) ? outlet.specialHours : [];
   const special = specialHours.find((entry) => String(entry?.date || "").trim() === localDateKey);
-  if (special?.closed === true) {
-    return {
-      isOpen: false, timezone, openTime, closeTime,
-      localDay: local.weekday, localDate: localDateKey.split("-").reverse().join("/"),
-      localTime: String(local.hour).padStart(2, "0") + ":" + String(local.minute).padStart(2, "0"),
-      nextOpeningAt: null, reason: "special_closure"
-    };
-  }
+  const specialClosed = special?.closed === true; // [ADDED] Defer closure return until the next valid opening can be calculated.
   if (special && (special.openTime || special.closeTime)) {
     if (!special.openTime || !special.closeTime) {
       return { isOpen: null, timezone, openTime, closeTime, reason: "special_hours_incomplete" };
@@ -874,23 +867,40 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
   const overnight = open.minutes > close.minutes;
   const todayIndex = dayNames.indexOf(local.weekday);
   const yesterdayIndex = (todayIndex + 6) % 7;
-  const scheduledToday = openDayValues.has(todayIndex);
+  const specialOverridesDays = Boolean(special && special.closed !== true && (special.openTime || special.closeTime));
+  const scheduledToday = specialOverridesDays || openDayValues.has(todayIndex);
   const scheduledYesterday = openDayValues.has(yesterdayIndex);
 
-  const openFromToday = scheduledToday && currentMinutes >= open.minutes &&
+  const openFromToday = !specialClosed && scheduledToday && currentMinutes >= open.minutes &&
     (overnight || currentMinutes < close.minutes);
-  const openFromYesterday = overnight && scheduledYesterday && currentMinutes < close.minutes;
+  const openFromYesterday = !specialClosed && overnight && scheduledYesterday && currentMinutes < close.minutes;
   const isOpen = openFromToday || openFromYesterday;
 
   let nextOpeningAt = null;
   if (!isOpen) {
-    for (let offset = 0; offset <= 7; offset += 1) {
+    for (let offset = 0; offset <= 60; offset += 1) {
       const date = new Date(todayUtc + offset * 86400000);
+      const dateKey = date.getUTCFullYear() + "-" +
+        String(date.getUTCMonth() + 1).padStart(2, "0") + "-" +
+        String(date.getUTCDate()).padStart(2, "0");
       const weekday = date.getUTCDay();
-      if (!openDayValues.has(weekday)) continue;
+      const dateOverride = specialHours.find((entry) => String(entry?.date || "").trim() === dateKey);
+      if (dateOverride?.closed === true) continue;
+
+      let candidateOpen = open;
+      let candidateClose = close;
+      if (dateOverride && (dateOverride.openTime || dateOverride.closeTime)) {
+        if (!dateOverride.openTime || !dateOverride.closeTime) continue;
+        candidateOpen = parseTime(dateOverride.openTime);
+        candidateClose = parseTime(dateOverride.closeTime);
+        if (!candidateOpen || !candidateClose || candidateOpen.minutes === candidateClose.minutes) continue;
+      } else if (!openDayValues.has(weekday)) {
+        continue;
+      }
+
       const candidate = zonedDateTimeToDate(
         date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(),
-        open.hour, open.minute, timezone
+        candidateOpen.hour, candidateOpen.minute, timezone
       );
       if (candidate && candidate.getTime() > now.getTime()) {
         nextOpeningAt = candidate.toISOString();
@@ -908,7 +918,7 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
     localDate: String(local.day).padStart(2, "0") + "/" + String(local.month).padStart(2, "0") + "/" + local.year,
     localTime: String(local.hour).padStart(2, "0") + ":" + String(local.minute).padStart(2, "0"),
     nextOpeningAt,
-    reason: isOpen ? "within_operating_hours" : nextOpeningAt ? "outside_operating_hours" : "next_opening_not_found"
+    reason: isOpen ? "within_operating_hours" : specialClosed ? "special_closure" : nextOpeningAt ? "outside_operating_hours" : "next_opening_not_found"
   };
 }
 
