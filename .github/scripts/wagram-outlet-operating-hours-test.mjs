@@ -25,6 +25,17 @@ try {
   assert.equal(open.isOpen, true);
   assert.equal(open.localDay, "Friday");
 
+  const justBeforeClose = getOutletOperatingStatus(
+    outlet,
+    new Date("2026-11-20T13:59:00.000Z") // Friday, 20:59 WIB
+  );
+  assert.equal(justBeforeClose.isOpen, true);
+  const atClosingTime = getOutletOperatingStatus(
+    outlet,
+    new Date("2026-11-20T14:00:00.000Z") // Friday, 21:00 WIB
+  );
+  assert.equal(atClosingTime.isOpen, false);
+
   const closedWithNextOpening = getOutletOperatingStatus(
     outlet,
     new Date("2026-11-20T14:00:00.000Z") // Friday, 21:00 WIB
