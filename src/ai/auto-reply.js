@@ -700,17 +700,33 @@ export async function handleIncomingAIAutoReply({
     if (useBusinessAI && suggestion?.needsManager) {
       const managerQuestion = String(suggestion.managerQuestion || latest.body || "").trim();
       if (!reply) throw new Error("AI_MANAGER_NOTICE_EMPTY");
+
+      // [MODIFIED] Escalate first; never tell the customer the manager was contacted before delivery succeeds.
+      try {
+        await escalateToManager({
+          telegramId: ownerId,
+          sessionId: accountId,
+          customerChatId: whatsappChatId,
+          customerPhone: String(whatsappChatId).replace(/\D/g, ""),
+          customerMessageId: incomingId,
+          question: managerQuestion,
+          socket
+        });
+      } catch (error) {
+        const fallbackReply = "Maaf Kak, pesanan belum tercatat dan saya belum berhasil menghubungi pengelola. Silakan hubungi outlet langsung untuk memastikan pesanan.";
+        await socket.sendMessage(whatsappChatId, { text: fallbackReply }, quotedMessage ? { quoted: quotedMessage } : {});
+        updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
+          generatedReply: fallbackReply, status: "sent", error: null
+        });
+        console.error("[WAGRAM AI Manager Escalation] Delivery failed:", JSON.stringify({
+          telegramId: ownerId, sessionId: accountId, customerMessageId: incomingId,
+          error: String(error?.message || "AI_MANAGER_ESCALATION_FAILED").slice(0, 200)
+        }));
+        return { sent: true, escalated: false };
+      }
+
       const managerNotice = reply;
       await socket.sendMessage(whatsappChatId, { text: managerNotice }, quotedMessage ? { quoted: quotedMessage } : {});
-      await escalateToManager({
-        telegramId: ownerId,
-        sessionId: accountId,
-        customerChatId: whatsappChatId,
-        customerPhone: String(whatsappChatId).replace(/\D/g, ""),
-        customerMessageId: incomingId,
-        question: managerQuestion,
-        socket
-      });
       updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
         generatedReply: managerNotice, status: "sent", error: null
       });
