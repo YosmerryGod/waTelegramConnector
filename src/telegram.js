@@ -1417,7 +1417,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
       }
     },
 
-    onMessage: async ({ message, socket }) => {
+    onMessage: async ({ message, socket, customerChatJid }) => {
       try {
         const key = message?.key || {};
         const messageId = key.id;
