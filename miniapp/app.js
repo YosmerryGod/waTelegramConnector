@@ -48,14 +48,7 @@
     contacts: [],
     contactsLoaded: false,
     contactSearch: "",
-    editingId: null,
-    contactTab: "book", // [ADDED] Keep the personal book separate from customers and employees.
-    customerContacts: [],
-    customerContactsLoaded: false,
-    editingCustomerId: null,
-    employeeWhitelist: [],
-    employeeWhitelistLoaded: false,
-    editingEmployeeId: null
+    editingId: null
   };
 
   const PAGES = {
@@ -386,7 +379,6 @@
     updateTopbarTitle();
     // [ADDED] Show the add-contact action only on the Contacts page.
     $("#addContactButton").classList.toggle("hidden", page !== "contacts");
-    if (page === "contacts") updateContactAddButton();
     $("#bottomNav").classList.toggle("hidden", page === "premium" || page === "aiBusiness");
     document.body.classList.toggle("premium-page-active", page === "premium");
     closeConversationUI();
@@ -415,11 +407,8 @@
       loadCalls();
     }
 
-    if (page === "contacts") {
-      if (!state.contactsLoaded) loadContacts();
-      if (!state.customerContactsLoaded) loadCustomerContacts();
-      if (!state.employeeWhitelistLoaded) loadEmployeeWhitelist();
-      updateContactDirectoryView();
+    if (page === "contacts" && !state.contactsLoaded) {
+      loadContacts();
     }
 
     if (page === "account") {
@@ -458,7 +447,7 @@
     const target = state.page === "calls"
       ? $("#callsSearchInput")
       : state.page === "contacts"
-        ? (state.contactTab === "customers" ? $("#customerContactsSearchInput") : state.contactTab === "employees" ? $("#employeeWhitelistSearchInput") : $("#contactsSearchInput"))
+        ? $("#contactsSearchInput")
         : state.page === "chats"
           ? $("#searchInput")
           : null;
@@ -489,7 +478,7 @@
     const target = state.page === "calls"
       ? $("#callsSearchInput")
       : state.page === "contacts"
-        ? (state.contactTab === "customers" ? $("#customerContactsSearchInput") : state.contactTab === "employees" ? $("#employeeWhitelistSearchInput") : $("#contactsSearchInput"))
+        ? $("#contactsSearchInput")
         : state.page === "chats"
           ? $("#searchInput")
           : null;
@@ -2161,221 +2150,6 @@
     }
   }
 
-  async function loadCustomerContacts() {
-    const list = $("#customerContactsList");
-    if (!state.customerContactsLoaded) list.innerHTML = '<div class="loading">Memuat pelanggan…</div>';
-    try {
-      const data = await api("/customer-contacts");
-      state.customerContacts = data.contacts || [];
-      state.customerContactsLoaded = true;
-      renderCustomerContacts();
-    } catch (error) {
-      state.customerContactsLoaded = false;
-      list.innerHTML = errorState(error.message, "retryCustomerContacts");
-      $("#retryCustomerContacts")?.addEventListener("click", loadCustomerContacts);
-    }
-  }
-  async function loadEmployeeWhitelist() {
-    const list = $("#employeeWhitelistList");
-    if (!state.employeeWhitelistLoaded) list.innerHTML = '<div class="loading">Memuat whitelist…</div>';
-    try {
-      const data = await api("/employee-whitelist");
-      state.employeeWhitelist = data.employees || [];
-      state.employeeWhitelistLoaded = true;
-      renderEmployeeWhitelist();
-    } catch (error) {
-      state.employeeWhitelistLoaded = false;
-      list.innerHTML = errorState(error.message, "retryEmployeeWhitelist");
-      $("#retryEmployeeWhitelist")?.addEventListener("click", loadEmployeeWhitelist);
-    }
-  }
-  function updateContactDirectoryView() {
-    const views = { book: "#contactsList", customers: "#customerContactsList", employees: "#employeeWhitelistList" };
-    for (const [key, selector] of Object.entries(views)) {
-      $(selector).classList.toggle("hidden", state.contactTab !== key);
-      const button = $(`[data-contact-tab="${key}"]`);
-      button?.classList.toggle("selected", state.contactTab === key);
-      button?.setAttribute("aria-selected", String(state.contactTab === key));
-    }
-    $("#contactsSearchInput").hidden = state.contactTab !== "book";
-    $("#customerContactsSearchInput").hidden = state.contactTab !== "customers";
-    $("#employeeWhitelistSearchInput").hidden = state.contactTab !== "employees";
-    updateContactAddButton();
-    if ($("#topbar").classList.contains("search-open")) {
-      const target = state.contactTab === "customers" ? $("#customerContactsSearchInput") : state.contactTab === "employees" ? $("#employeeWhitelistSearchInput") : $("#contactsSearchInput");
-      $("#topbarSearchInput").value = target.value || "";
-    }
-  }
-  function updateContactAddButton() {
-    const button = $("#addContactButton");
-    const label = state.contactTab === "customers" ? "Tambah pelanggan" : state.contactTab === "employees" ? "Tambah karyawan" : "Tambah kontak";
-    button.setAttribute("aria-label", label);
-    button.title = label;
-  }
-  function setContactTab(tab) {
-    if (!["book", "customers", "employees"].includes(tab)) return;
-    state.contactTab = tab;
-    updateContactDirectoryView();
-    if (tab === "book") renderContacts();
-    if (tab === "customers") renderCustomerContacts();
-    if (tab === "employees") renderEmployeeWhitelist();
-  }
-  function renderCustomerContacts() {
-    const list = $("#customerContactsList");
-    const query = ($("#customerContactsSearchInput").value || "").trim().toLowerCase();
-    const digits = query.replace(/\D/g, "").replace(/^0+/, "");
-    const contacts = state.customerContacts.filter((contact) =>
-      !query || String(contact.name || "").toLowerCase().includes(query) ||
-      String(contact.phone_number || "").includes(digits) ||
-      String(contact.address || "").toLowerCase().includes(query)
-    );
-    if (!contacts.length) {
-      list.innerHTML = query
-        ? emptyState("search", "Pelanggan tidak ditemukan", "Coba nama, nomor, atau alamat lain.")
-        : emptyState("users", "Belum ada pelanggan", "Simpan data pelanggan yang sudah pernah melakukan order.", '<button class="primary-button" type="button" data-add-customer>Tambah pelanggan</button>');
-      return;
-    }
-    list.innerHTML = contacts.map((contact) => `
-      <article class="directory-row">
-        <div class="directory-row-main">
-          ${avatar(contact.name, contact.name, "small")}
-          <div class="item-body">
-            <div class="item-title">${escapeHTML(contact.name)}</div>
-            <div class="item-sub">${escapeHTML(formatPhone(contact.phone_number))}</div>
-            ${contact.address ? `<div class="directory-address">${escapeHTML(contact.address)}</div>` : ""}
-          </div>
-        </div>
-        <div class="directory-row-actions">
-          <button type="button" data-customer-edit="${escapeHTML(contact.id)}" aria-label="Edit pelanggan">${icon("edit")}</button>
-          <button type="button" data-customer-delete="${escapeHTML(contact.id)}" aria-label="Hapus pelanggan">${icon("trash")}</button>
-        </div>
-      </article>`).join("");
-  }
-  function renderEmployeeWhitelist() {
-    const list = $("#employeeWhitelistList");
-    const query = ($("#employeeWhitelistSearchInput").value || "").trim().toLowerCase();
-    const digits = query.replace(/\D/g, "").replace(/^0+/, "");
-    const employees = state.employeeWhitelist.filter((employee) =>
-      !query || String(employee.name || "").toLowerCase().includes(query) ||
-      String(employee.phone_number || "").includes(digits)
-    );
-    if (!employees.length) {
-      list.innerHTML = query
-        ? emptyState("search", "Nomor tidak ditemukan", "Coba nama atau nomor lain.")
-        : emptyState("users", "Whitelist masih kosong", "Nomor karyawan di sini tidak akan menerima balasan AI.", '<button class="primary-button" type="button" data-add-employee>Tambah nomor karyawan</button>');
-      return;
-    }
-    list.innerHTML = employees.map((employee) => `
-      <article class="directory-row">
-        <div class="directory-row-main">
-          ${avatar(employee.name || "K", employee.name || "Karyawan", "small")}
-          <div class="item-body">
-            <div class="item-title">${escapeHTML(employee.name || "Karyawan")}</div>
-            <div class="item-sub">${escapeHTML(formatPhone(employee.phone_number))}</div>
-          </div>
-        </div>
-        <div class="directory-row-actions">
-          <button type="button" data-employee-edit="${escapeHTML(employee.id)}" aria-label="Edit nomor karyawan">${icon("edit")}</button>
-          <button type="button" data-employee-delete="${escapeHTML(employee.id)}" aria-label="Hapus nomor karyawan">${icon("trash")}</button>
-        </div>
-      </article>`).join("");
-  }
-  function openCustomerContactSheet(contact = null) {
-    state.editingCustomerId = contact ? contact.id : null;
-    $("#customerContactFormTitle").textContent = contact ? "Edit pelanggan" : "Tambah pelanggan";
-    $("#customerContactNameInput").value = contact?.name || "";
-    $("#customerContactPhoneInput").value = contact ? formatPhone(contact.phone_number) : "";
-    $("#customerContactAddressInput").value = contact?.address || "";
-    $("#customerContactSheet").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
-    try { tg?.BackButton?.show(); } catch {}
-    setTimeout(() => $("#customerContactNameInput").focus(), 60);
-  }
-  function closeCustomerContactSheet() {
-    $("#customerContactSheet").classList.add("hidden");
-    $("#customerContactForm").reset();
-    document.body.style.overflow = "";
-    state.editingCustomerId = null;
-    if (!document.body.classList.contains("in-chat")) { try { tg?.BackButton?.hide(); } catch {} }
-  }
-  async function submitCustomerContact(event) {
-    event.preventDefault();
-    const name = $("#customerContactNameInput").value.trim();
-    const phone = $("#customerContactPhoneInput").value.trim();
-    const address = $("#customerContactAddressInput").value.trim();
-    const digits = phone.replace(/\D/g, "");
-    if (!name) { showToast(ERROR_TEXT.INVALID_NAME); $("#customerContactNameInput").focus(); return; }
-    if (digits.length < 8 || digits.length > 16) { showToast(ERROR_TEXT.INVALID_PHONE); $("#customerContactPhoneInput").focus(); return; }
-    const id = state.editingCustomerId;
-    const button = $("#saveCustomerContactButton");
-    button.disabled = true;
-    try {
-      const data = await api(id == null ? "/customer-contacts" : `/customer-contacts/${enc(id)}`, {
-        method: id == null ? "POST" : "PUT",
-        body: JSON.stringify({ name, phone_number: phone, address })
-      });
-      closeCustomerContactSheet();
-      showToast(id == null ? (data.created === false ? "Data pelanggan diperbarui" : "Pelanggan disimpan") : "Pelanggan diperbarui");
-      await loadCustomerContacts();
-    } catch (error) { showToast(error.message); }
-    finally { button.disabled = false; }
-  }
-  async function removeCustomerContact(id) {
-    const contact = state.customerContacts.find((item) => String(item.id) === String(id));
-    if (!contact || !(await confirmAction(`Hapus data pelanggan ${contact.name}?`))) return;
-    try {
-      await api(`/customer-contacts/${enc(id)}`, { method: "DELETE" });
-      showToast("Data pelanggan dihapus");
-      await loadCustomerContacts();
-    } catch (error) { showToast(error.message); }
-  }
-  function openEmployeeWhitelistSheet(employee = null) {
-    state.editingEmployeeId = employee ? employee.id : null;
-    $("#employeeWhitelistFormTitle").textContent = employee ? "Edit nomor karyawan" : "Tambah nomor karyawan";
-    $("#employeeWhitelistNameInput").value = employee?.name || "";
-    $("#employeeWhitelistPhoneInput").value = employee ? formatPhone(employee.phone_number) : "";
-    $("#employeeWhitelistSheet").classList.remove("hidden");
-    document.body.style.overflow = "hidden";
-    try { tg?.BackButton?.show(); } catch {}
-    setTimeout(() => $("#employeeWhitelistPhoneInput").focus(), 60);
-  }
-  function closeEmployeeWhitelistSheet() {
-    $("#employeeWhitelistSheet").classList.add("hidden");
-    $("#employeeWhitelistForm").reset();
-    document.body.style.overflow = "";
-    state.editingEmployeeId = null;
-    if (!document.body.classList.contains("in-chat")) { try { tg?.BackButton?.hide(); } catch {} }
-  }
-  async function submitEmployeeWhitelist(event) {
-    event.preventDefault();
-    const name = $("#employeeWhitelistNameInput").value.trim();
-    const phone = $("#employeeWhitelistPhoneInput").value.trim();
-    const digits = phone.replace(/\D/g, "");
-    if (digits.length < 8 || digits.length > 16) { showToast(ERROR_TEXT.INVALID_PHONE); $("#employeeWhitelistPhoneInput").focus(); return; }
-    const id = state.editingEmployeeId;
-    const button = $("#saveEmployeeWhitelistButton");
-    button.disabled = true;
-    try {
-      const data = await api(id == null ? "/employee-whitelist" : `/employee-whitelist/${enc(id)}`, {
-        method: id == null ? "POST" : "PUT",
-        body: JSON.stringify({ name, phone_number: phone })
-      });
-      closeEmployeeWhitelistSheet();
-      showToast(id == null ? (data.created === false ? "Nomor karyawan diperbarui" : "Nomor karyawan disimpan") : "Nomor karyawan diperbarui");
-      await loadEmployeeWhitelist();
-    } catch (error) { showToast(error.message); }
-    finally { button.disabled = false; }
-  }
-  async function removeEmployeeWhitelist(id) {
-    const employee = state.employeeWhitelist.find((item) => String(item.id) === String(id));
-    if (!employee || !(await confirmAction(`Hapus nomor ${formatPhone(employee.phone_number)} dari whitelist?`))) return;
-    try {
-      await api(`/employee-whitelist/${enc(id)}`, { method: "DELETE" });
-      showToast("Nomor karyawan dihapus dari whitelist");
-      await loadEmployeeWhitelist();
-    } catch (error) { showToast(error.message); }
-  }
-
   function renderContacts() {
     const list = $("#contactsList");
     const query = state.contactSearch.trim().toLowerCase();
@@ -2938,39 +2712,6 @@
       if (!upgradeButton) return;
       event.preventDefault();
       openPremiumSheet();
-    });
-
-    $("#addContactButton").addEventListener("click", () => {
-      if (state.contactTab === "customers") openCustomerContactSheet();
-      else if (state.contactTab === "employees") openEmployeeWhitelistSheet();
-      else openContactSheet();
-    });
-    document.querySelectorAll("[data-contact-tab]").forEach((button) => {
-      button.addEventListener("click", () => setContactTab(button.dataset.contactTab));
-    });
-    $("#customerContactsSearchInput").addEventListener("input", renderCustomerContacts);
-    $("#employeeWhitelistSearchInput").addEventListener("input", renderEmployeeWhitelist);
-    $("#customerContactForm").addEventListener("submit", submitCustomerContact);
-    $("#employeeWhitelistForm").addEventListener("submit", submitEmployeeWhitelist);
-    $("#customerContactSheet").addEventListener("click", (event) => {
-      if (event.target.closest("[data-close-customer-sheet]")) closeCustomerContactSheet();
-    });
-    $("#employeeWhitelistSheet").addEventListener("click", (event) => {
-      if (event.target.closest("[data-close-employee-sheet]")) closeEmployeeWhitelistSheet();
-    });
-    $("#customerContactsList").addEventListener("click", (event) => {
-      const edit = event.target.closest("[data-customer-edit]");
-      const remove = event.target.closest("[data-customer-delete]");
-      if (edit) openCustomerContactSheet(state.customerContacts.find((item) => String(item.id) === edit.dataset.customerEdit));
-      if (remove) removeCustomerContact(remove.dataset.customerDelete);
-      if (event.target.closest("[data-add-customer]")) openCustomerContactSheet();
-    });
-    $("#employeeWhitelistList").addEventListener("click", (event) => {
-      const edit = event.target.closest("[data-employee-edit]");
-      const remove = event.target.closest("[data-employee-delete]");
-      if (edit) openEmployeeWhitelistSheet(state.employeeWhitelist.find((item) => String(item.id) === edit.dataset.employeeEdit));
-      if (remove) removeEmployeeWhitelist(remove.dataset.employeeDelete);
-      if (event.target.closest("[data-add-employee]")) openEmployeeWhitelistSheet();
     });
 
     // [ADDED] Animated global search control in the top bar.
@@ -4869,10 +4610,6 @@
         closeProfileSheet();
       } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
-      } else if (!$("#customerContactSheet").classList.contains("hidden")) {
-        closeCustomerContactSheet();
-      } else if (!$("#employeeWhitelistSheet").classList.contains("hidden")) {
-        closeEmployeeWhitelistSheet();
       }
     });
   }
@@ -4962,10 +4699,6 @@
         closeProfileSheet();
       } else if (!$("#contactSheet").classList.contains("hidden")) {
         closeContactSheet();
-      } else if (!$("#customerContactSheet").classList.contains("hidden")) {
-        closeCustomerContactSheet();
-      } else if (!$("#employeeWhitelistSheet").classList.contains("hidden")) {
-        closeEmployeeWhitelistSheet();
       } else if (state.page === "premium") {
         closePremiumSheet();
       } else {
