@@ -8425,3 +8425,116 @@ body.in-chat #topbar {
 .whatsapp-primary-account-row[hidden] {
   display: none !important;
 }
+
+/* [ADDED] Compact three-column icon navigation for WAMO AI settings. */
+/* [MODIFIED] Show three icon-only options; reveal one horizontal label on hover or keyboard focus. */
+.ai-business-section-heading {
+  display: none;
+}
+.ai-business-settings-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 4px 1px 8px;
+}
+.ai-business-setting-tile {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 82px;
+  grid-template-columns: 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: 0;
+  padding: 12px;
+  border-radius: 18px;
+  text-align: center;
+  transition: opacity .18s ease, background .18s ease, border-color .18s ease, min-height .2s ease;
+}
+.ai-business-setting-icon {
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  border-radius: 15px;
+}
+.ai-business-setting-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.ai-business-setting-copy,
+.ai-business-setting-arrow {
+  display: none;
+}
+.ai-business-settings-grid:has(.ai-business-setting-tile:hover),
+.ai-business-settings-grid:has(.ai-business-setting-tile:focus-visible) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ai-business-settings-grid:has(.ai-business-setting-tile:hover) .ai-business-setting-tile:not(:hover),
+.ai-business-settings-grid:has(.ai-business-setting-tile:focus-visible) .ai-business-setting-tile:not(:focus-visible) {
+  display: none;
+}
+.ai-business-setting-tile:hover,
+.ai-business-setting-tile:focus-visible {
+  display: flex;
+  min-height: 72px;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 12px 16px;
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+  text-align: left;
+}
+.ai-business-setting-tile:hover .ai-business-setting-copy,
+.ai-business-setting-tile:focus-visible .ai-business-setting-copy {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  animation: aiSettingsLabelIn .18s ease both;
+}
+.ai-business-setting-tile:hover .ai-business-setting-copy strong,
+.ai-business-setting-tile:focus-visible .ai-business-setting-copy strong {
+  font-size: 13px;
+}
+.ai-business-setting-tile:hover .ai-business-setting-copy small,
+.ai-business-setting-tile:focus-visible .ai-business-setting-copy small {
+  font-size: 11px;
+}
+.ai-business-setting-tile:hover .ai-business-setting-arrow,
+.ai-business-setting-tile:focus-visible .ai-business-setting-arrow {
+  display: block;
+}
+@keyframes aiSettingsLabelIn {
+  from { opacity: 0; transform: translateX(-5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (hover: none) {
+  .ai-business-settings-grid:has(.ai-business-setting-tile:hover),
+  .ai-business-settings-grid:has(.ai-business-setting-tile:focus-visible) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ai-business-settings-grid:has(.ai-business-setting-tile:hover) .ai-business-setting-tile:not(:hover),
+  .ai-business-settings-grid:has(.ai-business-setting-tile:focus-visible) .ai-business-setting-tile:not(:focus-visible) {
+    display: grid;
+  }
+  .ai-business-setting-tile:hover,
+  .ai-business-setting-tile:focus-visible {
+    display: grid;
+    min-height: 82px;
+    justify-content: center;
+    padding: 12px;
+    text-align: center;
+  }
+  .ai-business-setting-tile:hover .ai-business-setting-copy,
+  .ai-business-setting-tile:focus-visible .ai-business-setting-copy,
+  .ai-business-setting-tile:hover .ai-business-setting-arrow,
+  .ai-business-setting-tile:focus-visible .ai-business-setting-arrow {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-business-setting-tile,
+  .ai-business-setting-tile:hover .ai-business-setting-copy {
+    animation: none;
+    transition: none;
+  }
+}
+
