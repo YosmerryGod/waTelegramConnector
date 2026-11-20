@@ -74,7 +74,33 @@ for (const jid of ["6281234567890@s.whatsapp.net", "123456789012345@lid", "12345
 for (const jid of ["123456789@g.us", "status@broadcast", "sim-123@sim", ""]) {
   assert.equal(ai.normalizeCustomerChatJid(jid), null, "Non-customer JID was accepted: " + jid);
 }
+
 console.log("PASS: WhatsApp JID normalization (@s.whatsapp.net, @lid, @hosted)");
+
+// [ADDED] Force a truncated OpenRouter JSON response and verify only the extracted reply is returned.
+if (process.env.OPENROUTER_API_KEY) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    id: "wagram-truncated-json-test",
+    provider: "DeepSeek",
+    model: process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4.1-flash-1017",
+    choices: [{
+      finish_reason: "length",
+      message: { content: '{"reply":"Halo Kak, ada yang bisa saya bantu?","needs_manager":false,"manager_question":"' }
+    }],
+    usage: { completion_tokens: 1500, reasoning_tokens: 250 }
+  }), { status: 200, headers: { "content-type": "application/json" } });
+  try {
+    const truncated = await ai.createAIBusinessReply(owner.telegram_id, sessionId, "halo", [], "", { isSimulation: true });
+    assert.equal(truncated.reply, "Halo Kak, ada yang bisa saya bantu?");
+    assert.ok(!String(truncated.reply).startsWith("{"));
+    console.log("PASS: truncated JSON never reaches the customer reply");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+} else {
+  console.log("SKIP: truncated JSON test requires OPENROUTER_API_KEY.");
+}
 
 // [ADDED] Test durable simulated-order and failed-order reports using a mock socket.
 if (String(manager.phone || "").trim()) {
