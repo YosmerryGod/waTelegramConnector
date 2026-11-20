@@ -3064,7 +3064,7 @@
               <div class="ai-business-outlet-heading"><strong>Outlet ${index + 1}</strong><button type="button" data-remove-outlet="${index}" aria-label="Hapus outlet">Hapus</button></div>
               <label>Nama outlet<input name="outletName" type="text" maxlength="100" placeholder="Nama outlet" value="${escapeHTML(outlet.name || "")}"></label>
               <label>Nomor HP outlet<input name="outletPhone" type="tel" maxlength="30" placeholder="Nomor yang bisa dihubungi" value="${escapeHTML(outlet.phone || "")}"></label>
-              {/* [ADDED] Each outlet has its own Indonesian time zone. */}
+              <!-- [ADDED] Each outlet has its own Indonesian time zone. -->
               <label>Zona waktu
                 <select name="outletTimezone">
                   <option value="Asia/Jakarta" ${(outlet.timezone || outlet.timeZone || "Asia/Jakarta") === "Asia/Jakarta" ? "selected" : ""}>WIB — Waktu Indonesia Barat (UTC+7)</option>
@@ -3190,7 +3190,7 @@
           <div class="ai-business-outlet-heading"><strong>Outlet ${index + 1}</strong><button type="button" data-remove-outlet="${index}">Hapus</button></div>
           <label>Nama outlet<input name="outletName" type="text" maxlength="100" placeholder="Nama outlet"></label>
           <label>Nomor HP outlet<input name="outletPhone" type="tel" maxlength="30" placeholder="Nomor yang bisa dihubungi"></label>
-          {/* [ADDED] Default new outlets to WIB until the owner selects their actual zone. */}
+          <!-- [ADDED] Default new outlets to WIB until the owner selects their actual zone. -->
           <label>Zona waktu
             <select name="outletTimezone">
               <option value="Asia/Jakarta" selected>WIB — Waktu Indonesia Barat (UTC+7)</option>
