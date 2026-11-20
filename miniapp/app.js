@@ -3064,7 +3064,15 @@
               <div class="ai-business-outlet-heading"><strong>Outlet ${index + 1}</strong><button type="button" data-remove-outlet="${index}" aria-label="Hapus outlet">Hapus</button></div>
               <label>Nama outlet<input name="outletName" type="text" maxlength="100" placeholder="Nama outlet" value="${escapeHTML(outlet.name || "")}"></label>
               <label>Nomor HP outlet<input name="outletPhone" type="tel" maxlength="30" placeholder="Nomor yang bisa dihubungi" value="${escapeHTML(outlet.phone || "")}"></label>
-              <div class="ai-business-time-fields"><label>Jam buka<input name="outletOpen" type="time" value="${escapeHTML(outlet.open || "08:00")}"></label><label>Jam tutup<input name="outletClose" type="time" value="${escapeHTML(outlet.close || "21:00")}"></label></div>
+              {/* [ADDED] Each outlet has its own Indonesian time zone. */}
+              <label>Zona waktu
+                <select name="outletTimezone">
+                  <option value="Asia/Jakarta" ${(outlet.timezone || outlet.timeZone || "Asia/Jakarta") === "Asia/Jakarta" ? "selected" : ""}>WIB — Waktu Indonesia Barat (UTC+7)</option>
+                  <option value="Asia/Makassar" ${(outlet.timezone || outlet.timeZone || "Asia/Jakarta") === "Asia/Makassar" ? "selected" : ""}>WITA — Waktu Indonesia Tengah (UTC+8)</option>
+                  <option value="Asia/Jayapura" ${(outlet.timezone || outlet.timeZone || "Asia/Jakarta") === "Asia/Jayapura" ? "selected" : ""}>WIT — Waktu Indonesia Timur (UTC+9)</option>
+                </select>
+              </label>
+              <div class="ai-business-time-fields"><label>Jam buka<input name="outletOpen" type="time" value="${escapeHTML(outlet.open || outlet.openTime || "08:00")}"></label><label>Jam tutup<input name="outletClose" type="time" value="${escapeHTML(outlet.close || outlet.closeTime || "21:00")}"></label></div>
             </div>`).join("")}</div>
           <button type="button" class="ai-business-add-button" data-add-outlet>+ Tambah outlet</button>
           <button class="ai-business-save-button" type="submit">Simpan outlet</button>
@@ -3182,6 +3190,14 @@
           <div class="ai-business-outlet-heading"><strong>Outlet ${index + 1}</strong><button type="button" data-remove-outlet="${index}">Hapus</button></div>
           <label>Nama outlet<input name="outletName" type="text" maxlength="100" placeholder="Nama outlet"></label>
           <label>Nomor HP outlet<input name="outletPhone" type="tel" maxlength="30" placeholder="Nomor yang bisa dihubungi"></label>
+          {/* [ADDED] Default new outlets to WIB until the owner selects their actual zone. */}
+          <label>Zona waktu
+            <select name="outletTimezone">
+              <option value="Asia/Jakarta" selected>WIB — Waktu Indonesia Barat (UTC+7)</option>
+              <option value="Asia/Makassar">WITA — Waktu Indonesia Tengah (UTC+8)</option>
+              <option value="Asia/Jayapura">WIT — Waktu Indonesia Timur (UTC+9)</option>
+            </select>
+          </label>
           <div class="ai-business-time-fields"><label>Jam buka<input name="outletOpen" type="time" value="08:00"></label><label>Jam tutup<input name="outletClose" type="time" value="21:00"></label></div>
         </div>`);
       return;
@@ -3228,7 +3244,9 @@
       const phones = data.getAll("outletPhone");
       const opens = data.getAll("outletOpen");
       const closes = data.getAll("outletClose");
-      settings.outlets = names.map((name, index) => ({ name: String(name).trim(), phone: String(phones[index] || "").trim(), open: String(opens[index] || ""), close: String(closes[index] || "") })).filter((outlet) => outlet.name);
+      // [ADDED] Persist the selected IANA time zone independently for every outlet.
+      const timezones = data.getAll("outletTimezone");
+      settings.outlets = names.map((name, index) => ({ name: String(name).trim(), phone: String(phones[index] || "").trim(), open: String(opens[index] || ""), close: String(closes[index] || ""), timezone: String(timezones[index] || "Asia/Jakarta") })).filter((outlet) => outlet.name);
     } else if (section === "payment") {
       const imageFile = data.get("qrisImage");
       if (imageFile instanceof File && imageFile.size > 0) {
