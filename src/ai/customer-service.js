@@ -47,6 +47,34 @@ db.exec(`
     ON ai_scheduled_orders(telegram_id, session_id, created_at DESC);
 `);
 
+// [ADDED] Durable notification outbox: persisted atomically with its scheduled order.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_scheduled_order_outbox (
+    order_id INTEGER PRIMARY KEY,
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+      CHECK (status IN ('pending', 'sending', 'sent')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0,
+    claimed_at INTEGER,
+    manager_message_id TEXT,
+    last_error TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES ai_scheduled_orders(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_ai_scheduled_order_outbox_due
+    ON ai_scheduled_order_outbox(status, next_attempt_at, claimed_at);
+  INSERT OR IGNORE INTO ai_scheduled_order_outbox
+    (order_id, telegram_id, session_id, status, created_at, updated_at)
+  SELECT id, telegram_id, session_id, 'pending', created_at, created_at
+  FROM ai_scheduled_orders
+  WHERE notification_status = 'pending';
+`);
+
+
 // [ADDED] Load the runtime-safe guidance sections from the repository skill document.
 // The skill is a specification, not a list of executable tools; only policy/persona
 // sections are injected into the model context.
@@ -1066,27 +1094,37 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           customerName, outletName, pickupAt, items, paymentStatus
         })).digest("hex");
         const now = Date.now();
-        const insert = db.prepare(`
-          INSERT OR IGNORE INTO ai_scheduled_orders (
-            telegram_id, session_id, customer_chat_id, customer_name, outlet_name,
-            outlet_address, pickup_at, timezone, items_json, total_amount,
-            payment_status, payment_note, fingerprint, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          String(telegramId), String(sessionId || telegramId), String(customerChatId),
-          customerName, String(outlet.name).trim(), String(outlet.address || ""),
-          pickupAt, String(outlet.timezone || outlet.timeZone || "Asia/Jakarta"),
-          JSON.stringify(items), totalAmount, paymentStatus,
-          paymentStatus === "unpaid" ? "Bayar di tempat — " + String(outlet.name).trim() : "Pelanggan mengaku sudah membayar; perlu verifikasi pengelola.",
-          fingerprint, now
-        );
-        const order = db.prepare(`
-          SELECT id, customer_name, outlet_name, outlet_address, pickup_at, timezone,
-            items_json, total_amount, payment_status, payment_note, notification_status
-          FROM ai_scheduled_orders
-          WHERE telegram_id = ? AND session_id = ? AND customer_chat_id = ? AND fingerprint = ?
-        `).get(String(telegramId), String(sessionId || telegramId), String(customerChatId), fingerprint);
-        if (!order) throw new Error("SCHEDULED_ORDER_SAVE_FAILED");
+        // [MODIFIED] Save the order and its notification outbox row in one SQLite transaction.
+        const saveOrder = db.transaction(() => {
+          const insert = db.prepare(`
+            INSERT OR IGNORE INTO ai_scheduled_orders (
+              telegram_id, session_id, customer_chat_id, customer_name, outlet_name,
+              outlet_address, pickup_at, timezone, items_json, total_amount,
+              payment_status, payment_note, fingerprint, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            String(telegramId), String(sessionId || telegramId), String(customerChatId),
+            customerName, String(outlet.name).trim(), String(outlet.address || ""),
+            pickupAt, String(outlet.timezone || outlet.timeZone || "Asia/Jakarta"),
+            JSON.stringify(items), totalAmount, paymentStatus,
+            paymentStatus === "unpaid" ? "Bayar di tempat — " + String(outlet.name).trim() : "Pelanggan mengaku sudah membayar; perlu verifikasi pengelola.",
+            fingerprint, now
+          );
+          const order = db.prepare(`
+            SELECT id, customer_name, outlet_name, outlet_address, pickup_at, timezone,
+              items_json, total_amount, payment_status, payment_note, notification_status
+            FROM ai_scheduled_orders
+            WHERE telegram_id = ? AND session_id = ? AND customer_chat_id = ? AND fingerprint = ?
+          `).get(String(telegramId), String(sessionId || telegramId), String(customerChatId), fingerprint);
+          if (!order) throw new Error("SCHEDULED_ORDER_SAVE_FAILED");
+          db.prepare(`
+            INSERT OR IGNORE INTO ai_scheduled_order_outbox
+              (order_id, telegram_id, session_id, status, created_at, updated_at)
+            VALUES (?, ?, ?, 'pending', ?, ?)
+          `).run(order.id, String(telegramId), String(sessionId || telegramId), now, now);
+          return { insert, order };
+        });
+        const { insert, order } = saveOrder();
         createdScheduledOrder = {
           id: order.id, customerName: order.customer_name, customerChatId: String(customerChatId),
           outletName: order.outlet_name, outletAddress: order.outlet_address,
