@@ -325,10 +325,10 @@ function formatScheduledOrderManagerRow(order) {
 
 async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJid, text, socket }) {
   const command = String(text || "").trim();
-  if (!/^#(?:pesanan|order|status|proses|siap|selesai|batal|verifikasi)(?:\\s|$)/i.test(command)) {
+  if (!/^#(?:pesanan|order|status|proses|siap|selesai|batal|verifikasi)(?:\s|$)/i.test(command)) {
     return { handled: false };
   }
-  const match = command.match(/^#(pesanan|order|status|proses|siap|selesai|batal|verifikasi)(?:\\s+(\\d+))?$/i);
+  const match = command.match(/^#(pesanan|order|status|proses|siap|selesai|batal|verifikasi)(?:\s+(\\d+))?$/i);
   if (!match) {
     await socket.sendMessage(managerJid, { text: "Format perintah tidak valid. Gunakan #pesanan atau #proses 123, #siap 123, #selesai 123, #batal 123, #verifikasi 123." });
     return { handled: true, success: false };
