@@ -2137,13 +2137,13 @@ router.post("/ai-business/chat", async (req, res) => {
       ? "WAGRAM AI Business membutuhkan Premium 30 hari yang masih aktif."
       : errorCode === "OPENROUTER_API_KEY_MISSING"
         ? "Layanan AI belum dikonfigurasi. Hubungi pengelola aplikasi."
-        : /^OPENROUTER_HTTP_401\\b/.test(errorCode)
+        : /^OPENROUTER_HTTP_401\b/.test(errorCode)
           ? "Layanan AI sedang mengalami masalah autentikasi. Hubungi pengelola aplikasi."
-          : /^OPENROUTER_HTTP_402\\b/.test(errorCode)
+          : /^OPENROUTER_HTTP_402\b/.test(errorCode)
             ? "Layanan AI sedang tidak tersedia. Silakan coba lagi nanti."
-            : /^OPENROUTER_HTTP_429\\b/.test(errorCode)
+            : /^OPENROUTER_HTTP_429\b/.test(errorCode)
               ? "Layanan AI sedang menerima banyak permintaan. Coba lagi sebentar."
-              : /^OPENROUTER_HTTP_5\\d\\d\\b/.test(errorCode) || errorCode.includes("EMPTY_ANSWER")
+              : /^OPENROUTER_HTTP_5\\d\\d\b/.test(errorCode) || errorCode.includes("EMPTY_ANSWER")
                 ? "Maaf, layanan AI sedang mengalami gangguan sementara. Coba kirim pesan sekali lagi."
                 : "Maaf, pesan belum dapat diproses. Coba lagi sebentar.";
     return res.status(status).json({
