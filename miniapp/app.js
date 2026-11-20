@@ -3340,15 +3340,35 @@
           <details class="ai-business-trace">
             <summary>Lihat proses pemeriksaan AI</summary>
             <div class="ai-business-trace-content">
-              <strong>Mengenali pertanyaan</strong>
+              <strong>1. Mengenali pertanyaan</strong>
               <p>${escapeHTML(item.trace.recognition || "Tidak tersedia")}</p>
-              <strong>Tindakan</strong>
+              <strong>2. Mengenali waktu</strong>
+              <p>${escapeHTML(item.trace.time?.status === "available"
+                ? (item.trace.time.localTime + " " + item.trace.time.zoneLabel + " • " + item.trace.time.localDate + " • " + item.trace.time.outlet)
+                : "Belum dapat ditentukan: " + (item.trace.time?.status || "data waktu outlet tidak tersedia"))}</p>
+              <strong>3. Skill psychology</strong>
+              <p>${escapeHTML(item.trace.psychologySkill?.status === "used"
+                ? item.trace.psychologySkill.name + " — " + item.trace.psychologySkill.contribution
+                : "Tidak diperlukan")}</p>
+              <strong>4. Skill marketing</strong>
+              <p>${escapeHTML(item.trace.marketingSkill?.status === "used"
+                ? item.trace.marketingSkill.name + " — " + item.trace.marketingSkill.contribution
+                : "Tidak diperlukan pada konteks ini")}</p>
+              <strong>5. Check produk untuk marketing</strong>
+              <p>${escapeHTML(item.trace.productCheck?.status === "checked"
+                ? item.trace.productCheck.reason + (item.trace.productCheck.selectedProduct
+                  ? " Produk terpilih: " + item.trace.productCheck.selectedProduct.name + (item.trace.productCheck.selectedProduct.price != null ? " • Rp" + Number(item.trace.productCheck.selectedProduct.price).toLocaleString("id-ID") : "")
+                  : " Produk pelengkap belum dipilih.")
+                : item.trace.productCheck?.reason || "Tidak dilakukan")}</p>
+              <strong>6. Tindakan</strong>
               <p>${escapeHTML(item.trace.action || "Tidak tersedia")}</p>
-              <strong>Data yang digunakan</strong>
+              <strong>7. Perlu menyimpan ke database?</strong>
+              <p>${escapeHTML(item.trace.database?.label || "Tidak") + " — " + escapeHTML(item.trace.database?.reason || "Tidak ada data permanen yang perlu disimpan.")}</p>
+              <strong>8. Data yang digunakan</strong>
               <ul>${(Array.isArray(item.trace.dataUsed) ? item.trace.dataUsed : []).map((value) => `<li>${escapeHTML(value)}</li>`).join("")}</ul>
               <strong>Status pemeriksaan</strong>
               <p>${escapeHTML(item.trace.status || "Tidak tersedia")}</p>
-              <strong>Jawaban seharusnya</strong>
+              <strong>9. Jawaban</strong>
               <p>${escapeHTML(item.trace.expectedAnswer || item.content)}</p>
             </div>
           </details>`
