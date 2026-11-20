@@ -613,7 +613,9 @@ export async function handleIncomingAIAutoReply({
   const whatsappChatId = String(chatId || "");
   const incomingId = String(messageId || "");
   let processingStage = "input_validation";
-  const logContext = { telegramId: ownerId, sessionId: accountId, chatId: whatsappChatId, messageId: incomingId };
+  const chatDigits = whatsappChatId.replace(/\D/g, "");
+  const maskedChatId = chatDigits.length > 4 ? "***" + chatDigits.slice(-4) : "[masked]";
+  const logContext = { telegramId: ownerId, sessionId: accountId, chatId: maskedChatId, messageId: incomingId };
 
   if (!/^\d+$/.test(ownerId) || !accountId || !whatsappChatId || !incomingId) {
     return { sent: false, reason: "invalid_input" };
