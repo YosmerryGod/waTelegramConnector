@@ -1801,7 +1801,8 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         return {
           reply: safeReply,
           scheduledOrder: createdScheduledOrder,
-          needsManager: false,
+          orderFailure: scheduledOrderFailure,
+          needsManager: Boolean(scheduledOrderFailure),
           managerQuestion: "",
           trace: (() => {
             const decision = buildAIBusinessDecisionContext({
@@ -1853,7 +1854,10 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         structuredAnswer = { reply: "Maaf Kak, saya belum bisa memastikan pesanan ini. Saya akan minta pengelola membantu memastikan detailnya.", needs_manager: true, manager_question: String(message || "").slice(0, 1000) };
       }
       const answer = String(structuredAnswer?.reply || (rawAnswer.startsWith("{") ? "Maaf Kak, saya belum bisa memastikan informasi tersebut. Boleh tunggu sebentar?" : rawAnswer)).trim().replace(/\s*\n+\s*/g, " ").replace(/\s{2,}/g, " ");
-      const isOrderSummary = /\b(?:total|rp)\b/i.test(answer) && /\b\d{2}\/\d{2}\/\d{4}\b/.test(answer) && /\b\d{2}:\d{2}\b/.test(answer) && /\b(?:belum dibayar|bayar di tempat|menunggu verifikasi)\b/i.test(answer);
+      const hasKnownOutlet = businessData.outlets.some((outlet) => String(outlet?.name || "").trim() && answer.toLocaleLowerCase("id-ID").includes(String(outlet.name).trim().toLocaleLowerCase("id-ID")));
+      const hasKnownMenu = businessData.products.some((product) => String(product?.name || "").trim() && answer.toLocaleLowerCase("id-ID").includes(String(product.name).trim().toLocaleLowerCase("id-ID")));
+      const hasQuantity = /\b\d+\s*(?:porsi|pcs|buah|ekor|x)\b/i.test(answer);
+      const isOrderSummary = hasKnownOutlet && hasKnownMenu && hasQuantity && /\b(?:total|rp)\b/i.test(answer) && /\b\d{2}\/\d{2}\/\d{4}\b/.test(answer) && /\b\d{2}:\d{2}\b/.test(answer) && /\b(?:belum dibayar|bayar di tempat|menunggu verifikasi)\b/i.test(answer)
       const conciseAnswer = !isOrderSummary && answer.length > 320
         ? answer.slice(0, 317).replace(/\s+\S*$/, "").replace(/[,:;\s]+$/, "") + "…"
         : answer;
