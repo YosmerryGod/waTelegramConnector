@@ -1,0 +1,1 @@
+# Business Context\n\nGunakan fakta backend yang tervalidasi sebagai sumber kebenaran operasional. Jangan mengarang harga, stok, status pesanan, atau kebijakan.
