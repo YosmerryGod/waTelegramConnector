@@ -76,6 +76,19 @@ try {
   assert.equal(savedOrderDecision.database.shouldSave, true);
   assert.equal(savedOrderDecision.database.label, "Ya");
 
+  const legacyOutletDecision = buildAIBusinessDecisionContext({
+    message: "Halo kak",
+    history: [],
+    businessData: { outlets: [{ name: "Outlet Lama" }], products: [] },
+    recognition: { intent: "conversation", interpretation: "Pelanggan menyapa." },
+    toolAudit: [],
+    decisionSummary: null,
+    createdScheduledOrder: null
+  });
+  assert.equal(legacyOutletDecision.time.zoneLabel, "WIB", "Legacy outlets without timezone retain the WIB default.");
+  assert.equal(legacyOutletDecision.psychologySkill.status, "not_required");
+  assert.equal(legacyOutletDecision.marketingSkill.status, "not_required");
+
   const orderContext = buildConversationRecognition("pesen ayam panggang apakah bisa kak", [
     { role: "user", content: "saya mau pesan ayam panggang 3 porsi" },
     { role: "assistant", content: "Maaf, saya sedang memeriksa pesanan." }
