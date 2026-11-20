@@ -67,7 +67,6 @@ import {
   getPremiumPaymentOrder, // [ADDED] Read an order owned by the authenticated user.
   markPremiumPaymentReported, // [ADDED] Record a user's payment confirmation.
   completePremiumPaymentByAmount, // [ADDED] Match DANA notification amounts and activate Premium atomically.
-  getAIBusinessProfile,
   saveAIBusinessProfile,
   getAIBusinessAutoReplyEnabled, // [ADDED] Read the per-session Auto Reply switch.
   setAIBusinessAutoReplyEnabled, // [ADDED] Persist the per-session Auto Reply switch.
