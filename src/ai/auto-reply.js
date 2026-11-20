@@ -25,6 +25,9 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
   let sent = 0;
   let failed = 0;
   const maxItems = Math.max(1, Math.min(25, Number(limit) || 10));
+  console.info("[WAGRAM Scheduled Order Outbox] Drain started:", JSON.stringify({
+    telegramId: ownerId, sessionId: accountId, limit: maxItems
+  }));
 
   for (let index = 0; index < maxItems; index += 1) {
     const now = Date.now();
@@ -65,6 +68,11 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
     const order = claim();
     if (!order) break;
 
+    console.info("[WAGRAM Scheduled Order Outbox] Notification claimed:", JSON.stringify({
+      telegramId: ownerId, sessionId: accountId, orderId: order.order_id,
+      attempt: order.attempts, paymentStatus: order.payment_status,
+      proofImageRequired: order.payment_status !== "unpaid"
+    }));
     try {
       const managerDigits = normalizeManagerPhone(
         getAIBusinessProfile(ownerId, accountId)?.settings?.manager?.phone
@@ -109,6 +117,11 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
         `).run(order.order_id, ownerId, accountId);
       })();
       sent += 1;
+      console.info("[WAGRAM Scheduled Order Outbox] Manager notification sent:", JSON.stringify({
+        telegramId: ownerId, sessionId: accountId, orderId: order.order_id,
+        managerMessageId: messageId, paymentStatus: order.payment_status,
+        deliveryType: "text"
+      }));
     } catch (error) {
       const attempt = Number(order.attempts) || 1;
       const delay = Math.min(30 * 60 * 1000, 30 * 1000 * (2 ** Math.min(attempt - 1, 6)));
@@ -127,6 +140,9 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
     }
   }
 
+  console.info("[WAGRAM Scheduled Order Outbox] Drain completed:", JSON.stringify({
+    telegramId: ownerId, sessionId: accountId, sent, failed
+  }));
   return { sent, failed, skipped: false };
 }
 
@@ -596,6 +612,8 @@ export async function handleIncomingAIAutoReply({
   const accountId = String(sessionId || ownerId);
   const whatsappChatId = String(chatId || "");
   const incomingId = String(messageId || "");
+  let processingStage = "input_validation";
+  const logContext = { telegramId: ownerId, sessionId: accountId, chatId: whatsappChatId, messageId: incomingId };
 
   if (!/^\d+$/.test(ownerId) || !accountId || !whatsappChatId || !incomingId) {
     return { sent: false, reason: "invalid_input" };
@@ -619,7 +637,11 @@ export async function handleIncomingAIAutoReply({
     return { sent: false, reason: "duplicate" };
   }
 
+  console.info("[WAGRAM AI Auto Reply] Processing started:", JSON.stringify({
+    ...logContext, mode: useBusinessAI ? "business" : "customer_service"
+  }));
   try {
+    processingStage = "settle_and_load_messages";
     // [ADDED] Wait briefly so multiple customer messages sent together are
     // treated as one latest context, instead of replying to every fragment.
     await wait(AUTO_REPLY_SETTLE_MS);
@@ -674,6 +696,11 @@ export async function handleIncomingAIAutoReply({
       });
     }
 
+    processingStage = "openrouter_generate_reply";
+    console.info("[WAGRAM AI Auto Reply] Generating reply:", JSON.stringify({
+      ...logContext, historyMessageCount: conversationHistory.length,
+      recentImageContext: Boolean(recentImageContext)
+    }));
     const suggestion = useBusinessAI
       ? await createAIBusinessReply(
           ownerId,
@@ -689,6 +716,11 @@ export async function handleIncomingAIAutoReply({
           { autoReply: true, expectedMessageId: incomingId }
         );
     const reply = String(suggestion?.reply || suggestion?.draft || "").trim();
+    console.info("[WAGRAM AI Auto Reply] Reply generated:", JSON.stringify({
+      ...logContext, hasReply: Boolean(reply), replyLength: reply.length,
+      model: suggestion?.model || null, needsManager: suggestion?.needsManager === true,
+      hasScheduledOrder: Boolean(suggestion?.scheduledOrder)
+    }));
 
     // [MODIFIED] Process due outbox notifications independently from the current reply.
     if (useBusinessAI) {
@@ -698,6 +730,7 @@ export async function handleIncomingAIAutoReply({
     }
 
     if (useBusinessAI && suggestion?.needsManager) {
+      processingStage = "manager_escalation";
       const managerQuestion = String(suggestion.managerQuestion || latest.body || "").trim();
       if (!reply) throw new Error("AI_MANAGER_NOTICE_EMPTY");
 
@@ -740,6 +773,7 @@ export async function handleIncomingAIAutoReply({
       throw new Error("AI_REPLY_EMPTY");
     }
 
+    processingStage = "validate_before_customer_send";
     // [ADDED] Recheck after model generation. If a newer customer message
     // arrived while OpenRouter was responding, do not send a stale answer.
     const latestAfterGeneration = listMessages(ownerId, whatsappChatId, 10, accountId)
@@ -787,6 +821,7 @@ export async function handleIncomingAIAutoReply({
       generatedReply: reply
     });
 
+    processingStage = "send_customer_reply";
     const sendOptions = quotedMessage ? { quoted: quotedMessage } : {};
     // [ADDED] Send the generated AI Business/Customer Service answer through Baileys.
     // Attach the saved QRIS image when the AI Business response explicitly includes it.
@@ -816,6 +851,7 @@ export async function handleIncomingAIAutoReply({
       replyMessageId: sentMessage?.key?.id || null,
       error: null
     });
+    processingStage = "completed";
 
     console.info(
       "[WAGRAM AI Auto Reply] Reply sent once:",
@@ -843,7 +879,12 @@ export async function handleIncomingAIAutoReply({
         telegramId: ownerId,
         sessionId: accountId,
         messageId: incomingId,
-        error: String(error.message || "AUTO_REPLY_FAILED").slice(0, 300)
+        stage: processingStage,
+        errorName: String(error?.name || "Error"),
+        httpStatus: Number(error?.httpStatus) || null,
+        requestId: error?.requestId || null,
+        providerRequestId: error?.providerRequestId || null,
+        error: String(error?.message || "AUTO_REPLY_FAILED").slice(0, 500)
       })
     );
 
