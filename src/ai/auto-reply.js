@@ -713,7 +713,7 @@ export async function handleIncomingAIAutoReply({
           socket
         });
       } catch (error) {
-        const fallbackReply = "Maaf Kak, pesanan belum tercatat dan saya belum berhasil menghubungi pengelola. Silakan hubungi outlet langsung untuk memastikan pesanan.";
+        const fallbackReply = "Maaf Kak, pesanan belum tercatat dan saya belum dapat memastikan pengelola menerima permintaan ini. Silakan hubungi outlet langsung untuk memastikan pesanan.";
         await socket.sendMessage(whatsappChatId, { text: fallbackReply }, quotedMessage ? { quoted: quotedMessage } : {});
         updateAutoReply(ownerId, accountId, whatsappChatId, incomingId, {
           generatedReply: fallbackReply, status: "sent", error: null
