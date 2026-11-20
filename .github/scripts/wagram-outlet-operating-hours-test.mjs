@@ -73,6 +73,32 @@ try {
   );
   assert.equal(stillOpen.isOpen, true, "Friday's opening schedule must cover early Saturday.");
 
+  const specialHoursOutlet = {
+    ...outlet,
+    specialHours: [{ date: "2026-11-20", openTime: "10:00", closeTime: "12:00" }]
+  };
+  const specialOpen = getOutletOperatingStatus(
+    specialHoursOutlet,
+    new Date("2026-11-20T04:00:00.000Z") // Friday, 11:00 WIB
+  );
+  assert.equal(specialOpen.isOpen, true);
+  const specialClosed = getOutletOperatingStatus(
+    specialHoursOutlet,
+    new Date("2026-11-20T06:00:00.000Z") // Friday, 13:00 WIB
+  );
+  assert.equal(specialClosed.isOpen, false);
+
+  const holidayOutlet = {
+    ...outlet,
+    specialHours: [{ date: "2026-11-20", closed: true }]
+  };
+  const holiday = getOutletOperatingStatus(
+    holidayOutlet,
+    new Date("2026-11-20T04:00:00.000Z")
+  );
+  assert.equal(holiday.isOpen, false);
+  assert.equal(holiday.reason, "special_closure");
+
   const invalidHours = getOutletOperatingStatus(
     { ...outlet, openTime: "25:00" },
     new Date("2026-11-20T04:00:00.000Z")
