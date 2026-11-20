@@ -14,7 +14,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <title>WAGRAM</title>
   <!-- [MODIFIED] Cache-bust CSS so Telegram reloads the corrected logo sizing rules. -->
-  <link rel="stylesheet" href="style.css?v=20261120-settings-scroll-fix-v1">
+  <link rel="stylesheet" href="style.css?v=20261120-wamo-settings-refine-v6">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- [ADDED] QR code renderer for Premium payment preview. -->
   <!-- [MODIFIED] Fallback QR renderer for Telegram WebView. -->
@@ -391,6 +391,10 @@
                   <span class="ai-business-setting-icon products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="6"/><path d="m9.5 12 1.7 1.7 3.5-3.5"/></svg></span>
                   <span class="ai-business-setting-copy"><strong>Konfigurasi AI</strong><small>Instruksi, aturan dan batasan</small></span><span class="ai-business-setting-arrow">›</span>
                 </button>
+                <button type="button" class="ai-business-setting-tile" data-ai-settings-section="skillLearning">
+                  <span class="ai-business-setting-icon products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8"/></svg></span>
+                  <span class="ai-business-setting-copy"><strong>Usulan Pembelajaran</strong><small>Tinjau dan setujui pembelajaran AI</small></span><span class="ai-business-setting-arrow">›</span>
+                </button>
                 <button type="button" class="ai-business-setting-tile" data-ai-settings-section="manager">
                   <span class="ai-business-setting-icon manager"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
                   <span class="ai-business-setting-copy"><strong>Manager</strong><small>Kontak penanggung jawab</small></span><span class="ai-business-setting-arrow">›</span>
@@ -444,10 +448,23 @@
     <main id="contactsPage" class="page hidden">
       <div class="message-subpage-back"><button type="button" id="backToMessagesContacts">‹ Pesan</button></div>
       <!-- [MODIFIED] Add contact action is now in the global header. -->
+      <div class="directory-tabs" role="tablist" aria-label="Jenis kontak">
+        <button type="button" class="directory-tab selected" data-contact-tab="book" role="tab" aria-selected="true">Buku kontak</button>
+        <button type="button" class="directory-tab" data-contact-tab="customers" role="tab" aria-selected="false">Pelanggan</button>
+        <button type="button" class="directory-tab" data-contact-tab="employees" role="tab" aria-selected="false">Whitelist</button>
+      </div>
       <input id="contactsSearchInput" type="search" placeholder="Cari nama atau nomor" autocomplete="off" hidden>
+      <input id="customerContactsSearchInput" type="search" placeholder="Cari pelanggan" autocomplete="off" hidden>
+      <input id="employeeWhitelistSearchInput" type="search" placeholder="Cari nomor karyawan" autocomplete="off" hidden>
 
       <div id="contactsList" class="list">
         <div class="loading">Memuat kontak…</div>
+      </div>
+      <div id="customerContactsList" class="list hidden">
+        <div class="loading">Memuat pelanggan…</div>
+      </div>
+      <div id="employeeWhitelistList" class="list hidden">
+        <div class="loading">Memuat whitelist…</div>
       </div>
     </main>
 
@@ -793,6 +810,44 @@
           <button type="button" id="premiumProofConfirmButton" class="premium-proof-confirm" disabled>Kirim ke Admin</button>
         </div>
       </section>
+    </div>
+
+    <!-- [ADDED] Customer contact sheet with optional delivery address. -->
+    <div id="customerContactSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="customerContactFormTitle">
+      <div class="sheet-backdrop" data-close-customer-sheet></div>
+      <form id="customerContactForm" class="sheet-panel" novalidate>
+        <div class="sheet-handle"></div>
+        <h3 id="customerContactFormTitle">Tambah pelanggan</h3>
+        <label for="customerContactNameInput">Nama pelanggan</label>
+        <input id="customerContactNameInput" type="text" maxlength="100" placeholder="Contoh: Budi" autocomplete="off" required>
+        <label for="customerContactPhoneInput">Nomor WhatsApp</label>
+        <input id="customerContactPhoneInput" type="tel" inputmode="tel" maxlength="25" placeholder="081234567890" autocomplete="off" required>
+        <label for="customerContactAddressInput">Alamat <span class="field-optional">(opsional)</span></label>
+        <textarea id="customerContactAddressInput" rows="3" maxlength="500" placeholder="Alamat pelanggan"></textarea>
+        <p class="field-hint">Simpan pelanggan yang sudah pernah melakukan order. AI tetap membalas pesan pelanggan.</p>
+        <div class="form-actions">
+          <button type="button" class="secondary-button" data-close-customer-sheet>Batal</button>
+          <button type="submit" id="saveCustomerContactButton" class="primary-button">Simpan</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- [ADDED] Employee whitelist: incoming messages are retained, AI replies are skipped. -->
+    <div id="employeeWhitelistSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="employeeWhitelistFormTitle">
+      <div class="sheet-backdrop" data-close-employee-sheet></div>
+      <form id="employeeWhitelistForm" class="sheet-panel" novalidate>
+        <div class="sheet-handle"></div>
+        <h3 id="employeeWhitelistFormTitle">Tambah nomor karyawan</h3>
+        <label for="employeeWhitelistNameInput">Nama karyawan <span class="field-optional">(opsional)</span></label>
+        <input id="employeeWhitelistNameInput" type="text" maxlength="100" placeholder="Contoh: Andi" autocomplete="off">
+        <label for="employeeWhitelistPhoneInput">Nomor WhatsApp</label>
+        <input id="employeeWhitelistPhoneInput" type="tel" inputmode="tel" maxlength="25" placeholder="081234567890" autocomplete="off" required>
+        <p class="field-hint">Pesan tetap diterima dan tersimpan, tetapi tidak dibalas AI.</p>
+        <div class="form-actions">
+          <button type="button" class="secondary-button" data-close-employee-sheet>Batal</button>
+          <button type="submit" id="saveEmployeeWhitelistButton" class="primary-button">Simpan</button>
+        </div>
+      </form>
     </div>
 
     <!-- FORM KONTAK (bottom sheet) -->

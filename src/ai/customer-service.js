@@ -21,6 +21,24 @@ const OPENROUTER_MODEL = String(process.env.OPENROUTER_MODEL || "deepseek/deepse
 const OPENROUTER_TIMEOUT_MS = Math.max(10000, Number(process.env.OPENROUTER_TIMEOUT_MS || 60000));
 const MAX_HISTORY_MESSAGES = 24;
 const MAX_EXAMPLES = 8;
+// [ADDED] Correlate each OpenRouter request in logs without recording prompts or credentials.
+let openRouterRequestSequence = 0;
+function createOpenRouterRequestId() {
+  openRouterRequestSequence = (openRouterRequestSequence + 1) % 1000000;
+  return "wr-" + Date.now().toString(36) + "-" + openRouterRequestSequence.toString(36);
+}
+function summarizeOpenRouterErrorPayload(payload) {
+  const error = payload?.error && typeof payload.error === "object" ? payload.error : {};
+  const metadata = error.metadata && typeof error.metadata === "object" ? error.metadata : {};
+  return {
+    code: error.code ?? payload?.code ?? null,
+    type: error.type ?? null,
+    message: String(error.message || payload?.message || "Request failed").slice(0, 500),
+    provider: error.provider ?? payload?.provider ?? metadata.provider_name ?? null,
+    model: error.model ?? payload?.model ?? null,
+    requestId: payload?.id ?? null
+  };
+}
 
 
 // [ADDED] Store compact, privacy-minimized decision summaries; never persist private chain-of-thought or full customer messages.
@@ -56,6 +74,7 @@ db.exec(`
     payment_note TEXT NOT NULL,
     fingerprint TEXT NOT NULL,
     notification_status TEXT NOT NULL DEFAULT 'pending' CHECK (notification_status IN ('pending', 'sent')),
+    is_simulation INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     UNIQUE (telegram_id, session_id, customer_chat_id, fingerprint)
   );
@@ -74,7 +93,8 @@ for (const [column, definition] of [
   ["completed_at", "INTEGER"],
   ["cancelled_at", "INTEGER"],
   ["payment_verified_at", "INTEGER"],
-  ["payment_verified_by", "TEXT"]
+  ["payment_verified_by", "TEXT"],
+  ["is_simulation", "INTEGER NOT NULL DEFAULT 0"]
 ]) {
   if (!scheduledOrderColumns.has(column)) {
     db.exec("ALTER TABLE ai_scheduled_orders ADD COLUMN " + column + " " + definition);
@@ -111,6 +131,27 @@ db.exec(`
   SELECT id, telegram_id, session_id, 'pending', created_at, created_at
   FROM ai_scheduled_orders
   WHERE notification_status = 'pending';
+`);
+
+// [ADDED] Durable reports for rejected scheduled orders; no order row is required.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_scheduled_order_failure_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    report_json TEXT NOT NULL,
+    error_code TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sending', 'sent')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL DEFAULT 0,
+    claimed_at INTEGER,
+    last_error TEXT,
+    manager_message_id TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_scheduled_order_failure_due
+    ON ai_scheduled_order_failure_outbox(telegram_id, session_id, status, next_attempt_at);
 `);
 
 
@@ -346,7 +387,13 @@ async function openRouterGenerate(contents, options = {}) {
     : undefined;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS);
+  const requestId = createOpenRouterRequestId();
+  const startedAt = Date.now();
   timer.unref?.();
+  console.info("[WAGRAM OpenRouter] Request started:", JSON.stringify({
+    requestId, model: OPENROUTER_MODEL, messageCount: messages.length,
+    toolCount: tools?.length || 0, timeoutMs: OPENROUTER_TIMEOUT_MS
+  }));
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -362,14 +409,31 @@ async function openRouterGenerate(contents, options = {}) {
         temperature: options.temperature ?? 0.25,
         max_tokens: options.maxOutputTokens ?? 700,
         ...(options.responseMimeType === "application/json" ? { response_format: { type: "json_object" } } : {}),
+        provider: options.provider || {
+          order: String(process.env.WAGRAM_OPENROUTER_PROVIDER_ORDER || "DeepSeek").split(",").map((provider) => provider.trim()).filter(Boolean),
+          // [MODIFIED] Respect OpenRouter account guardrails and fall back to other eligible endpoints.
+          allow_fallbacks: true,
+          require_parameters: true
+        },
+        ...(options.reasoning ? { reasoning: options.reasoning } : {}),
         ...(tools?.length ? { tools, tool_choice: "auto" } : {})
       }),
       signal: controller.signal
     });
     const payload = await response.json().catch(() => ({}));
+    const providerRequestId = response.headers.get("x-request-id") || response.headers.get("request-id") || null;
     if (!response.ok) {
+      const errorSummary = summarizeOpenRouterErrorPayload(payload);
+      console.error("[WAGRAM OpenRouter] Request rejected:", JSON.stringify({
+        requestId, providerRequestId, httpStatus: response.status,
+        durationMs: Date.now() - startedAt, ...errorSummary
+      }));
       const detail = String(payload?.error?.message || payload?.message || "Request failed").slice(0, 500);
-      throw new Error(`OPENROUTER_HTTP_${response.status}: ${detail}`);
+      const error = new Error(`OPENROUTER_HTTP_${response.status}: ${detail}`);
+      error.requestId = requestId;
+      error.httpStatus = response.status;
+      error.providerRequestId = providerRequestId;
+      throw error;
     }
     const message = payload?.choices?.[0]?.message || {};
     const parts = [];
@@ -383,6 +447,14 @@ async function openRouterGenerate(contents, options = {}) {
       catch { throw new Error("OPENROUTER_TOOL_ARGUMENTS_INVALID"); }
       parts.push({ functionCall: { id: call.id, name: call?.function?.name, args } });
     }
+    console.info("[WAGRAM OpenRouter] Request completed:", JSON.stringify({
+      requestId, providerRequestId, httpStatus: response.status,
+      durationMs: Date.now() - startedAt,
+      provider: String(payload?.provider || ""), model: String(payload?.model || OPENROUTER_MODEL),
+      finishReason: String(payload?.choices?.[0]?.finish_reason || ""),
+      hasText: Boolean(responseText), toolCallCount: parts.filter((part) => part.functionCall).length,
+      usage: payload?.usage || null
+    }));
     return {
       text: parts.filter((part) => part.text).map((part) => part.text).join("").trim(),
       parts,
@@ -392,6 +464,15 @@ async function openRouterGenerate(contents, options = {}) {
       provider: String(payload?.provider || ""),
       model: String(payload?.model || OPENROUTER_MODEL)
     };
+  } catch (error) {
+    if (!error?.httpStatus) {
+      console.error("[WAGRAM OpenRouter] Request transport failure:", JSON.stringify({
+        requestId, durationMs: Date.now() - startedAt,
+        errorName: String(error?.name || "Error"),
+        error: String(error?.message || "OPENROUTER_REQUEST_FAILED").slice(0, 500)
+      }));
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }
@@ -733,7 +814,13 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
           description: String(product?.description || "").trim(),
           price: String(product?.price ?? "").trim(),
           stock: String(product?.stock ?? "").trim(),
-          available: product?.available ?? product?.isAvailable ?? null
+          // [MODIFIED] Preserve product variants and promotion facts for contextual offer selection.
+          available: product?.available ?? product?.isAvailable ?? null,
+          variants: Array.isArray(product?.variants) ? product.variants : [],
+          promotion: product?.promotion || product?.promo || null,
+          promo: product?.promo || null,
+          featured: product?.featured === true || product?.isFeatured === true,
+          recommended: product?.recommended === true
         })).filter((product) => product.name)
       : [],
     paymentMerchant: String(businessSettings?.payment?.merchant || "").trim(),
@@ -753,11 +840,12 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
       ).join("\\n\\n")
     : "Belum ada contoh balasan historis yang relevan.";
 
-  // [ADDED] Route customer-facing replies through the same progressive skill runtime.
+  // [MODIFIED] Route customer-facing replies using current customer state and verified product facts.
   const customerSkillRuntime = routeAndLoadSkills({
     message: latest.body,
     history: messages.slice(-6).map((item) => ({ role: item.direction === "incoming" ? "customer" : "business", content: item.body })),
-    mode: options.autoReply ? "customer-auto-reply" : "customer-draft"
+    mode: options.autoReply ? "customer-auto-reply" : "customer-draft",
+    businessContext
   });
 
   const trainingExamplesText = relevantTrainingExamples.length
@@ -773,8 +861,13 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     // [ADDED] Keep skill selection bounded and inject only the selected customer-relevant guidance.
     "SKILL TERSEDIA: " + JSON.stringify(customerSkillRuntime.availableSkills.map(({ id, name, description }) => ({ id, name, description }))),
     "SKILL AKTIF: " + JSON.stringify(customerSkillRuntime.activeSkillIds),
+    "TAHAP PELANGGAN: " + String(customerSkillRuntime.customerState || "general"),
+    "ARAHAN MARKETING TERPILIH: " + String(customerSkillRuntime.marketingDirective || ""),
+    // [ADDED] Explain product options naturally; catalog labels are data, not customer-facing copy templates.
+    "PENJELASAN PRODUK: Jangan menyalin nama menu panjang secara mentah. Pahami nama, deskripsi, pilihan/varian, harga, dan promo sebagai fakta produk, lalu jelaskan dengan bahasa percakapan yang mudah dipahami. Untuk pertanyaan ketersediaan dengan niat beli, tawarkan satu produk unggulan yang relevan sejak respons pertama bila kandidat produk tersedia dan faktanya cukup. Pisahkan harga produk dari benefit gratis agar tidak ambigu. Jangan menyebut benefit yang tidak tercantum dalam kandidat/fakta bisnis.",
+    "KANDIDAT PRODUK UNTUK PENAWARAN: " + JSON.stringify(customerSkillRuntime.productOfferCandidates || []),
     "CONTEXT PACKET: " + JSON.stringify(customerSkillRuntime.contextPacket),
-    "PANDUAN SKILL PROGRESIF:\\n" + customerSkillRuntime.instructions,
+    "PANDUAN SKILL PROGRESIF:\n" + customerSkillRuntime.instructions,
     options.autoReply
       ? "TUJUAN: Tulis satu balasan final yang siap dikirim langsung kepada pelanggan melalui WhatsApp. Jangan menyebut bahwa ini draft, AI, atau hasil training."
       : "TUJUAN: Siapkan draft balasan WhatsApp untuk diperiksa manusia. Jangan mengirim pesan.",
@@ -974,15 +1067,27 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
   };
 }
 
+// [ADDED] Accept integer rupiah values and common Indonesian display strings from legacy business profiles.
+function normalizeRupiahPrice(value) {
+  if (Number.isSafeInteger(value) && value >= 0) return value;
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/^rp\s*/i, "").replace(/\s+/g, "");
+  if (!normalized || !/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(normalized)) return null;
+  const amount = Number(normalized.replace(/\./g, ""));
+  return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
+}
+
 // [ADDED] Normalize private WhatsApp JIDs, including Baileys device-qualified JIDs, before storing order recipients.
 export function normalizeCustomerChatJid(value) {
   const jid = String(value || "").trim();
-  const match = jid.match(/^(\d+)(?::\d+)?@(s\.whatsapp\.net|lid)$/);
+  // [MODIFIED] Accept Baileys private-user JID namespaces, including hosted LID accounts.
+  // Group, broadcast, newsletter, and other non-customer destinations remain rejected.
+  const match = jid.match(/^(\d+)(?::\d+)?@(s\.whatsapp\.net|lid|hosted|hosted\.lid)$/);
   if (!match) return null;
 
   const [, userId, server] = match;
   if (server === "s.whatsapp.net" && !/^\d{8,15}$/.test(userId)) return null;
-  if (server === "lid" && !/^\d{1,20}$/.test(userId)) return null;
+  if (server !== "s.whatsapp.net" && !/^\d{1,20}$/.test(userId)) return null;
   return userId + "@" + server;
 }
 
@@ -1278,7 +1383,7 @@ function persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, m
 }
 
 // [MODIFIED] OpenRouter interprets the owner's request and may call read-only business tools.
-async function runOwnerAIAgent({ telegramId, sessionId, message, history, profile, customerChatId }) {
+async function runOwnerAIAgent({ telegramId, sessionId, message, history, profile, customerChatId, isSimulation = false }) {
   const settings = profile?.settings && typeof profile.settings === "object" ? profile.settings : {};
   const businessData = {
     manager: settings.manager || {},
@@ -1370,6 +1475,10 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       }
     ]
   }];
+  // [ADDED] A real WhatsApp JID or explicit Mini App simulation is required for order writes.
+  if (!normalizeCustomerChatJid(customerChatId) && isSimulation !== true) {
+    tools[0].functionDeclarations = tools[0].functionDeclarations.filter((declaration) => declaration.name !== "create_scheduled_order");
+  }
   // [ADDED] Progressive skill routing: select up to three relevant skills for this turn.
   const skillRuntimeContext = routeAndLoadSkills({ message, history, mode: "owner" });
   const systemInstruction = [
@@ -1403,7 +1512,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Gunakan interpretasi AI dan fakta bisnis sebagai konteks. Jangan mengarang harga, ketersediaan, kontak, jam buka, atau fakta bisnis.",
     "Jika informasi penting yang diminta pelanggan tidak tersedia atau tidak dapat dipastikan dari informasi bisnis, jangan menebak. Tandai needs_manager=true dan tulis manager_question yang jelas agar pengelola dapat menjawab. Jangan gunakan eskalasi untuk sapaan atau pertanyaan yang sebenarnya sudah terjawab.",
     "Jika needs_manager=true, reply harus berupa pemberitahuan singkat bahwa kamu sedang menanyakan hal tersebut ke pengelola. Jangan menyebut data, database, atau sumber internal.",
-    "Keluarkan JSON valid saja dengan struktur {reply:string, needs_manager:boolean, manager_question:string, decision:{customerNeed:string, action:string, marketingProduct:string|null, saveToDatabase:boolean, saveReason:string, responseSummary:string}}. decision berisi ringkasan keputusan singkat, bukan private reasoning atau chain-of-thought. Jangan mengarang produk yang diperiksa atau data yang digunakan. Jika informasi sudah cukup, needs_manager=false dan manager_question kosong.",
+    "Keluarkan JSON valid saja: {reply, needs_manager, manager_question, decision:{action, marketingProduct}}. decision hanya metadata singkat, bukan penalaran internal.",
     "Jika ketersediaan tidak dapat dipastikan dari informasi yang ada, gunakan eskalasi ke pengelola, bukan mengarang atau sekadar menyuruh pelanggan menunggu.",
     "Jika objek tidak cocok dengan produk mana pun, sampaikan bahwa menu/varian tersebut belum tersedia; minta klarifikasi hanya jika nama produk memang ambigu.",
     "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. pickupAt wajib ISO 8601 dengan offset zona waktu outlet; gunakan zona waktu outlet dari data bisnis. Waktu pengambilan harus minimal 5 menit di masa depan berdasarkan waktu saat ini; jangan pernah merangkum atau meminta persetujuan untuk waktu yang sudah lewat. Jika waktu yang diminta sudah lewat, minta pelanggan memilih waktu baru terlebih dahulu. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
@@ -1432,11 +1541,20 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   }}];
 
   let createdScheduledOrder = null;
+  let scheduledOrderFailure = null;
   const executeTool = (name, args) => {
     if (name === "create_scheduled_order") {
+      const orderAttemptId = createOpenRouterRequestId();
+      console.info("[WAGRAM Scheduled Order] Tool execution started:", JSON.stringify({
+        orderAttemptId, telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+        customerChatId: String(customerChatId || ""), paymentStatus: String(args?.paymentStatus || ""),
+        itemCount: Array.isArray(args?.items) ? args.items.length : 0
+      }));
       try {
         if (args?.confirmed !== true) throw new Error("CUSTOMER_CONFIRMATION_REQUIRED");
-        const normalizedCustomerChatId = normalizeCustomerChatJid(customerChatId);
+        const normalizedCustomerChatId = isSimulation === true
+          ? "sim-" + String(telegramId) + "@sim"
+          : normalizeCustomerChatJid(customerChatId);
         if (!normalizedCustomerChatId) throw new Error("CUSTOMER_CHAT_INVALID");
         const customerName = String(args.customerName || "").trim().slice(0, 120);
         const outletName = String(args.outletName || "").trim();
@@ -1461,12 +1579,14 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           );
           const quantity = Number(item?.quantity);
           if (!product || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000) throw new Error("SCHEDULED_ORDER_PRODUCT_OR_QUANTITY_INVALID");
-          if (!Number.isSafeInteger(product.price) || product.price < 0) throw new Error("SCHEDULED_ORDER_PRODUCT_PRICE_INVALID");
+          // [MODIFIED] Convert legacy "15.000" / "Rp 15.000" profile values to integer rupiah.
+          const unitPrice = normalizeRupiahPrice(product.price);
+          if (unitPrice === null) throw new Error("SCHEDULED_ORDER_PRODUCT_PRICE_INVALID");
           if (product.available === false || product.isAvailable === false) throw new Error("SCHEDULED_ORDER_PRODUCT_UNAVAILABLE");
           const stock = product.stock == null ? null : Number(product.stock);
           if (stock !== null && (!Number.isSafeInteger(stock) || stock < 0)) throw new Error("SCHEDULED_ORDER_STOCK_INVALID");
           if (stock !== null && stock < quantity) throw new Error("SCHEDULED_ORDER_STOCK_INSUFFICIENT");
-          return { name: String(product.name).trim(), quantity, unitPrice: product.price, subtotal: product.price * quantity };
+          return { name: String(product.name).trim(), quantity, unitPrice, subtotal: unitPrice * quantity };
         });
         if (!items.length || items.some((item) => !Number.isSafeInteger(item.subtotal))) throw new Error("SCHEDULED_ORDER_ITEMS_INVALID");
         const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
@@ -1488,15 +1608,15 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
             INSERT OR IGNORE INTO ai_scheduled_orders (
               telegram_id, session_id, customer_chat_id, customer_name, outlet_name,
               outlet_address, pickup_at, timezone, items_json, total_amount,
-              payment_status, payment_note, fingerprint, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              payment_status, payment_note, fingerprint, is_simulation, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             String(telegramId), String(sessionId || telegramId), normalizedCustomerChatId,
             customerName, String(outlet.name).trim(), String(outlet.address || ""),
             pickupAt, String(outlet.timezone || outlet.timeZone || "Asia/Jakarta"),
             JSON.stringify(items), totalAmount, paymentStatus,
             paymentStatus === "unpaid" ? "Bayar di tempat — " + String(outlet.name).trim() : "Pelanggan mengaku sudah membayar; perlu verifikasi pengelola.",
-            fingerprint, now, now
+            fingerprint, isSimulation ? 1 : 0, now, now
           );
           const order = db.prepare(`
             SELECT id, customer_name, outlet_name, outlet_address, pickup_at, timezone,
@@ -1522,11 +1642,50 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           notificationStatus: order.notification_status,
           newlyCreated: insert.changes === 1
         };
+        console.info("[WAGRAM Scheduled Order] Database save succeeded:", JSON.stringify({
+          orderAttemptId, orderId: order.id, newlyCreated: insert.changes === 1,
+          paymentStatus: order.payment_status, totalAmount: order.total_amount,
+          notificationStatus: order.notification_status
+        }));
         toolAudit.push({ tool: name, resultSummary: { saved: true, orderId: order.id, newlyCreated: insert.changes === 1 } });
         return { saved: true, orderId: order.id, newlyCreated: insert.changes === 1, paymentStatus };
       } catch (error) {
-        toolAudit.push({ tool: name, resultSummary: "rejected: " + String(error?.message || "order_error") });
-        return { saved: false, error: String(error?.message || "SCHEDULED_ORDER_FAILED") };
+        const errorCode = String(error?.message || "SCHEDULED_ORDER_FAILED").slice(0, 160);
+        const rawItems = Array.isArray(args?.items) ? args.items : [];
+        const reportItems = rawItems.map((item) => {
+          const product = (Array.isArray(settings.products) ? settings.products : []).find((entry) =>
+            String(entry?.name || "").trim().toLocaleLowerCase("id-ID") === String(item?.name || "").trim().toLocaleLowerCase("id-ID")
+          );
+          const quantity = Number(item?.quantity) || 0;
+          const unitPrice = normalizeRupiahPrice(product?.price);
+          return { name: String(item?.name || "Menu tidak diketahui").slice(0, 120), quantity, subtotal: unitPrice !== null && quantity > 0 ? unitPrice * quantity : null };
+        });
+        const report = {
+          customerName: String(args?.customerName || "Tidak disebutkan").slice(0, 120),
+          customerChatId: isSimulation ? "SIMULASI" : String(normalizeCustomerChatJid(customerChatId) || "Tidak tersedia"),
+          items: reportItems,
+          totalAmount: reportItems.length > 0 && reportItems.every((item) => Number.isSafeInteger(item.subtotal)) ? reportItems.reduce((sum, item) => sum + item.subtotal, 0) : null,
+          outletName: String(args?.outletName || "Tidak diketahui").slice(0, 120),
+          pickupAt: String(args?.pickupAt || "Tidak diketahui").slice(0, 80),
+          paymentStatus: String(args?.paymentStatus || "Tidak diketahui"),
+          isSimulation: isSimulation === true
+        };
+        scheduledOrderFailure = { errorCode, report };
+        try {
+          const now = Date.now();
+          db.prepare(`INSERT INTO ai_scheduled_order_failure_outbox
+            (telegram_id, session_id, report_json, error_code, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'pending', ?, ?)`)
+            .run(String(telegramId), String(sessionId || telegramId), JSON.stringify(report), errorCode, now, now);
+        } catch (outboxError) {
+          console.error("[WAGRAM Scheduled Order Failure Outbox] Persistence failed:", outboxError.message);
+        }
+        console.error("[WAGRAM Scheduled Order] Tool execution rejected:", JSON.stringify({
+          orderAttemptId, errorName: String(error?.name || "Error"), error: errorCode,
+          failureReportQueued: Boolean(scheduledOrderFailure)
+        }));
+        toolAudit.push({ tool: name, resultSummary: "rejected; manager report queued" });
+        return { saved: false, error: errorCode, managerReportQueued: Boolean(scheduledOrderFailure) };
       }
     }
     if (name === "read_business_profile") {
@@ -1567,9 +1726,25 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   };
 
   for (let step = 0; step < 5; step += 1) {
+    console.info("[WAGRAM AI Agent] Generation step started:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, maxSteps: 5, historyMessageCount: recentHistory.length,
+      hasCustomerMessage: Boolean(String(message || "").trim()), availableToolCount: tools.length
+    }));
     // [MODIFIED] Retry an empty provider response once with tools still enabled so a confirmed order can still be saved.
-    let result = await openRouterGenerate(contents, { temperature: 0.2, maxOutputTokens: 500, systemInstruction, tools });
+    let result = await openRouterGenerate(contents, { temperature: 0.2, maxOutputTokens: 1600, systemInstruction, tools, reasoning: { effort: "low" } });
+    if (result.finishReason === "length") {
+      console.warn("[WAGRAM AI] Output limit reached; retrying once with a larger token budget:", JSON.stringify({ step, provider: result.provider || "unknown" }));
+      result = await openRouterGenerate(contents, { temperature: 0.1, maxOutputTokens: 2400, systemInstruction, tools, reasoning: { effort: "low" } });
+    }
     let calls = result.parts.filter((part) => part?.functionCall).map((part) => part.functionCall);
+    console.info("[WAGRAM AI Agent] Generation step completed:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, hasText: Boolean(String(result.text || "").trim()),
+      toolCalls: calls.map((call) => String(call?.name || "unknown")),
+      finishReason: result.finishReason || null, provider: result.provider || null,
+      model: result.model || OPENROUTER_MODEL
+    }));
     if (!calls.length && !String(result.text || "").trim()) {
       console.warn("[WAGRAM AI] Empty agent response; retrying with tools enabled:", JSON.stringify({
         model: result.model || OPENROUTER_MODEL,
@@ -1608,6 +1783,10 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           { temperature: 0.1, maxOutputTokens: 900 }
         );
         finalText = String(retryResult.text || "").trim();
+        if (retryResult.finishReason === "length") {
+          const expandedRetry = await openRouterGenerate([{ role: "user", parts: [{ text: retryPrompt }] }], { temperature: 0, maxOutputTokens: 2400, reasoning: { effort: "low" } });
+          finalText = String(expandedRetry.text || "").trim();
+        }
         if (!finalText) {
           console.error("[WAGRAM AI] Text fallback also returned empty content:", JSON.stringify({
             model: retryResult.model || OPENROUTER_MODEL,
@@ -1623,11 +1802,12 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       if (!rawAnswer) {
         // [ADDED] Never turn a successful database write into a failed chat just because final wording generation is empty.
         const fallbackReply = buildScheduledOrderFallbackReply(createdScheduledOrder);
-        const safeReply = fallbackReply || "Maaf Kak, saya sedang mengalami kendala saat memproses pesan. Pesanan belum dapat saya pastikan tercatat. Boleh coba kirim sekali lagi?";
+        const safeReply = scheduledOrderFailure ? "Maaf Kak, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual." : fallbackReply || "Maaf Kak, saya sedang mengalami kendala saat memproses pesan. Pesanan belum dapat saya pastikan tercatat. Boleh coba kirim sekali lagi?";
         return {
           reply: safeReply,
           scheduledOrder: createdScheduledOrder,
-          needsManager: false,
+          orderFailure: scheduledOrderFailure,
+          needsManager: Boolean(scheduledOrderFailure),
           managerQuestion: "",
           trace: (() => {
             const decision = buildAIBusinessDecisionContext({
@@ -1652,17 +1832,45 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         };
       }
       let structuredAnswer = null;
-      try {
-        const jsonStart = rawAnswer.indexOf("{");
-        const jsonEnd = rawAnswer.lastIndexOf("}");
-        if (jsonStart >= 0 && jsonEnd > jsonStart) {
-          structuredAnswer = JSON.parse(rawAnswer.slice(jsonStart, jsonEnd + 1));
+      const parseStructuredAnswer = (value) => {
+        const source = String(value || "").trim().replace(/^\x60\x60\x60(?:json)?\s*/i, "").replace(/\s*\x60\x60\x60$/i, "");
+        try {
+          const start = source.indexOf("{");
+          const end = source.lastIndexOf("}");
+          if (start >= 0 && end > start) return JSON.parse(source.slice(start, end + 1));
+        } catch {}
+        if (source.startsWith("{")) {
+          const replyMatch = source.match(/"reply"\s*:\s*"((?:\\.|[^"\\])*)/s);
+          const managerMatch = source.match(/"needs_manager"\s*:\s*(true|false)/i);
+          if (replyMatch) {
+            let reply = replyMatch[1];
+            try { reply = JSON.parse("\"" + reply + "\""); } catch {}
+            return { reply, needs_manager: managerMatch?.[1]?.toLowerCase() === "true", manager_question: "" };
+          }
         }
-      } catch {}
-      const answer = String(structuredAnswer?.reply || rawAnswer).trim().replace(/\s*\n+\s*/g, " ").replace(/\s{2,}/g, " ");
-      const conciseAnswer = answer.length > 320
+        return null;
+      };
+      structuredAnswer = parseStructuredAnswer(rawAnswer);
+      if (!structuredAnswer && rawAnswer.startsWith("{")) {
+        const repair = await openRouterGenerate([{ role: "user", parts: [{ text: "Perbaiki JSON berikut menjadi JSON valid dengan field reply, needs_manager, manager_question, decision. Jangan menambah fakta. Kembalikan JSON saja:\n" + rawAnswer.slice(0, 5000) }] }], { temperature: 0, maxOutputTokens: 1200, reasoning: { effort: "low" } });
+        structuredAnswer = parseStructuredAnswer(repair.text);
+      }
+      if (rawAnswer.startsWith("{") && !structuredAnswer?.reply) {
+        structuredAnswer = { reply: "Maaf Kak, saya belum bisa memastikan pesanan ini. Saya akan minta pengelola membantu memastikan detailnya.", needs_manager: true, manager_question: String(message || "").slice(0, 1000) };
+      }
+      const answer = String(structuredAnswer?.reply || (rawAnswer.startsWith("{") ? "Maaf Kak, saya belum bisa memastikan informasi tersebut. Boleh tunggu sebentar?" : rawAnswer)).trim().replace(/\s*\n+\s*/g, " ").replace(/\s{2,}/g, " ");
+      const hasKnownOutlet = businessData.outlets.some((outlet) => String(outlet?.name || "").trim() && answer.toLocaleLowerCase("id-ID").includes(String(outlet.name).trim().toLocaleLowerCase("id-ID")));
+      const hasKnownMenu = businessData.products.some((product) => String(product?.name || "").trim() && answer.toLocaleLowerCase("id-ID").includes(String(product.name).trim().toLocaleLowerCase("id-ID")));
+      const hasQuantity = /\b\d+\s*(?:porsi|pcs|buah|ekor|x)\b/i.test(answer);
+      const isOrderSummary = hasKnownOutlet && hasKnownMenu && hasQuantity && /\b(?:total|rp)\b/i.test(answer) && /\b\d{2}\/\d{2}\/\d{4}\b/.test(answer) && /\b\d{2}:\d{2}\b/.test(answer) && /\b(?:belum dibayar|bayar di tempat|menunggu verifikasi)\b/i.test(answer);
+      const conciseAnswer = !isOrderSummary && answer.length > 320
         ? answer.slice(0, 317).replace(/\s+\S*$/, "").replace(/[,:;\s]+$/, "") + "…"
         : answer;
+      const finalCustomerReply = scheduledOrderFailure
+        ? "Maaf Kak, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual."
+        : /^\s*[\[{]/.test(conciseAnswer) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\bJSON\b|\berror\b/i.test(conciseAnswer)
+          ? "Maaf Kak, saya belum bisa memastikan informasi tersebut. Pengelola perlu membantu memastikannya." 
+          : conciseAnswer;
       const decision = buildAIBusinessDecisionContext({
         message, history, businessData, recognition, toolAudit,
         decisionSummary: structuredAnswer?.decision || null, createdScheduledOrder
@@ -1685,7 +1893,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         decision.database.auditLogSaved = false;
         console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
       }
-      return { reply: conciseAnswer, scheduledOrder: createdScheduledOrder, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
+      return { reply: finalCustomerReply, scheduledOrder: createdScheduledOrder, orderFailure: scheduledOrderFailure, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
         ...decision,
         recognition: decision.recognition.summary,
         intent: recognition.intent, entity: recognition.entity,
@@ -1694,10 +1902,24 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         expectedAnswer: answer, toolCalls: toolAudit
       }};
     }
+    console.info("[WAGRAM AI Agent] Tool calls requested:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, tools: calls.map((call) => String(call?.name || "unknown"))
+    }));
     contents.push(result.candidate.content);
-    contents.push({ role: "user", parts: calls.map((call) => ({
+    const toolResponses = calls.map((call) => ({
       functionResponse: { name: String(call.name || ""), response: { result: executeTool(String(call.name || ""), call.args || {}) } }
-    })) });
+    }));
+    console.info("[WAGRAM AI Agent] Tool calls completed:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, results: toolResponses.map((item) => ({
+        tool: item.functionResponse.name,
+        saved: item.functionResponse.response?.result?.saved,
+        orderId: item.functionResponse.response?.result?.orderId,
+        error: item.functionResponse.response?.result?.error || null
+      }))
+    }));
+    contents.push({ role: "user", parts: toolResponses });
   }
   throw new Error("OPENROUTER_AGENT_MAX_TOOL_STEPS");
 }
@@ -1885,18 +2107,20 @@ export async function createAIBusinessImageCustomerReply(telegramId, sessionId, 
   return reply.slice(0, 700);
 }
 
-export async function createAIBusinessReply(telegramId, sessionId, message, history = [], customerChatId = "") {
+export async function createAIBusinessReply(telegramId, sessionId, message, history = [], customerChatId = "", options = {}) {
   requirePremium30Days(telegramId);
   const profile = getAIBusinessProfile(telegramId, sessionId);
   const qrisImage = String(profile?.settings?.payment?.qrisImage || "");
   const qrisRequested = isQrisRequest(message);
 
   // [MODIFIED] OpenRouter writes the reply; the backend only attaches the saved QRIS image.
-  const result = await runOwnerAIAgent({ telegramId, sessionId, message, history, profile, customerChatId });
+  const isSimulation = options?.isSimulation === true;
+  const result = await runOwnerAIAgent({ telegramId, sessionId, message, history, profile, customerChatId, isSimulation });
   return {
     reply: result.reply,
     // [ADDED] Preserve the escalation decision so auto-reply can notify the manager.
     scheduledOrder: result.scheduledOrder || null,
+    orderFailure: result.orderFailure || null,
     needsManager: result.needsManager === true,
     managerQuestion: String(result.managerQuestion || "").trim(),
     ...(qrisRequested && qrisImage ? { qrisImage } : {}),

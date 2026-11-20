@@ -1417,7 +1417,7 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
       }
     },
 
-    onMessage: async ({ message, socket }) => {
+    onMessage: async ({ message, socket, customerChatJid }) => {
       try {
         const key = message?.key || {};
         const messageId = key.id;
@@ -1583,10 +1583,14 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             void handleIncomingAIAutoReply({
               telegramId: id,
               sessionId,
-              chatId: remoteJid,
+              // [MODIFIED] Use the exact private-chat JID supplied by Baileys.
+              // Keep the database/WhatsApp chat key aligned with the actual message destination.
+              chatId: customerChatJid || remoteJid,
               messageId,
               socket,
-              quotedMessage: message
+              quotedMessage: message,
+              // [ADDED] Pass Baileys' resolved phone number separately from the private chat JID.
+              customerPhone: phoneNumber || null
             }).catch((error) => {
               console.error("[WAGRAM AI Auto Reply] Worker crashed:", error.message);
             });

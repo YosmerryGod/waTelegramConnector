@@ -7,9 +7,12 @@ process.chdir(appDir);
 
 const databaseUrl = pathToFileURL(path.join(appDir, "src/database.js")).href;
 const aiUrl = pathToFileURL(path.join(appDir, "src/ai/customer-service.js")).href;
+const autoReplyUrl = pathToFileURL(path.join(appDir, "src/ai/auto-reply.js")).href;
 
 const database = await import(databaseUrl);
 const ai = await import(aiUrl);
+const autoReply = await import(autoReplyUrl);
+const db = database.default;
 
 const activeUsers = database.getAllActiveUsers();
 const premiumUsers = activeUsers.filter((user) => {
@@ -64,6 +67,105 @@ console.log("OpenRouter model:", process.env.OPENROUTER_MODEL || "deepseek/deeps
 const results = [];
 const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID");
 
+// [ADDED] Regression checks for supported real WhatsApp JID namespaces.
+for (const jid of ["6281234567890@s.whatsapp.net", "123456789012345@lid", "123456789012345@hosted", "123456789012345@hosted.lid"]) {
+  assert.ok(ai.normalizeCustomerChatJid(jid), "Supported customer JID was rejected: " + jid);
+}
+for (const jid of ["123456789@g.us", "status@broadcast", "sim-123@sim", ""]) {
+  assert.equal(ai.normalizeCustomerChatJid(jid), null, "Non-customer JID was accepted: " + jid);
+}
+
+console.log("PASS: WhatsApp JID normalization (@s.whatsapp.net, @lid, @hosted)");
+
+// [ADDED] Force a truncated OpenRouter JSON response and verify only the extracted reply is returned.
+if (process.env.OPENROUTER_API_KEY) {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    id: "wagram-truncated-json-test",
+    provider: "DeepSeek",
+    model: process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4.1-flash-1017",
+    choices: [{
+      finish_reason: "length",
+      message: { content: '{"reply":"Halo Kak, ada yang bisa saya bantu?","needs_manager":false,"manager_question":"' }
+    }],
+    usage: { completion_tokens: 1500, reasoning_tokens: 250 }
+  }), { status: 200, headers: { "content-type": "application/json" } });
+  try {
+    const truncated = await ai.createAIBusinessReply(owner.telegram_id, sessionId, "halo", [], "", { isSimulation: true });
+    assert.equal(truncated.reply, "Halo Kak, ada yang bisa saya bantu?");
+    assert.ok(!String(truncated.reply).startsWith("{"));
+    console.log("PASS: truncated JSON never reaches the customer reply");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+} else {
+  console.log("SKIP: truncated JSON test requires OPENROUTER_API_KEY.");
+}
+
+// [ADDED] Test durable simulated-order and failed-order reports in an isolated synthetic owner scope.
+if (String(manager.phone || "").trim()) {
+  const now = Date.now();
+  const testOwnerId = "wagram-live-test-" + now;
+  const testSessionId = testOwnerId;
+  database.saveAIBusinessProfile(testOwnerId, testSessionId, {
+    settings: { manager: { phone: manager.phone } }
+  });
+  const fingerprint = "wagram-live-sim-test-" + now;
+  const inserted = db.prepare(`
+    INSERT INTO ai_scheduled_orders (
+      telegram_id, session_id, customer_chat_id, customer_name, outlet_name,
+      outlet_address, pickup_at, timezone, items_json, total_amount,
+      payment_status, payment_note, fingerprint, is_simulation, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+  `).run(
+    testOwnerId, testSessionId, "sim-" + testOwnerId + "@sim",
+    "WAGRAM Test Simulation", "Outlet Test", "Alamat Test",
+    new Date(now + 86400000).toISOString(), "Asia/Jakarta",
+    JSON.stringify([{ name: "Menu Test", quantity: 1, unitPrice: 1000, subtotal: 1000 }]),
+    1000, "unpaid", "Bayar di tempat", fingerprint, now, now
+  );
+  const testOrderId = Number(inserted.lastInsertRowid);
+  db.prepare(`
+    INSERT INTO ai_scheduled_order_outbox (order_id, telegram_id, session_id, status, created_at, updated_at)
+    VALUES (?, ?, ?, 'pending', ?, ?)
+  `).run(testOrderId, testOwnerId, testSessionId, now, now);
+  const failureInsert = db.prepare(`
+    INSERT INTO ai_scheduled_order_failure_outbox (
+      telegram_id, session_id, report_json, error_code, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, 'pending', ?, ?)
+  `).run(
+    testOwnerId, testSessionId,
+    JSON.stringify({
+      customerName: "WAGRAM Failure Test", customerChatId: "SIMULASI",
+      items: [{ name: "Menu Test", quantity: 2, subtotal: 2000 }],
+      totalAmount: 2000, outletName: "Outlet Test",
+      pickupAt: new Date(now + 86400000).toISOString(),
+      paymentStatus: "unpaid", isSimulation: true
+    }),
+    "TEST_FAILURE_CODE", now, now
+  );
+  const delivered = [];
+  try {
+    const drain = await autoReply.processPendingScheduledOrderNotifications({
+      telegramId: testOwnerId, sessionId: testSessionId,
+      socket: { sendMessage: async (jid, payload) => { delivered.push({ jid, text: payload.text }); return { key: { id: "mock-" + delivered.length } }; } },
+      limit: 10
+    });
+    assert.ok(delivered.some((item) => item.text.includes("[SIMULASI] PESANAN TERJADWAL")), "Simulated successful order was not delivered to the manager outbox.");
+    assert.ok(delivered.some((item) => item.text.includes("[SIMULASI] PESANAN GAGAL DISIMPAN") && /catat manual/i.test(item.text)), "Failed order did not produce a manual-entry manager report.");
+    assert.ok(delivered.every((item) => !item.jid.includes("@sim")), "Outbox attempted to send to a synthetic customer JID.");
+    assert.ok(drain.sent >= 2, "Expected both simulated-order and failed-order outbox messages to be sent.");
+    console.log("PASS: simulation order outbox and failed-order manager report");
+  } finally {
+    db.prepare("DELETE FROM ai_scheduled_order_outbox WHERE order_id = ?").run(testOrderId);
+    db.prepare("DELETE FROM ai_scheduled_orders WHERE id = ?").run(testOrderId);
+    db.prepare("DELETE FROM ai_scheduled_order_failure_outbox WHERE id = ?").run(Number(failureInsert.lastInsertRowid));
+    db.prepare("DELETE FROM ai_business_profiles WHERE telegram_id = ? AND session_id = ?").run(testOwnerId, testSessionId);
+  }
+} else {
+  console.log("SKIP: outbox delivery regression tests require manager.phone in the selected profile.");
+}
+
 async function test(name, message, validate, history = []) {
   console.log(`\n--- ${name} ---`);
   const response = await ai.createAIBusinessReply(
@@ -74,6 +176,8 @@ async function test(name, message, validate, history = []) {
   );
   const reply = String(response.reply || "").trim();
   assert.ok(reply, `${name}: AI returned an empty response.`);
+  assert.ok(!reply.startsWith("{") && !reply.startsWith("["), `${name}: raw JSON reached the customer reply.`);
+  assert.ok(!/CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\berror\b|\bJSON\b/i.test(reply), `${name}: technical details reached the customer reply.`);
   console.log("Intent:", response.intent || "not reported");
   console.log("AI reply:", reply);
   validate(reply, response);

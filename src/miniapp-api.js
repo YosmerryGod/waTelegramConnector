@@ -19,6 +19,11 @@ import {
   checkOpenRouterHealth
 } from "./ai/customer-service.js";
 
+import {
+  createSkillChangeProposal,
+  listSkillChangeProposals,
+  reviewSkillChangeProposal
+} from "./ai/skills/runtime.js";
 import { bot, createWhatsAppCallbacks } from "./telegram.js";
 import { publishToMiniApp } from "./realtime.js";
 import QRCode from "qrcode";
@@ -27,6 +32,7 @@ import { connectWhatsApp, disconnectWhatsApp, getWhatsAppQr, getWhatsAppStatus, 
 import {
   getUser,
   getMembership,
+  getAIBusinessProfile,
   getSession,
   getWhatsAppAccounts,
   getWhatsAppAccount,
@@ -46,6 +52,14 @@ import {
   updateContact,
   deleteContact,
   listContacts,
+  listCustomerContacts,
+  saveCustomerContact,
+  updateCustomerContact,
+  deleteCustomerContact,
+  listEmployeeWhitelist,
+  saveEmployeeWhitelist,
+  updateEmployeeWhitelist,
+  deleteEmployeeWhitelist,
   listCalls,
   setCallFavorite,
   setCallArchived,
@@ -61,7 +75,6 @@ import {
   getPremiumPaymentOrder, // [ADDED] Read an order owned by the authenticated user.
   markPremiumPaymentReported, // [ADDED] Record a user's payment confirmation.
   completePremiumPaymentByAmount, // [ADDED] Match DANA notification amounts and activate Premium atomically.
-  getAIBusinessProfile,
   saveAIBusinessProfile,
   getAIBusinessAutoReplyEnabled, // [ADDED] Read the per-session Auto Reply switch.
   setAIBusinessAutoReplyEnabled, // [ADDED] Persist the per-session Auto Reply switch.
@@ -1503,6 +1516,73 @@ function readContactBody(req) {
   };
 }
 
+// [ADDED] Separate payload readers for customer and employee directories.
+function readCustomerContactBody(req) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  return {
+    name: typeof body.name === "string" ? body.name : "",
+    phone: typeof body.phone_number === "string" ? body.phone_number : typeof body.phone === "string" ? body.phone : "",
+    address: typeof body.address === "string" ? body.address : ""
+  };
+}
+function readEmployeeWhitelistBody(req) {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  return {
+    name: typeof body.name === "string" ? body.name : "",
+    phone: typeof body.phone_number === "string" ? body.phone_number : typeof body.phone === "string" ? body.phone : ""
+  };
+}
+
+// [ADDED] Customer directory: isolated by authenticated Telegram user and selected WhatsApp session.
+router.get("/customer-contacts", (req, res) => {
+  try { res.setHeader("Cache-Control", "no-store"); res.json({ ok: true, contacts: listCustomerContacts(req.telegramId, req.sessionId) }); }
+  catch (error) { sendServerError(res, error, "Could not list customer contacts"); }
+});
+router.post("/customer-contacts", (req, res) => {
+  try {
+    const result = saveCustomerContact(req.telegramId, readCustomerContactBody(req), req.sessionId);
+    res.status(result.created ? 201 : 200).json({ ok: true, ...result });
+  } catch (error) { sendContactError(res, error, "Could not save customer contact"); }
+});
+router.put("/customer-contacts/:id", (req, res) => {
+  try {
+    const contact = updateCustomerContact(req.telegramId, req.params.id, readCustomerContactBody(req), req.sessionId);
+    if (!contact) return res.status(404).json({ ok: false, error: "CUSTOMER_CONTACT_NOT_FOUND" });
+    res.json({ ok: true, contact });
+  } catch (error) { sendContactError(res, error, "Could not update customer contact"); }
+});
+router.delete("/customer-contacts/:id", (req, res) => {
+  try {
+    if (!deleteCustomerContact(req.telegramId, req.params.id, req.sessionId)) return res.status(404).json({ ok: false, error: "CUSTOMER_CONTACT_NOT_FOUND" });
+    res.json({ ok: true });
+  } catch (error) { sendServerError(res, error, "Could not delete customer contact"); }
+});
+
+// [ADDED] Employee whitelist: listed numbers do not receive AI auto-replies.
+router.get("/employee-whitelist", (req, res) => {
+  try { res.setHeader("Cache-Control", "no-store"); res.json({ ok: true, employees: listEmployeeWhitelist(req.telegramId, req.sessionId) }); }
+  catch (error) { sendServerError(res, error, "Could not list employee whitelist"); }
+});
+router.post("/employee-whitelist", (req, res) => {
+  try {
+    const result = saveEmployeeWhitelist(req.telegramId, readEmployeeWhitelistBody(req), req.sessionId);
+    res.status(result.created ? 201 : 200).json({ ok: true, ...result });
+  } catch (error) { sendContactError(res, error, "Could not save employee whitelist entry"); }
+});
+router.put("/employee-whitelist/:id", (req, res) => {
+  try {
+    const contact = updateEmployeeWhitelist(req.telegramId, req.params.id, readEmployeeWhitelistBody(req), req.sessionId);
+    if (!contact) return res.status(404).json({ ok: false, error: "EMPLOYEE_WHITELIST_NOT_FOUND" });
+    res.json({ ok: true, contact });
+  } catch (error) { sendContactError(res, error, "Could not update employee whitelist entry"); }
+});
+router.delete("/employee-whitelist/:id", (req, res) => {
+  try {
+    if (!deleteEmployeeWhitelist(req.telegramId, req.params.id, req.sessionId)) return res.status(404).json({ ok: false, error: "EMPLOYEE_WHITELIST_NOT_FOUND" });
+    res.json({ ok: true });
+  } catch (error) { sendServerError(res, error, "Could not delete employee whitelist entry"); }
+});
+
 // GET /api/miniapp/contacts
 router.get("/contacts", (req, res) => {
   try {
@@ -1818,6 +1898,61 @@ router.get("/messages/:id/media", async (req, res) => {
 });
 
 
+// [ADDED] Owner-controlled skill learning proposals; all records are scoped to the authenticated Telegram account and WhatsApp session.
+router.get("/ai/skill-proposals", (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, proposals: listSkillChangeProposals(req.telegramId, req.sessionId) });
+  } catch (error) {
+    return sendServerError(res, error, "Could not list skill learning proposals");
+  }
+});
+
+router.post("/ai/skill-proposals", (req, res) => {
+  try {
+    const result = createSkillChangeProposal({
+      telegramId: req.telegramId,
+      sessionId: req.sessionId,
+      skillId: req.body?.skillId,
+      proposal: req.body?.proposal,
+      evidenceSummary: req.body?.evidenceSummary
+    });
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(201).json({ ok: true, proposal: result });
+  } catch (error) {
+    const status = error.message === "SKILL_PROPOSAL_INVALID" ? 400 : 500;
+    return res.status(status).json({
+      ok: false,
+      error: error.message || "SKILL_PROPOSAL_CREATE_FAILED",
+      message: status === 400 ? "Skill, usulan, dan bukti harus diisi dengan benar." : "Usulan pembelajaran belum dapat disimpan."
+    });
+  }
+});
+
+router.post("/ai/skill-proposals/:proposalId/review", (req, res) => {
+  try {
+    const proposalId = Number(req.params.proposalId);
+    const approved = req.body?.approved;
+    if (!Number.isSafeInteger(proposalId) || proposalId <= 0 || typeof approved !== "boolean") {
+      return res.status(400).json({ ok: false, error: "INVALID_SKILL_PROPOSAL_REVIEW" });
+    }
+    const result = reviewSkillChangeProposal({
+      telegramId: req.telegramId,
+      sessionId: req.sessionId,
+      proposalId,
+      approved,
+      reviewer: req.telegramId
+    });
+    if (!result.updated) {
+      return res.status(404).json({ ok: false, error: "SKILL_PROPOSAL_NOT_PENDING", message: "Usulan tidak ditemukan atau sudah ditinjau." });
+    }
+    res.setHeader("Cache-Control", "no-store");
+    return res.json({ ok: true, review: result });
+  } catch (error) {
+    return sendServerError(res, error, "Could not review skill learning proposal");
+  }
+});
+
 /* [ADDED] AI Customer Service: available only to Premium 30-day users.
    All actions are scoped to the authenticated Telegram owner and selected WhatsApp session. */
 router.get("/ai/status", (req, res) => {
@@ -2121,14 +2256,44 @@ router.post("/ai-business/chat", async (req, res) => {
       });
     }
 
+    // [ADDED] Mini App requests are owner-authenticated simulations, never real WhatsApp customer chats.
     const result = await createAIBusinessReply(
       req.telegramId,
       req.sessionId,
       message,
-      req.body?.history || []
+      req.body?.history || [],
+      "",
+      { isSimulation: true }
     );
+    const managerPhone = String(getAIBusinessProfile(req.telegramId, req.sessionId)?.settings?.manager?.phone || "").replace(/\D/g, "");
+    const managerWarning = (result.orderFailure || result.scheduledOrder) && managerPhone.length < 8
+      ? result.orderFailure
+        ? "Nomor WhatsApp pengelola belum diatur. Pesanan belum berhasil dicatat; tambahkan nomor pengelola agar laporan dapat dikirim."
+        : "Pesanan sudah tersimpan, tetapi nomor WhatsApp pengelola belum diatur sehingga laporan belum dapat dikirim."
+      : "";
+    const generatedReply = String(result.reply || "").trim();
+    const containsInternalOutput = /^\s*[\[{]/.test(generatedReply) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\bJSON\b|\berror\b/i.test(generatedReply);
+    const safeReply = result.orderFailure
+      ? "Maaf, pesanan belum berhasil dicatat. Pengelola perlu membantu memastikan dan mencatat pesanan ini secara manual."
+      : containsInternalOutput
+        ? result.scheduledOrder
+          ? "Pesanan #" + result.scheduledOrder.id + " sudah berhasil dicatat."
+          : "Maaf, saya belum bisa memastikan informasi tersebut. Pengelola perlu membantu memastikannya."
+        : generatedReply;
+    // [MODIFIED] Return the structured decision audit summary; never expose private reasoning, raw model JSON, or stack traces.
     res.setHeader("Cache-Control", "no-store");
-    return res.json({ ok: true, ...result });
+    return res.json({
+      ok: true,
+      reply: safeReply,
+      scheduledOrder: result.scheduledOrder || null,
+      needsManager: result.needsManager === true || Boolean(result.orderFailure),
+      managerQuestion: String(result.managerQuestion || ""),
+      managerWarning,
+      trace: result.trace && typeof result.trace === "object" ? result.trace : null, // [ADDED] Restore the AI inspection panel in Mini App chat.
+      intent: result.intent || "agent",
+      model: result.model,
+      createdAt: result.createdAt
+    });
   } catch (error) {
     const status = error.status || 500;
     console.error("[WAGRAM AI Business] Request failed:", error.message);

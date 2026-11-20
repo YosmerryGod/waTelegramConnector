@@ -3,15 +3,17 @@ import db from "../database.js";
 import {
   listMessages,
   getAIBusinessProfile,
-  getAIBusinessAutoReplyEnabled
-} from "../database.js"; // [MODIFIED] Include the server-side Auto Reply preference.
+  getAIBusinessAutoReplyEnabled,
+  isEmployeeWhitelisted
+} from "../database.js"; // [MODIFIED] Include the server-side Auto Reply preference and employee exclusion list.
 import {
   getAICustomerServiceStatus,
   createAICustomerServiceSuggestion,
   createAIBusinessReply,
   analyzeAIPaymentProofImage,
   createAIPaymentProofCustomerReply,
-  createAIBusinessImageCustomerReply
+  createAIBusinessImageCustomerReply,
+  normalizeCustomerChatJid
 } from "./customer-service.js";
 
 // [ADDED] Drain the durable scheduled-order notification outbox with retry and stale-claim recovery.
@@ -25,6 +27,9 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
   let sent = 0;
   let failed = 0;
   const maxItems = Math.max(1, Math.min(25, Number(limit) || 10));
+  console.info("[WAGRAM Scheduled Order Outbox] Drain started:", JSON.stringify({
+    telegramId: ownerId, sessionId: accountId, limit: maxItems
+  }));
 
   for (let index = 0; index < maxItems; index += 1) {
     const now = Date.now();
@@ -55,7 +60,7 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
       return db.prepare(`
         SELECT o.order_id, o.attempts, s.customer_name, s.customer_chat_id,
           s.outlet_name, s.outlet_address, s.pickup_at, s.timezone,
-          s.items_json, s.total_amount, s.payment_status, s.payment_note
+          s.items_json, s.total_amount, s.payment_status, s.payment_note, s.is_simulation
         FROM ai_scheduled_order_outbox o
         JOIN ai_scheduled_orders s ON s.id = o.order_id
         WHERE o.order_id = ? AND o.telegram_id = ? AND o.session_id = ?
@@ -65,6 +70,11 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
     const order = claim();
     if (!order) break;
 
+    console.info("[WAGRAM Scheduled Order Outbox] Notification claimed:", JSON.stringify({
+      telegramId: ownerId, sessionId: accountId, orderId: order.order_id,
+      attempt: order.attempts, paymentStatus: order.payment_status,
+      proofImageRequired: order.payment_status !== "unpaid"
+    }));
     try {
       const managerDigits = normalizeManagerPhone(
         getAIBusinessProfile(ownerId, accountId)?.settings?.manager?.phone
@@ -78,10 +88,10 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
         "- " + item.name + " x" + item.quantity + " = Rp" + Number(item.subtotal).toLocaleString("id-ID")
       );
       const managerNotice = [
-        "PESANAN TERJADWAL",
+        order.is_simulation ? "[SIMULASI] PESANAN TERJADWAL" : "PESANAN TERJADWAL",
         "ID: #" + order.order_id,
         "Pelanggan: " + order.customer_name,
-        "WhatsApp: " + (order.customer_chat_id.endsWith("@s.whatsapp.net")
+        "WhatsApp: " + (order.is_simulation ? "Simulasi — bukan nomor pelanggan" : order.customer_chat_id.endsWith("@s.whatsapp.net")
           ? "+" + order.customer_chat_id.replace(/@s\.whatsapp\.net$/, "")
           : "ID chat " + order.customer_chat_id),
         "Outlet: " + order.outlet_name,
@@ -109,6 +119,11 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
         `).run(order.order_id, ownerId, accountId);
       })();
       sent += 1;
+      console.info("[WAGRAM Scheduled Order Outbox] Manager notification sent:", JSON.stringify({
+        telegramId: ownerId, sessionId: accountId, orderId: order.order_id,
+        managerMessageId: messageId, paymentStatus: order.payment_status,
+        deliveryType: "text"
+      }));
     } catch (error) {
       const attempt = Number(order.attempts) || 1;
       const delay = Math.min(30 * 60 * 1000, 30 * 1000 * (2 ** Math.min(attempt - 1, 6)));
@@ -127,6 +142,65 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
     }
   }
 
+  // [ADDED] Drain failed-order reports independently; they remain durable without an order row.
+  for (let index = 0; index < maxItems; index += 1) {
+    const now = Date.now();
+    const failure = db.transaction(() => {
+      const row = db.prepare(`
+        SELECT id FROM ai_scheduled_order_failure_outbox
+        WHERE telegram_id = ? AND session_id = ?
+          AND ((status = 'pending' AND next_attempt_at <= ?) OR (status = 'sending' AND claimed_at <= ?))
+        ORDER BY created_at ASC LIMIT 1
+      `).get(ownerId, accountId, now, now - 5 * 60 * 1000);
+      if (!row) return null;
+      const changed = db.prepare(`
+        UPDATE ai_scheduled_order_failure_outbox
+        SET status = 'sending', attempts = attempts + 1, claimed_at = ?, updated_at = ?, last_error = NULL
+        WHERE id = ? AND telegram_id = ? AND session_id = ?
+          AND ((status = 'pending' AND next_attempt_at <= ?) OR (status = 'sending' AND claimed_at <= ?))
+      `).run(now, now, row.id, ownerId, accountId, now, now - 5 * 60 * 1000);
+      return changed.changes === 1 ? db.prepare("SELECT * FROM ai_scheduled_order_failure_outbox WHERE id = ?").get(row.id) : null;
+    })();
+    if (!failure) break;
+    try {
+      const managerDigits = normalizeManagerPhone(getAIBusinessProfile(ownerId, accountId)?.settings?.manager?.phone);
+      if (!managerDigits) throw new Error("SCHEDULED_ORDER_MANAGER_PHONE_NOT_CONFIGURED");
+      const report = JSON.parse(failure.report_json || "{}");
+      const itemLines = (Array.isArray(report.items) ? report.items : []).map((item) =>
+        "- " + item.name + " x" + item.quantity + " = " + (Number.isSafeInteger(item.subtotal) ? "Rp" + item.subtotal.toLocaleString("id-ID") : "harga belum dapat dipastikan")
+      );
+      const notice = [
+        report.isSimulation ? "[SIMULASI] PESANAN GAGAL DISIMPAN — CATAT MANUAL" : "PESANAN GAGAL DISIMPAN — CATAT MANUAL",
+        "Pelanggan: " + (report.customerName || "Tidak disebutkan"),
+        "Identitas chat: " + (report.isSimulation ? "Simulasi" : report.customerChatId || "Tidak tersedia"),
+        "Menu dan jumlah:", ...(itemLines.length ? itemLines : ["- Tidak lengkap dari percakapan"]),
+        "Total: " + (Number.isSafeInteger(report.totalAmount) ? "Rp" + report.totalAmount.toLocaleString("id-ID") : "Belum dapat dipastikan"),
+        "Outlet: " + (report.outletName || "Tidak diketahui"),
+        "Waktu ambil: " + (report.pickupAt || "Tidak diketahui"),
+        "Pembayaran: " + (report.paymentStatus || "Tidak diketahui"),
+        "Kode internal: " + failure.error_code,
+        "Instruksi: catat manual dan hubungi pelanggan melalui jalur yang tersedia."
+      ].join("\n").slice(0, 3500);
+      const sentMessage = await socket.sendMessage(managerDigits + "@s.whatsapp.net", { text: notice });
+      db.prepare(`UPDATE ai_scheduled_order_failure_outbox
+        SET status = 'sent', manager_message_id = ?, claimed_at = NULL, last_error = NULL, updated_at = ?
+        WHERE id = ? AND status = 'sending'`).run(sentMessage?.key?.id || null, Date.now(), failure.id);
+      sent += 1;
+      console.info("[WAGRAM Scheduled Order Outbox] Manager failure report sent:", JSON.stringify({ id: failure.id, managerMessageId: sentMessage?.key?.id || null }));
+    } catch (error) {
+      const attempt = Number(failure.attempts) || 1;
+      const delay = Math.min(30 * 60 * 1000, 30000 * (2 ** Math.min(attempt - 1, 6)));
+      db.prepare(`UPDATE ai_scheduled_order_failure_outbox
+        SET status = 'pending', next_attempt_at = ?, claimed_at = NULL, last_error = ?, updated_at = ?
+        WHERE id = ? AND status = 'sending'`).run(Date.now() + delay, String(error?.message || "NOTIFICATION_FAILED").slice(0, 300), Date.now(), failure.id);
+      failed += 1;
+      console.error("[WAGRAM Scheduled Order Outbox] Failure report delivery failed:", { id: failure.id, attempt, error: String(error?.message || "NOTIFICATION_FAILED") });
+    }
+  }
+
+  console.info("[WAGRAM Scheduled Order Outbox] Drain completed:", JSON.stringify({
+    telegramId: ownerId, sessionId: accountId, sent, failed
+  }));
   return { sent, failed, skipped: false };
 }
 
@@ -278,10 +352,13 @@ async function escalateToManager({ telegramId, sessionId, customerChatId, custom
   const managerDigits = normalizeManagerPhone(manager.phone);
   if (!managerDigits) throw new Error("AI_MANAGER_PHONE_NOT_CONFIGURED");
   const managerJid = managerDigits + "@s.whatsapp.net";
+  // [MODIFIED] Only display a verified phone number; never mistake a WhatsApp LID for a phone number.
+  const phoneDigits = String(customerPhone || "").replace(/\D/g, "");
+  const verifiedCustomerPhone = /^\d{8,15}$/.test(phoneDigits) ? phoneDigits : "";
   const managerText = [
     "🔔 *WAGRAM — Butuh Informasi Pengelola*",
     "",
-    "Pelanggan: " + (customerPhone ? "+" + customerPhone : customerChatId),
+    "Pelanggan: " + (verifiedCustomerPhone ? "+" + verifiedCustomerPhone : "WhatsApp (nomor tidak tersedia)"),
     "Pertanyaan pelanggan:",
     String(question || "").slice(0, 1000),
     "",
@@ -296,7 +373,7 @@ async function escalateToManager({ telegramId, sessionId, customerChatId, custom
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
   `).run(
     String(telegramId), String(sessionId || telegramId), String(customerChatId),
-    customerPhone ? String(customerPhone) : null, String(customerMessageId),
+    verifiedCustomerPhone || null, String(customerMessageId),
     managerJid, String(sent?.key?.id || ""), String(question || "").slice(0, 1000), now
   );
   return { managerJid, managerMessageId: sent?.key?.id || null };
@@ -359,7 +436,7 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
   }
   const order = db.prepare(`
     SELECT id, customer_name, outlet_name, pickup_at, order_status,
-      payment_status, payment_verified_at, total_amount, customer_chat_id
+      payment_status, payment_verified_at, total_amount, customer_chat_id, is_simulation
     FROM ai_scheduled_orders
     WHERE id = ? AND telegram_id = ? AND session_id = ?
   `).get(orderId, ownerId, accountId);
@@ -392,7 +469,9 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
     `).run(now, managerJid, now, orderId, ownerId, accountId);
     await socket.sendMessage(managerJid, { text: "Verifikasi pembayaran pesanan #" + orderId + " dicatat. Pastikan mutasi dana benar-benar sudah masuk." });
     try {
-      await socket.sendMessage(order.customer_chat_id, { text: "Pembayaran untuk pesanan #" + orderId + " sudah diverifikasi oleh pengelola." });
+      if (order.is_simulation !== 1 && normalizeCustomerChatJid(order.customer_chat_id)) {
+        await socket.sendMessage(order.customer_chat_id, { text: "Pembayaran untuk pesanan #" + orderId + " sudah diverifikasi oleh pengelola." });
+      }
     } catch (error) {
       console.error("[WAGRAM Scheduled Order] Customer payment status notification failed:", error.message);
     }
@@ -422,7 +501,9 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
       completed: "Pesanan #" + orderId + " telah ditandai selesai. Terima kasih.",
       cancelled: "Pesanan #" + orderId + " telah dibatalkan oleh pengelola."
     };
-    await socket.sendMessage(order.customer_chat_id, { text: customerStatusMessages[transition.to] });
+    if (order.is_simulation !== 1 && normalizeCustomerChatJid(order.customer_chat_id)) {
+      await socket.sendMessage(order.customer_chat_id, { text: customerStatusMessages[transition.to] });
+    }
   } catch (error) {
     console.error("[WAGRAM Scheduled Order] Customer status notification failed:", error.message);
   }
@@ -469,6 +550,10 @@ export async function handleIncomingManagerReply({ telegramId, sessionId, chatId
     content.imageMessage?.caption || content.documentMessage?.caption || ""
   ).trim();
   if (!answer) return { handled: true, forwarded: false, reason: "empty_manager_reply" };
+  if (!normalizeCustomerChatJid(pending.customer_chat_id)) {
+    db.prepare("UPDATE ai_manager_escalations SET status = 'answered', answered_at = ? WHERE id = ? AND status = 'pending'").run(Date.now(), pending.id);
+    return { handled: true, forwarded: false, reason: "customer_chat_not_valid" };
+  }
   await socket.sendMessage(pending.customer_chat_id, {
     text: answer
   });
@@ -511,6 +596,8 @@ function getCustomerImageContext(telegramId, sessionId, chatId) {
 export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,messageId,phoneNumber,customerName,imageBuffer,mimetype,socket,quotedMessage}) {
   const ownerId=String(telegramId||""), accountId=String(sessionId||telegramId), chat=String(chatId||""), incomingId=String(messageId||"");
   if (!ownerId||!accountId||!chat||!incomingId) return {handled:false,reason:"invalid_input"};
+  // [ADDED] Whitelisted employees are excluded from image-based AI auto replies.
+  if (isEmployeeWhitelisted(ownerId, accountId, chat)) return {handled:false,reason:"employee_whitelisted"};
   const profile=getAIBusinessProfile(ownerId,accountId);
   if (!profile||!Buffer.isBuffer(imageBuffer)||!imageBuffer.length) return {handled:false,reason:"business_ai_or_image_missing"};
   // [ADDED] Respect the Profile switch before analyzing or forwarding payment-proof images.
@@ -590,12 +677,21 @@ export async function handleIncomingAIAutoReply({
   chatId,
   messageId,
   socket,
-  quotedMessage
+  quotedMessage,
+  customerPhone = null
 }) {
   const ownerId = String(telegramId || "");
   const accountId = String(sessionId || ownerId);
   const whatsappChatId = String(chatId || "");
   const incomingId = String(messageId || "");
+  let processingStage = "input_validation";
+  const chatDigits = whatsappChatId.replace(/\D/g, "");
+  const maskedChatId = chatDigits.length > 4 ? "***" + chatDigits.slice(-4) : "[masked]";
+  // [ADDED] Exclude employee numbers before starting an AI reply job.
+  if (isEmployeeWhitelisted(ownerId, accountId, whatsappChatId)) {
+    return { sent: false, reason: "employee_whitelisted" };
+  }
+  const logContext = { telegramId: ownerId, sessionId: accountId, chatId: maskedChatId, messageId: incomingId };
 
   if (!/^\d+$/.test(ownerId) || !accountId || !whatsappChatId || !incomingId) {
     return { sent: false, reason: "invalid_input" };
@@ -619,7 +715,11 @@ export async function handleIncomingAIAutoReply({
     return { sent: false, reason: "duplicate" };
   }
 
+  console.info("[WAGRAM AI Auto Reply] Processing started:", JSON.stringify({
+    ...logContext, mode: useBusinessAI ? "business" : "customer_service"
+  }));
   try {
+    processingStage = "settle_and_load_messages";
     // [ADDED] Wait briefly so multiple customer messages sent together are
     // treated as one latest context, instead of replying to every fragment.
     await wait(AUTO_REPLY_SETTLE_MS);
@@ -674,6 +774,11 @@ export async function handleIncomingAIAutoReply({
       });
     }
 
+    processingStage = "openrouter_generate_reply";
+    console.info("[WAGRAM AI Auto Reply] Generating reply:", JSON.stringify({
+      ...logContext, historyMessageCount: conversationHistory.length,
+      recentImageContext: Boolean(recentImageContext)
+    }));
     const suggestion = useBusinessAI
       ? await createAIBusinessReply(
           ownerId,
@@ -689,6 +794,11 @@ export async function handleIncomingAIAutoReply({
           { autoReply: true, expectedMessageId: incomingId }
         );
     const reply = String(suggestion?.reply || suggestion?.draft || "").trim();
+    console.info("[WAGRAM AI Auto Reply] Reply generated:", JSON.stringify({
+      ...logContext, hasReply: Boolean(reply), replyLength: reply.length,
+      model: suggestion?.model || null, needsManager: suggestion?.needsManager === true,
+      hasScheduledOrder: Boolean(suggestion?.scheduledOrder)
+    }));
 
     // [MODIFIED] Process due outbox notifications independently from the current reply.
     if (useBusinessAI) {
@@ -698,6 +808,7 @@ export async function handleIncomingAIAutoReply({
     }
 
     if (useBusinessAI && suggestion?.needsManager) {
+      processingStage = "manager_escalation";
       const managerQuestion = String(suggestion.managerQuestion || latest.body || "").trim();
       if (!reply) throw new Error("AI_MANAGER_NOTICE_EMPTY");
 
@@ -707,7 +818,8 @@ export async function handleIncomingAIAutoReply({
           telegramId: ownerId,
           sessionId: accountId,
           customerChatId: whatsappChatId,
-          customerPhone: String(whatsappChatId).replace(/\D/g, ""),
+          // [MODIFIED] Use the phone number resolved from Baileys contact/JID metadata.
+          customerPhone,
           customerMessageId: incomingId,
           question: managerQuestion,
           socket
@@ -740,6 +852,7 @@ export async function handleIncomingAIAutoReply({
       throw new Error("AI_REPLY_EMPTY");
     }
 
+    processingStage = "validate_before_customer_send";
     // [ADDED] Recheck after model generation. If a newer customer message
     // arrived while OpenRouter was responding, do not send a stale answer.
     const latestAfterGeneration = listMessages(ownerId, whatsappChatId, 10, accountId)
@@ -787,6 +900,7 @@ export async function handleIncomingAIAutoReply({
       generatedReply: reply
     });
 
+    processingStage = "send_customer_reply";
     const sendOptions = quotedMessage ? { quoted: quotedMessage } : {};
     // [ADDED] Send the generated AI Business/Customer Service answer through Baileys.
     // Attach the saved QRIS image when the AI Business response explicitly includes it.
@@ -816,6 +930,7 @@ export async function handleIncomingAIAutoReply({
       replyMessageId: sentMessage?.key?.id || null,
       error: null
     });
+    processingStage = "completed";
 
     console.info(
       "[WAGRAM AI Auto Reply] Reply sent once:",
@@ -843,7 +958,12 @@ export async function handleIncomingAIAutoReply({
         telegramId: ownerId,
         sessionId: accountId,
         messageId: incomingId,
-        error: String(error.message || "AUTO_REPLY_FAILED").slice(0, 300)
+        stage: processingStage,
+        errorName: String(error?.name || "Error"),
+        httpStatus: Number(error?.httpStatus) || null,
+        requestId: error?.requestId || null,
+        providerRequestId: error?.providerRequestId || null,
+        error: String(error?.message || "AUTO_REPLY_FAILED").slice(0, 500)
       })
     );
 

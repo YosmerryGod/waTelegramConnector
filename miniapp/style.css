@@ -8425,3 +8425,245 @@ body.in-chat #topbar {
 .whatsapp-primary-account-row[hidden] {
   display: none !important;
 }
+
+/* [MODIFIED] WAMO AI settings: three-column icon grid with row-scoped expansion. */
+.ai-business-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+.ai-business-section-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.ai-business-section-heading > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.ai-business-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(78px, auto));
+  gap: 10px;
+  padding: 2px 0 6px;
+}
+.ai-business-setting-tile {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 78px;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: 0;
+  padding: 12px 8px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    background-color .28s cubic-bezier(.22, 1, .36, 1),
+    border-color .28s cubic-bezier(.22, 1, .36, 1),
+    opacity .28s cubic-bezier(.22, 1, .36, 1),
+    transform .28s cubic-bezier(.22, 1, .36, 1);
+}
+.ai-business-setting-tile:nth-child(-n+3) { grid-row: 1; }
+.ai-business-setting-tile:nth-child(n+4) { grid-row: 2; }
+.ai-business-setting-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface));
+  color: var(--accent);
+  transition: background-color .28s cubic-bezier(.22, 1, .36, 1), transform .28s cubic-bezier(.22, 1, .36, 1);
+}
+.ai-business-setting-icon svg { width: 21px; height: 21px; }
+.ai-business-setting-copy,
+.ai-business-setting-arrow { display: none; }
+.ai-business-setting-tile:hover,
+.ai-business-setting-tile:focus-visible,
+.ai-business-setting-tile.is-expanded {
+  z-index: 2;
+  grid-column: 1 / -1;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  justify-items: stretch;
+  gap: 12px;
+  padding: 12px 14px;
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-2));
+  text-align: left;
+  transform: translateY(-1px);
+}
+.ai-business-setting-tile:hover .ai-business-setting-icon,
+.ai-business-setting-tile:focus-visible .ai-business-setting-icon,
+.ai-business-setting-tile.is-expanded .ai-business-setting-icon { transform: scale(.96); }
+.ai-business-setting-tile:hover .ai-business-setting-copy,
+.ai-business-setting-tile:focus-visible .ai-business-setting-copy,
+.ai-business-setting-tile.is-expanded .ai-business-setting-copy {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 3px;
+  animation: aiSettingsLabelIn .28s cubic-bezier(.22, 1, .36, 1) both;
+}
+.ai-business-setting-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-business-setting-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-business-setting-tile:hover .ai-business-setting-arrow,
+.ai-business-setting-tile:focus-visible .ai-business-setting-arrow,
+.ai-business-setting-tile.is-expanded .ai-business-setting-arrow {
+  display: block;
+  align-self: center;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+}
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):hover) .ai-business-setting-tile:nth-child(2),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):hover) .ai-business-setting-tile:nth-child(3),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(2):hover) .ai-business-setting-tile:nth-child(1),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(2):hover) .ai-business-setting-tile:nth-child(3),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(3):hover) .ai-business-setting-tile:nth-child(1),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(3):hover) .ai-business-setting-tile:nth-child(2),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(4):hover) .ai-business-setting-tile:nth-child(5),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(4):hover) .ai-business-setting-tile:nth-child(6),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(5):hover) .ai-business-setting-tile:nth-child(4),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(5):hover) .ai-business-setting-tile:nth-child(6),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):hover) .ai-business-setting-tile:nth-child(4),
+.ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):hover) .ai-business-setting-tile:nth-child(5) {
+  visibility: hidden;
+  pointer-events: none;
+}
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(1)) .ai-business-setting-tile:nth-child(2),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(1)) .ai-business-setting-tile:nth-child(3),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(2)) .ai-business-setting-tile:nth-child(1),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(2)) .ai-business-setting-tile:nth-child(3),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(3)) .ai-business-setting-tile:nth-child(1),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(3)) .ai-business-setting-tile:nth-child(2),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(4)) .ai-business-setting-tile:nth-child(5),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(4)) .ai-business-setting-tile:nth-child(6),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(5)) .ai-business-setting-tile:nth-child(4),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(5)) .ai-business-setting-tile:nth-child(6),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(6)) .ai-business-setting-tile:nth-child(4),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(6)) .ai-business-setting-tile:nth-child(5) {
+  visibility: hidden;
+  pointer-events: none;
+}
+@keyframes aiSettingsLabelIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.ai-business-setting-tile:active { transform: scale(.985); }
+.ai-business-setting-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (hover: none) {
+  .ai-business-setting-tile:hover { transform: none; }
+}
+@media (max-width: 360px) {
+  .ai-business-settings-grid { gap: 7px; }
+  .ai-business-setting-tile { min-height: 70px; padding: 10px 5px; }
+  .ai-business-setting-icon { width: 40px; height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-business-setting-tile,
+  .ai-business-setting-icon,
+  .ai-business-setting-copy {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
+
+
+/* [ADDED] Separate tabs and directory rows for customer and employee lists. */
+.directory-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 5px 2px 12px;
+  scrollbar-width: none;
+}
+.directory-tabs::-webkit-scrollbar { display: none; }
+.directory-tab {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+.directory-tab.selected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--text);
+}
+.directory-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  margin: 0 0 9px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+}
+.directory-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.directory-row-main .item-body { min-width: 0; }
+.directory-address {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.directory-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+.directory-row-actions button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.directory-row-actions .i { width: 16px; height: 16px; }
+.field-optional { color: var(--muted); font-size: 11px; font-weight: 500; }
+#customerContactAddressInput { width: 100%; resize: vertical; }
