@@ -15,6 +15,7 @@ on:
       - ".github/scripts/wagram-scheduled-order-outbox-test.mjs"
       - ".github/scripts/wagram-outlet-operating-hours-test.mjs"
       - ".github/scripts/wagram-scheduled-order-management-test.mjs"
+      - ".github/scripts/wagram-ai-tools-test.mjs"
       - ".github/workflows/wagram-ai-auto-reply-checks.yml"
   pull_request:
     paths:
@@ -53,6 +54,7 @@ jobs:
           node --check .github/scripts/wagram-scheduled-order-outbox-test.mjs
           node --check .github/scripts/wagram-outlet-operating-hours-test.mjs
           node --check .github/scripts/wagram-scheduled-order-management-test.mjs
+          node --check .github/scripts/wagram-ai-tools-test.mjs
 
       - name: Test durable auto-reply idempotency
         run: node .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
@@ -68,3 +70,6 @@ jobs:
 
       - name: Test scheduled order manager lifecycle
         run: node .github/scripts/wagram-scheduled-order-management-test.mjs
+
+      - name: Test WAGRAM business tools
+        run: node .github/scripts/wagram-ai-tools-test.mjs
