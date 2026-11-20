@@ -1857,7 +1857,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       const hasKnownOutlet = businessData.outlets.some((outlet) => String(outlet?.name || "").trim() && answer.toLocaleLowerCase("id-ID").includes(String(outlet.name).trim().toLocaleLowerCase("id-ID")));
       const hasKnownMenu = businessData.products.some((product) => String(product?.name || "").trim() && answer.toLocaleLowerCase("id-ID").includes(String(product.name).trim().toLocaleLowerCase("id-ID")));
       const hasQuantity = /\b\d+\s*(?:porsi|pcs|buah|ekor|x)\b/i.test(answer);
-      const isOrderSummary = hasKnownOutlet && hasKnownMenu && hasQuantity && /\b(?:total|rp)\b/i.test(answer) && /\b\d{2}\/\d{2}\/\d{4}\b/.test(answer) && /\b\d{2}:\d{2}\b/.test(answer) && /\b(?:belum dibayar|bayar di tempat|menunggu verifikasi)\b/i.test(answer)
+      const isOrderSummary = hasKnownOutlet && hasKnownMenu && hasQuantity && /\b(?:total|rp)\b/i.test(answer) && /\b\d{2}\/\d{2}\/\d{4}\b/.test(answer) && /\b\d{2}:\d{2}\b/.test(answer) && /\b(?:belum dibayar|bayar di tempat|menunggu verifikasi)\b/i.test(answer);
       const conciseAnswer = !isOrderSummary && answer.length > 320
         ? answer.slice(0, 317).replace(/\s+\S*$/, "").replace(/[,:;\s]+$/, "") + "…"
         : answer;
