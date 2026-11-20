@@ -804,7 +804,8 @@ async function createSocket(id, ownerId, entry) {
 
         entry.callbacks.onStatus?.(
           "connected",
-          entry.phoneNumber
+          entry.phoneNumber,
+          { socket } // [ADDED] Supply the live socket so durable scheduled-order notifications can resume.
         );
       }
 
