@@ -90,6 +90,8 @@ export const WAGRAM_TOOL_DECLARATIONS = [
             phone: { type: "STRING", maxLength: 40 },
             openTime: { type: "STRING", maxLength: 20 },
             closeTime: { type: "STRING", maxLength: 20 },
+            timezone: { type: "STRING", maxLength: 80 },
+            openDays: { type: "ARRAY", items: { type: "STRING", enum: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] } },
             fullName: { type: "STRING", maxLength: 120 },
             aiRules: { type: "STRING", maxLength: 3000 }
           }
@@ -148,7 +150,7 @@ function validateArguments(name, args) {
     if (args.confirmed !== undefined && typeof args.confirmed !== "boolean") throw new Error("TOOL_CONFIRMATION_INVALID");
     if (args.data !== undefined && (!args.data || typeof args.data !== "object" || Array.isArray(args.data))) throw new Error("TOOL_DATA_INVALID");
     const data = args.data || {};
-    const allowedData = new Set(["name", "description", "price", "stock", "address", "phone", "openTime", "closeTime", "fullName", "aiRules"]);
+    const allowedData = new Set(["name", "description", "price", "stock", "address", "phone", "openTime", "closeTime", "timezone", "openDays", "fullName", "aiRules"]);
     if (Object.keys(data).some((key) => !allowedData.has(key))) throw new Error("TOOL_DATA_FIELD_INVALID");
     return { resource, operation, identifier: String(args.identifier || "").trim(), data, confirmed: args.confirmed === true };
   }
@@ -216,7 +218,9 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
               address: String(outlet?.address || "").trim(),
               phone: String(outlet?.phone || "").trim(),
               openTime: String(outlet?.openTime || outlet?.open_time || "").trim(),
-              closeTime: String(outlet?.closeTime || outlet?.close_time || "").trim()
+              closeTime: String(outlet?.closeTime || outlet?.close_time || "").trim(),
+              timezone: String(outlet?.timezone || outlet?.timeZone || "Asia/Jakarta").trim(),
+              openDays: Array.isArray(outlet?.openDays) ? outlet.openDays : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
             }))
           : [];
       }
@@ -263,7 +267,9 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
               address: String(data.address || "").slice(0, 500),
               phone: String(data.phone || "").slice(0, 40),
               openTime: String(data.openTime || "").slice(0, 20),
-              closeTime: String(data.closeTime || "").slice(0, 20)
+              closeTime: String(data.closeTime || "").slice(0, 20),
+              timezone: String(data.timezone || "Asia/Jakarta").slice(0, 80),
+              openDays: Array.isArray(data.openDays) ? data.openDays : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
             });
           }
           result = { saved: true, operation, resource, item: items[items.length - 1] };
@@ -277,7 +283,7 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
             const updated = { ...current };
             for (const [key, value] of Object.entries(data)) {
               if (resource === "products" && ["name", "description", "price", "stock"].includes(key)) updated[key] = value;
-              if (resource === "outlets" && ["name", "address", "phone", "openTime", "closeTime"].includes(key)) updated[key] = value;
+              if (resource === "outlets" && ["name", "address", "phone", "openTime", "closeTime", "timezone", "openDays"].includes(key)) updated[key] = value;
             }
             if (resource === "products") {
               if (updated.name === undefined || !String(updated.name).trim()) throw new Error("TOOL_PRODUCT_NAME_INVALID");
