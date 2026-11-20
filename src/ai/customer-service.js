@@ -1867,8 +1867,8 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         : answer;
       const finalCustomerReply = scheduledOrderFailure
         ? "Maaf Kak, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual."
-        : /^\\s*[\\[{]/.test(conciseAnswer) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\\bJSON\\b|\\berror\\b/i.test(conciseAnswer)
-          ? "Maaf Kak, saya belum bisa memastikan informasi tersebut. Pengelola perlu membantu memastikannya."
+        : /^\s*[\[{]/.test(conciseAnswer) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\bJSON\b|\berror\b/i.test(conciseAnswer)
+          ? "Maaf Kak, saya belum bisa memastikan informasi tersebut. Pengelola perlu membantu memastikannya." 
           : conciseAnswer;
       const decision = buildAIBusinessDecisionContext({
         message, history, businessData, recognition, toolAudit,
