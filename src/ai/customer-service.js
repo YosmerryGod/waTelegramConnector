@@ -1193,7 +1193,7 @@ export function buildAIBusinessDecisionContext({ message, history, businessData,
 }
 
 function persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision }) {
-  if (!customerChatId || !decision) return;
+  if (!customerChatId || !decision) return false;
   const fingerprint = createHash("sha256").update(String(message || "")).digest("hex");
   const now = Date.now();
   db.prepare(`
@@ -1216,6 +1216,7 @@ function persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, m
     String(telegramId), String(sessionId || telegramId),
     String(telegramId), String(sessionId || telegramId)
   );
+  return true;
 }
 
 // [MODIFIED] OpenRouter interprets the owner's request and may call read-only business tools.
@@ -1571,8 +1572,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
               createdScheduledOrder
             });
             try {
-              persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision });
-              decision.database.auditLogSaved = true;
+              decision.database.auditLogSaved = persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision });
             } catch (error) {
               decision.database.auditLogSaved = false;
               console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
@@ -1616,8 +1616,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         }
       }
       try {
-        persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision });
-        decision.database.auditLogSaved = true;
+        decision.database.auditLogSaved = persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision });
       } catch (error) {
         decision.database.auditLogSaved = false;
         console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
