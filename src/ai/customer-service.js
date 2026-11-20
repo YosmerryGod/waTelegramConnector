@@ -259,6 +259,23 @@ function normalizeToolSchema(schema) {
   ]));
 }
 
+// [ADDED] Normalize provider content without assuming OpenRouter always returns a string.
+export function normalizeOpenRouterMessageContent(content) {
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) {
+    return content.map((item) => typeof item === "string" ? item : String(item?.text || "")).filter(Boolean).join("\n").trim();
+  }
+  return "";
+}
+
+// [ADDED] Build a truthful customer reply when the model returns no final text after an order tool succeeded.
+export function buildScheduledOrderFallbackReply(order) {
+  if (!order || !Number.isSafeInteger(Number(order.id))) return "";
+  const orderId = Number(order.id);
+  const paymentText = order.paymentStatus === "unpaid" ? "Pembayaran di tempat." : "Pembayaran menunggu verifikasi pengelola.";
+  return "Pesanan #" + orderId + " sudah berhasil dicatat, Kak. " + paymentText;
+}
+
 async function openRouterGenerate(contents, options = {}) {
   if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY_MISSING");
   const messages = [];
@@ -340,12 +357,9 @@ async function openRouterGenerate(contents, options = {}) {
     const message = payload?.choices?.[0]?.message || {};
     const parts = [];
     // [MODIFIED] OpenRouter providers may return content as either plain text or text blocks.
-    const responseText = typeof message.content === "string"
-      ? message.content
-      : Array.isArray(message.content)
-        ? message.content.map((item) => typeof item === "string" ? item : String(item?.text || "")).join("\n")
-        : "";
-    if (responseText.trim()) parts.push({ text: responseText.trim() });
+    const responseText = normalizeOpenRouterMessageContent(message.content);
+    if (responseText) parts.push({ text: responseText });
+    else if (String(message.refusal || "").trim()) parts.push({ text: String(message.refusal).trim() });
     for (const call of Array.isArray(message.tool_calls) ? message.tool_calls : []) {
       let args = {};
       try { args = JSON.parse(String(call?.function?.arguments || "{}")); }
@@ -356,7 +370,10 @@ async function openRouterGenerate(contents, options = {}) {
       text: parts.filter((part) => part.text).map((part) => part.text).join("").trim(),
       parts,
       candidate: { content: { role: "model", parts } },
-      usage: payload?.usage || null
+      usage: payload?.usage || null,
+      finishReason: String(payload?.choices?.[0]?.finish_reason || ""),
+      provider: String(payload?.provider || ""),
+      model: String(payload?.model || OPENROUTER_MODEL)
     };
   } finally {
     clearTimeout(timer);
@@ -1169,7 +1186,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Keluarkan JSON valid saja dengan struktur {reply:string, needs_manager:boolean, manager_question:string}. Jika informasi sudah cukup, needs_manager=false dan manager_question kosong.",
     "Jika ketersediaan tidak dapat dipastikan dari informasi yang ada, gunakan eskalasi ke pengelola, bukan mengarang atau sekadar menyuruh pelanggan menunggu.",
     "Jika objek tidak cocok dengan produk mana pun, sampaikan bahwa menu/varian tersebut belum tersedia; minta klarifikasi hanya jika nama produk memang ambigu.",
-    "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. pickupAt wajib ISO 8601 dengan offset zona waktu outlet; gunakan zona waktu outlet dari data bisnis. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
+    "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. pickupAt wajib ISO 8601 dengan offset zona waktu outlet; gunakan zona waktu outlet dari data bisnis. Waktu pengambilan harus minimal 5 menit di masa depan berdasarkan waktu saat ini; jangan pernah merangkum atau meminta persetujuan untuk waktu yang sudah lewat. Jika waktu yang diminta sudah lewat, minta pelanggan memilih waktu baru terlebih dahulu. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
     // [ADDED] Format ringkasan harus dapat diverifikasi backend sebelum pesanan disimpan.
     "Saat meminta persetujuan akhir, tulis ringkasan yang mencantumkan nama outlet, setiap menu dan jumlahnya, total dalam angka rupiah, tanggal pengambilan format DD/MM/YYYY, jam format HH:mm sesuai zona waktu outlet, serta status pembayaran. Pelanggan harus membalas persetujuan singkat secara eksplisit. Jangan panggil tool pada pesan ambigu atau jika ringkasan terakhir tidak memuat seluruh detail tersebut.",
     "Jangan membuat atau mengubah data produk/outlet dari percakapan pelanggan. Harga dan stok pesanan harus berasal dari data produk bisnis yang tersimpan.",
@@ -1328,9 +1345,19 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   };
 
   for (let step = 0; step < 5; step += 1) {
-    // [MODIFIED] A smaller output budget reinforces short WhatsApp-style answers.
-    const result = await openRouterGenerate(contents, { temperature: 0.2, maxOutputTokens: 300, systemInstruction, tools });
-    const calls = result.parts.filter((part) => part?.functionCall).map((part) => part.functionCall);
+    // [MODIFIED] Retry an empty provider response once with tools still enabled so a confirmed order can still be saved.
+    let result = await openRouterGenerate(contents, { temperature: 0.2, maxOutputTokens: 500, systemInstruction, tools });
+    let calls = result.parts.filter((part) => part?.functionCall).map((part) => part.functionCall);
+    if (!calls.length && !String(result.text || "").trim()) {
+      console.warn("[WAGRAM AI] Empty agent response; retrying with tools enabled:", JSON.stringify({
+        model: result.model || OPENROUTER_MODEL,
+        provider: result.provider || "unknown",
+        finishReason: result.finishReason || "unknown",
+        step
+      }));
+      result = await openRouterGenerate(contents, { temperature: 0, maxOutputTokens: 900, systemInstruction, tools });
+      calls = result.parts.filter((part) => part?.functionCall).map((part) => part.functionCall);
+    }
     if (!calls.length) {
       // [ADDED] Some OpenRouter providers intermittently return an empty assistant
       // content field even with HTTP 200. Retry once without tools and with a fresh
@@ -1356,14 +1383,40 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         ].join("\n");
         const retryResult = await openRouterGenerate(
           [{ role: "user", parts: [{ text: retryPrompt }] }],
-          { temperature: 0.25, maxOutputTokens: 500 }
+          { temperature: 0.1, maxOutputTokens: 900 }
         );
         finalText = String(retryResult.text || "").trim();
+        if (!finalText) {
+          console.error("[WAGRAM AI] Text fallback also returned empty content:", JSON.stringify({
+            model: retryResult.model || OPENROUTER_MODEL,
+            provider: retryResult.provider || "unknown",
+            finishReason: retryResult.finishReason || "unknown",
+            hasSavedOrder: Boolean(createdScheduledOrder)
+          }));
+        }
       }
       const rawAnswer = finalText
         .replace(/^\x60\x60\x60(?:json)?\s*/i, "")
         .replace(/\s*\x60\x60\x60$/i, "");
-      if (!rawAnswer) throw new Error("OPENROUTER_AGENT_EMPTY_ANSWER_AFTER_RETRY");
+      if (!rawAnswer) {
+        // [ADDED] Never turn a successful database write into a failed chat just because final wording generation is empty.
+        const fallbackReply = buildScheduledOrderFallbackReply(createdScheduledOrder);
+        const safeReply = fallbackReply || "Maaf Kak, saya sedang mengalami kendala saat memproses pesan. Pesanan belum dapat saya pastikan tercatat. Boleh coba kirim sekali lagi?";
+        return {
+          reply: safeReply,
+          scheduledOrder: createdScheduledOrder,
+          needsManager: false,
+          managerQuestion: "",
+          trace: {
+            recognition: recognition.interpretation, intent: recognition.intent, entity: recognition.entity,
+            requestedFields: recognition.requested_fields, confidence: recognition.confidence,
+            action: "Respons aman digunakan karena model tidak mengembalikan teks setelah percobaan ulang.",
+            dataUsed: toolAudit.map((item) => item.tool + ": " + JSON.stringify(item.resultSummary)),
+            status: "Respons cadangan digunakan; status penyimpanan pesanan mengikuti hasil database.",
+            expectedAnswer: safeReply, toolCalls: toolAudit
+          }
+        };
+      }
       let structuredAnswer = null;
       try {
         const jsonStart = rawAnswer.indexOf("{");
