@@ -1038,7 +1038,8 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
       itemName + " x" + quantity,
       itemName + " " + quantity + " porsi"
     ].map(normalize);
-    if (!Number.isSafeInteger(quantity) || quantity < 1 || !quantityPhrases.some((phrase) => summary.includes(phrase))) {
+    const paddedSummary = " " + summary + " ";
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || !quantityPhrases.some((phrase) => paddedSummary.includes(" " + phrase + " "))) {
       return { valid: false, reason: "summary_quantity_missing" };
     }
   }
