@@ -81,7 +81,15 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner" 
     id: skill.id,
     name: skill.name,
     matchedTriggers: matched,
-    instructions: (() => {\n      try {\n        const filePath = path.resolve(process.cwd(), "src/ai/skills/catalog", skill.file);\n        return fs.readFileSync(filePath, "utf8").slice(0, 5000);\n      } catch (error) {\n        console.warn("[WAGRAM AI] Skill file unavailable:", skill.id, error.message);\n        return SKILL_CONTENT[skill.id].join("\\n");\n      }\n    })()
+    instructions: (() => {
+      try {
+        const filePath = path.resolve(process.cwd(), "src/ai/skills/catalog", skill.file);
+        return fs.readFileSync(filePath, "utf8").slice(0, 5000);
+      } catch (error) {
+        console.warn("[WAGRAM AI] Skill file unavailable:", skill.id, error.message);
+        return SKILL_CONTENT[skill.id].join("\n");
+      }
+    })()
   }));
   return {
     mode,
