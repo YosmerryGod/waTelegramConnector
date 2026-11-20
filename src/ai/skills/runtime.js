@@ -186,6 +186,8 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner",
         ? "Prioritaskan pemahaman masalah dan penyelesaian yang adil. Jangan mengubah komplain menjadi promosi atau upsell."
         : "Jangan memaksakan promosi. Pilih informasi atau langkah berikutnya yang paling relevan dengan keadaan pelanggan.";
 
+  const strategyInstructions = "CUSTOMER STATE: " + String(customerState || "not_applicable") + "\nMARKETING STRATEGY: " + marketingDirective;
+
   return {
     mode: String(mode || "owner"),
     availableSkills: listAvailableSkills(),
@@ -201,7 +203,7 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner",
       customerState,
       activeSkills: loadedSkills.map((skill) => skill.id)
     },
-    instructions: strategyInstructions + "\\n\\n" + loadedSkills.map((skill) => "SKILL: " + skill.name + " (" + skill.domain + ")\\n" + skill.instructions).join("\\n\\n")
+    instructions: strategyInstructions + "\n\n" + loadedSkills.map((skill) => "SKILL: " + skill.name + " (" + skill.domain + ")\n" + skill.instructions).join("\n\n")
   };
 }
 
