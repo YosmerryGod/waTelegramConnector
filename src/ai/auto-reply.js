@@ -3,8 +3,9 @@ import db from "../database.js";
 import {
   listMessages,
   getAIBusinessProfile,
-  getAIBusinessAutoReplyEnabled
-} from "../database.js"; // [MODIFIED] Include the server-side Auto Reply preference.
+  getAIBusinessAutoReplyEnabled,
+  isEmployeeWhitelisted
+} from "../database.js"; // [MODIFIED] Include the server-side Auto Reply preference and employee exclusion list.
 import {
   getAICustomerServiceStatus,
   createAICustomerServiceSuggestion,
@@ -595,6 +596,8 @@ function getCustomerImageContext(telegramId, sessionId, chatId) {
 export async function handleIncomingAIPaymentProof({telegramId,sessionId,chatId,messageId,phoneNumber,customerName,imageBuffer,mimetype,socket,quotedMessage}) {
   const ownerId=String(telegramId||""), accountId=String(sessionId||telegramId), chat=String(chatId||""), incomingId=String(messageId||"");
   if (!ownerId||!accountId||!chat||!incomingId) return {handled:false,reason:"invalid_input"};
+  // [ADDED] Whitelisted employees are excluded from image-based AI auto replies.
+  if (isEmployeeWhitelisted(ownerId, accountId, chat)) return {handled:false,reason:"employee_whitelisted"};
   const profile=getAIBusinessProfile(ownerId,accountId);
   if (!profile||!Buffer.isBuffer(imageBuffer)||!imageBuffer.length) return {handled:false,reason:"business_ai_or_image_missing"};
   // [ADDED] Respect the Profile switch before analyzing or forwarding payment-proof images.
@@ -684,6 +687,10 @@ export async function handleIncomingAIAutoReply({
   let processingStage = "input_validation";
   const chatDigits = whatsappChatId.replace(/\D/g, "");
   const maskedChatId = chatDigits.length > 4 ? "***" + chatDigits.slice(-4) : "[masked]";
+  // [ADDED] Exclude employee numbers before starting an AI reply job.
+  if (isEmployeeWhitelisted(ownerId, accountId, whatsappChatId)) {
+    return { sent: false, reason: "employee_whitelisted" };
+  }
   const logContext = { telegramId: ownerId, sessionId: accountId, chatId: maskedChatId, messageId: incomingId };
 
   if (!/^\d+$/.test(ownerId) || !accountId || !whatsappChatId || !incomingId) {
