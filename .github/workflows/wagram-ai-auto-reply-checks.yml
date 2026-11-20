@@ -7,6 +7,7 @@ on:
     paths:
       - "src/ai/auto-reply.js"
       - "src/ai/customer-service.js"
+      - "src/ai/tools.js"
       - "src/telegram.js"
       - "src/whatsapp.js"
       - "src/database.js"
@@ -21,6 +22,7 @@ on:
     paths:
       - "src/ai/auto-reply.js"
       - "src/ai/customer-service.js"
+      - "src/ai/tools.js"
       - "src/telegram.js"
       - ".github/scripts/wagram-ai-auto-reply-idempotency-test.mjs"
       - ".github/workflows/wagram-ai-auto-reply-checks.yml"
@@ -46,6 +48,7 @@ jobs:
         run: |
           node --check src/ai/auto-reply.js
           node --check src/ai/customer-service.js
+          node --check src/ai/tools.js
           node --check src/telegram.js
           node --check src/whatsapp.js
           node --check src/database.js
