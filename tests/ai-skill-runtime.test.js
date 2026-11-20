@@ -132,6 +132,13 @@ test("selects a different psychology and persuasion combination for price object
   ]);
 });
 
+
+test("preserves purchase intent when the customer answers a product-choice question", () => {
+  assert.equal(runtime.classifyCustomerState("dada", [
+    { role: "business", content: "Mau yang dada atau paha, Kak?" }
+  ]), "purchase_intent");
+});
+
 test("does not confuse availability questions with customer refusal", () => {
   assert.equal(runtime.classifyCustomerState("ayam panggang ada gak"), "availability");
   assert.equal(runtime.classifyCustomerState("gak jadi pesan dulu"), "refusal");
