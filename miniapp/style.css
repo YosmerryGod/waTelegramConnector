@@ -8507,30 +8507,30 @@ body.in-chat #topbar {
   to { opacity: 1; transform: translateX(0); }
 }
 @media (hover: none) {
-  .ai-business-settings-grid:has(.ai-business-setting-tile:hover),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:focus-visible) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* [MODIFIED] Touch devices keep the compact three-column icon grid. */
+  .ai-business-settings-grid:has(.ai-business-setting-tile:focus) {
+    grid-template-columns: minmax(0, 1fr);
   }
-  .ai-business-settings-grid:has(.ai-business-setting-tile:hover) .ai-business-setting-tile:not(:hover),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:focus-visible) .ai-business-setting-tile:not(:focus-visible) {
-    display: grid;
-  }
-  .ai-business-setting-tile:hover,
-  .ai-business-setting-tile:focus-visible {
-    display: grid;
-    min-height: 82px;
-    justify-content: center;
-    padding: 12px;
-    text-align: center;
-  }
-  .ai-business-setting-tile:hover .ai-business-setting-copy,
-  .ai-business-setting-tile:focus-visible .ai-business-setting-copy,
-  .ai-business-setting-tile:hover .ai-business-setting-arrow,
-  .ai-business-setting-tile:focus-visible .ai-business-setting-arrow {
+  .ai-business-settings-grid:has(.ai-business-setting-tile:focus) .ai-business-setting-tile:not(:focus) {
     display: none;
   }
-}
-@media (prefers-reduced-motion: reduce) {
+  .ai-business-setting-tile:focus {
+    display: flex;
+    min-height: 72px;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 12px 16px;
+    text-align: left;
+  }
+  .ai-business-setting-tile:focus .ai-business-setting-copy {
+    display: grid;
+    flex: 1;
+    gap: 4px;
+  }
+  .ai-business-setting-tile:focus .ai-business-setting-arrow {
+    display: block;
+  }
+}@media (prefers-reduced-motion: reduce) {
   .ai-business-setting-tile,
   .ai-business-setting-tile:hover .ai-business-setting-copy {
     animation: none;
