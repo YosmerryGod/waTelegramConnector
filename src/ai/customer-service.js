@@ -733,7 +733,7 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
           description: String(product?.description || "").trim(),
           price: String(product?.price ?? "").trim(),
           stock: String(product?.stock ?? "").trim(),
-          available: product?.available ?? product?.isAvailable ?? null,
+          // [MODIFIED] Preserve product variants and promotion facts for contextual offer selection.\n          available: product?.available ?? product?.isAvailable ?? null,
           variants: Array.isArray(product?.variants) ? product.variants : [],
           promotion: product?.promotion || product?.promo || null,
           promo: product?.promo || null,
@@ -758,7 +758,7 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
       ).join("\\n\\n")
     : "Belum ada contoh balasan historis yang relevan.";
 
-  // [ADDED] Route customer-facing replies through the same progressive skill runtime.
+  // [MODIFIED] Route customer-facing replies using current customer state and verified product facts.
   const customerSkillRuntime = routeAndLoadSkills({
     message: latest.body,
     history: messages.slice(-6).map((item) => ({ role: item.direction === "incoming" ? "customer" : "business", content: item.body })),
@@ -780,7 +780,7 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     "SKILL TERSEDIA: " + JSON.stringify(customerSkillRuntime.availableSkills.map(({ id, name, description }) => ({ id, name, description }))),
     "SKILL AKTIF: " + JSON.stringify(customerSkillRuntime.activeSkillIds),
     "TAHAP PELANGGAN: " + String(customerSkillRuntime.customerState || "general"),
-    "ARAHAN MARKETING TERPILIH: " + String(customerSkillRuntime.marketingDirective || ""),
+    "ARAHAN MARKETING TERPILIH: " + String(customerSkillRuntime.marketingDirective || ""),\n    // [ADDED] Explain product options naturally; catalog labels are data, not customer-facing copy templates.\n    "PENJELASAN PRODUK: Jangan menyalin nama menu panjang secara mentah. Pahami nama, deskripsi, pilihan/varian, harga, dan promo sebagai fakta produk, lalu jelaskan dengan bahasa percakapan yang mudah dipahami. Untuk pertanyaan ketersediaan dengan niat beli, tawarkan satu produk unggulan yang relevan sejak respons pertama bila kandidat produk tersedia dan faktanya cukup. Pisahkan harga produk dari benefit gratis agar tidak ambigu. Jangan menyebut benefit yang tidak tercantum dalam kandidat/fakta bisnis.",
     "KANDIDAT PRODUK UNTUK PENAWARAN: " + JSON.stringify(customerSkillRuntime.productOfferCandidates || []),
     "CONTEXT PACKET: " + JSON.stringify(customerSkillRuntime.contextPacket),
     "PANDUAN SKILL PROGRESIF:\\n" + customerSkillRuntime.instructions,
