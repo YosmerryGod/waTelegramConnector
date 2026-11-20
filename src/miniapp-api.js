@@ -2191,13 +2191,15 @@ router.post("/ai-business/chat", async (req, res) => {
       "",
       { isSimulation: true }
     );
-    const managerPhone = String(getAIBusinessProfile(req.telegramId, req.sessionId)?.settings?.manager?.phone || "").trim();
-    const managerWarning = result.orderFailure && !managerPhone
+    const managerPhone = String(getAIBusinessProfile(req.telegramId, req.sessionId)?.settings?.manager?.phone || "").replace(/\\D/g, "");
+    const managerWarning = result.orderFailure && managerPhone.length < 8
       ? "Nomor WhatsApp pengelola belum diatur. Pesanan belum berhasil dicatat; tambahkan nomor pengelola agar laporan dapat dikirim."
       : "";
-    const safeReply = String(result.orderFailure
-      ? "Maaf, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual."
-      : result.reply || "").trim();
+    const generatedReply = String(result.reply || "").trim();
+    const containsInternalOutput = /^\\s*[\\[{]/.test(generatedReply) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\\bJSON\\b|\\berror\\b/i.test(generatedReply);
+    const safeReply = result.orderFailure || containsInternalOutput
+      ? "Maaf, pesanan belum berhasil dicatat. Pengelola perlu membantu memastikan dan mencatat pesanan ini secara manual."
+      : generatedReply;
     // [ADDED] Never return raw model JSON, tool errors, stack traces, or internal traces to the Mini App chat.
     res.setHeader("Cache-Control", "no-store");
     return res.json({
