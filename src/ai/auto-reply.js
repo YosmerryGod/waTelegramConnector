@@ -431,7 +431,8 @@ export async function handleIncomingAIAutoReply({
           ownerId,
           accountId,
           String(latest.body || "").trim(),
-          conversationHistory
+          conversationHistory,
+          whatsappChatId
         )
       : await createAICustomerServiceSuggestion(
           ownerId,
@@ -440,6 +441,42 @@ export async function handleIncomingAIAutoReply({
           { autoReply: true, expectedMessageId: incomingId }
         );
     const reply = String(suggestion?.reply || suggestion?.draft || "").trim();
+
+    // [ADDED] Notify the configured manager only after a scheduled order is durably saved.
+    const scheduledOrder = useBusinessAI ? suggestion?.scheduledOrder : null;
+    if (scheduledOrder?.id && scheduledOrder.notificationStatus === "pending") {
+      const managerDigits = normalizeManagerPhone(getAIBusinessProfile(ownerId, accountId)?.settings?.manager?.phone);
+      if (!managerDigits) throw new Error("SCHEDULED_ORDER_MANAGER_PHONE_NOT_CONFIGURED");
+      const managerJid = managerDigits + "@s.whatsapp.net";
+      const paymentLabel = scheduledOrder.paymentStatus === "unpaid"
+        ? "Belum dibayar — bayar di tempat di outlet"
+        : "Mengaku sudah dibayar — WAJIB verifikasi pengelola";
+      const itemLines = (Array.isArray(scheduledOrder.items) ? scheduledOrder.items : []).map((item) =>
+        "- " + item.name + " x" + item.quantity + " = Rp" + Number(item.subtotal).toLocaleString("id-ID")
+      );
+      const managerOrderNotice = [
+        "PESANAN TERJADWAL BARU",
+        "ID: #" + scheduledOrder.id,
+        "Pelanggan: " + scheduledOrder.customerName,
+        "WhatsApp: " + whatsappChatId.replace(/@s\.whatsapp\.net$/, ""),
+        "Outlet: " + scheduledOrder.outletName,
+        "Alamat: " + (scheduledOrder.outletAddress || "Belum tersedia"),
+        "Waktu ambil: " + scheduledOrder.pickupAt + " (" + scheduledOrder.timezone + ")",
+        "Menu:",
+        ...itemLines,
+        "Total: Rp" + Number(scheduledOrder.totalAmount).toLocaleString("id-ID"),
+        "Pembayaran: " + paymentLabel,
+        "Catatan: " + scheduledOrder.paymentNote
+      ].join("\n").slice(0, 3500);
+      await socket.sendMessage(managerJid, { text: managerOrderNotice });
+      db.prepare(`
+        UPDATE ai_scheduled_orders
+        SET notification_status = 'sent'
+        WHERE id = ? AND telegram_id = ? AND session_id = ? AND notification_status = 'pending'
+      `).run(
+        Number(scheduledOrder.id), ownerId, accountId
+      );
+    }
 
     if (useBusinessAI && suggestion?.needsManager) {
       const managerQuestion = String(suggestion.managerQuestion || latest.body || "").trim();
