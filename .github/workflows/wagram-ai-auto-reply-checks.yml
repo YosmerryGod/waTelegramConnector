@@ -10,6 +10,7 @@ on:
       - "src/telegram.js"
       - "src/database.js"
       - ".github/scripts/wagram-ai-auto-reply-idempotency-test.mjs"
+      - ".github/scripts/wagram-scheduled-order-confirmation-test.mjs"
       - ".github/workflows/wagram-ai-auto-reply-checks.yml"
   pull_request:
     paths:
@@ -43,6 +44,10 @@ jobs:
           node --check src/telegram.js
           node --check src/database.js
           node --check .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
+          node --check .github/scripts/wagram-scheduled-order-confirmation-test.mjs
 
       - name: Test durable auto-reply idempotency
         run: node .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
+
+      - name: Test scheduled order customer confirmation
+        run: node .github/scripts/wagram-scheduled-order-confirmation-test.mjs
