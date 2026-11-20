@@ -80,7 +80,8 @@ test("records approval and prevents reviewing the same proposal twice", () => {
 });
 
 
-// [ADDED] Regression coverage for customer-state routing and first-response marketing.\ntest("routes first-contact availability questions to marketing, business facts and natural communication", () => {
+// [ADDED] Regression coverage for customer-state routing and first-response marketing.
+test("routes first-contact availability questions to marketing, business facts and natural communication", () => {
   const result = runtime.routeAndLoadSkills({
     message: "ayam panggang nya masih ada kah",
     history: [],
