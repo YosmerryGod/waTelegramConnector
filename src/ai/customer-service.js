@@ -976,6 +976,56 @@ export function normalizeCustomerChatJid(value) {
 export function validateScheduledOrderConfirmation({ message, history, outletName, pickupAt, timezone, items, totalAmount, paymentStatus }) {
   const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID").normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
   const confirmation = normalize(message);
+  const confirmationTokens = confirmation.split(" ").filter(Boolean);
+  // [MODIFIED] Accept natural Indonesian acknowledgements while rejecting negation, conditions, and requested changes.
+  const approvalWords = new Set([
+    "ya", "iya", "iua", "iyah", "yap", "yup", "oke", "ok", "okay",
+    "setuju", "saya", "konfirmasi", "konfirmasikan", "betul", "benar",
+    "sesuai", "lanjut", "boleh", "silakan", "gas", "sip", "cocok",
+    "pas", "deal", "fix", "sudah", "udah", "memang", "kak",
+    "terima", "kasih", "makasih", "thanks"
+  ]);
+  const affirmativeWords = new Set([
+    "ya", "iya", "iua", "iyah", "yap", "yup", "oke", "ok", "okay",
+    "setuju", "konfirmasi", "konfirmasikan", "betul", "benar",
+    "sesuai", "lanjut", "boleh", "silakan", "gas", "sip", "cocok",
+    "pas", "deal", "fix"
+  ]);
+  const hasNegationOrChange = /\b(?:tidak|enggak|nggak|gak|ga|jangan|belum|bukan|tapi|namun|kalau|asal|kecuali|ubah|ganti|rubah|koreksi|salah|kurang|beda|mungkin|barangkali|nanti|coba)\b/u.test(confirmation);
+  const explicitApproval = confirmationTokens.length > 0 &&
+    confirmationTokens.some((token) => affirmativeWords.has(token)) &&
+    confirmationTokens.every((token) => approvalWords.has(token)) &&
+    !hasNegationOrChange;
+  if (!explicitApproval) return { valid: false, reason: "customer_message_not_explicit_approval" };
+
+  const previousMessage = Array.isArray(history) ? history[history.length - 1] : null;
+  if (previousMessage?.role !== "assistant" || !String(previousMessage?.content || "").trim()) {
+    return { valid: false, reason: "approved_summary_not_found" };
+  }
+  const summary = normalize(previousMessage.content);
+  if (!summary.includes(normalize(outletName))) return { valid: false, reason: "summary_outlet_mismatch" };
+
+  let localParts;
+  try {
+    localParts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+      timeZone: String(timezone || "Asia/Jakarta"),
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(new Date(pickupAt)).map((part) => [part.type, part.value]));
+  } catch {
+    return { valid: false, reason: "summary_timezone_invalid" };
+  }
+  const expectedDate = localParts.day + "/" + localParts.month + "/" + localParts.year;
+  const expectedTime = localParts.hour + ":" + localParts.minute;
+  if (!summary.includes(normalize(expectedDate))) return { valid: false, reason: "summary_pickup_date_missing" };
+  if (!summary.includes(normalize(expectedTime))) return { valid: false, reason: "summary_pickup_time_missing" };
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const itemName = normalize(item?.name);
+    if (!itemName || !summary.includes(itemName)) return { valid: false, reason: "summary_item_missing" };
+    const escapedItemName = itemName.replace(/[.*+?^\u0024{}()|[\]\\]/g, "\\export function validateScheduledOrderConfirmation({ message, history, outletName, pickupAt, timezone, items, totalAmount, paymentStatus }) {
+  const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID").normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+  const confirmation = normalize(message);
   const explicitApproval = /^(?:ya|iya|iy[a]?|oke|ok|okay|setuju|saya setuju|saya konfirmasi|konfirmasi|betul|benar|sesuai|lanjut|boleh|silakan|gas)(?: kak)?$/u.test(confirmation);
   if (!explicitApproval) return { valid: false, reason: "customer_message_not_explicit_approval" };
 
@@ -1008,6 +1058,25 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
     if (!quantityPattern.test(summary)) return { valid: false, reason: "summary_quantity_missing" };
   }
   if (!Number.isSafeInteger(totalAmount) || !summaryDigits.includes(String(totalAmount))) {
+    return { valid: false, reason: "summary_total_mismatch" };
+  }
+  if (paymentStatus === "unpaid" && !/(bayar di tempat|belum dibayar)/u.test(summary)) {
+    return { valid: false, reason: "summary_payment_status_missing" };
+  }
+  if (paymentStatus === "pending_verification" && !/(perlu verifikasi|menunggu verifikasi|belum terverifikasi)/u.test(summary)) {
+    return { valid: false, reason: "summary_payment_status_missing" };
+  }
+  return { valid: true, reason: "customer_approval_and_summary_verified" };
+}").replace(/\s+/g, "\\s+");
+    const quantity = Number(item.quantity);
+    const quantityBeforeName = new RegExp("(?:^|\\s)" + quantity + "\\s+(?:(?:porsi|pcs|buah|pack|paket|ekor|potong)\\s+)?" + escapedItemName + "(?:\\s|$)", "u");
+    const quantityAfterName = new RegExp(escapedItemName + "\\s+(?:x|×)\\s*" + quantity + "(?:\\s|$)", "u");
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || (!quantityBeforeName.test(summary) && !quantityAfterName.test(summary))) {
+      return { valid: false, reason: "summary_quantity_missing" };
+    }
+  }
+  const expectedTotal = normalize("Rp" + Number(totalAmount).toLocaleString("id-ID"));
+  if (!Number.isSafeInteger(totalAmount) || !summary.includes(expectedTotal)) {
     return { valid: false, reason: "summary_total_mismatch" };
   }
   if (paymentStatus === "unpaid" && !/(bayar di tempat|belum dibayar)/u.test(summary)) {
@@ -1142,11 +1211,18 @@ export function buildAIBusinessDecisionContext({ message, history, businessData,
       complaintIntent ? "Menangani keluhan dan menjaga kepercayaan; tidak menawarkan upsell." :
       purchaseIntent ? "Melanjutkan kebutuhan pembelian dan hanya mempertimbangkan produk pelengkap yang relevan." :
       "Menjawab kebutuhan pelanggan berdasarkan konteks dan fakta yang tersedia.");
-  // [MODIFIED] The model cannot authorize database writes; only a verified backend transaction counts as saved.
+  // [MODIFIED] Distinguish a write that was never requested from a real backend write rejection.
   const shouldSave = Boolean(createdScheduledOrder);
+  const failedOrderAttempt = [...(Array.isArray(toolAudit) ? toolAudit : [])].reverse().find((item) =>
+    item?.tool === "create_scheduled_order" &&
+    typeof item?.resultSummary === "string" &&
+    item.resultSummary.startsWith("rejected:")
+  );
   const saveReason = createdScheduledOrder
     ? "Ya — pesanan terjadwal berhasil disimpan."
-    : "Tidak — analisis percakapan bersifat sementara; model tidak diberi kewenangan menyimpan data tanpa tindakan backend yang sah.";
+    : failedOrderAttempt
+      ? "Gagal — backend menolak penyimpanan (" + failedOrderAttempt.resultSummary.slice(9, 240) + "). Pesanan belum tercatat."
+      : "Tidak — belum ada transaksi penyimpanan pesanan yang dijalankan; model tidak dapat mengesahkan penyimpanan sendiri.";
 
   const dataUsed = [
     "Riwayat percakapan (" + (Array.isArray(history) ? Math.min(history.length, 10) : 0) + " pesan)",
@@ -1186,7 +1262,7 @@ export function buildAIBusinessDecisionContext({ message, history, businessData,
     },
     productCheck,
     action,
-    database: { shouldSave, label: shouldSave ? "Ya" : "Tidak", reason: saveReason },
+    database: { shouldSave, label: shouldSave ? "Ya" : failedOrderAttempt ? "Gagal" : "Tidak", reason: saveReason },
     dataUsed,
     responseSummary: String(decisionSummary?.responseSummary || "").trim().slice(0, 300)
   };
