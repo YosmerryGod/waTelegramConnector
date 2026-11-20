@@ -789,8 +789,8 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
   }
   const expectedDate = localParts.day + "/" + localParts.month + "/" + localParts.year;
   const expectedTime = localParts.hour + ":" + localParts.minute;
-  if (!summary.includes(expectedDate)) return { valid: false, reason: "summary_pickup_date_missing" };
-  if (!summary.includes(expectedTime)) return { valid: false, reason: "summary_pickup_time_missing" };
+  if (!summary.includes(normalize(expectedDate))) return { valid: false, reason: "summary_pickup_date_missing" };
+  if (!summary.includes(normalize(expectedTime))) return { valid: false, reason: "summary_pickup_time_missing" };
 
   for (const item of Array.isArray(items) ? items : []) {
     if (!summary.includes(normalize(item.name))) return { valid: false, reason: "summary_item_missing" };
