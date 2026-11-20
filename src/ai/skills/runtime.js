@@ -135,7 +135,7 @@ function buildProductOfferCandidates(products, message) {
       promotion: product?.promotion || product?.promo || null,
       score
     };
-  }).filter((item) => item.name && item.score > 0)
+  }).filter((item) => item.name && item.score > 0 && item.available !== false && !(item.stock !== null && item.stock !== "" && Number.isFinite(Number(item.stock)) && Number(item.stock) <= 0))
     .sort((a, b) => b.score - a.score).slice(0, 5)
     .map(({ score, ...product }) => product);
 }
