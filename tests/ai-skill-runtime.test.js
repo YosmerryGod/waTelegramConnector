@@ -79,6 +79,58 @@ test("records approval and prevents reviewing the same proposal twice", () => {
   assert.equal(runtime.listSkillChangeProposals("owner-3", "session-c")[0].status, "approved");
 });
 
+
+test("routes first-contact availability questions to marketing, business facts and natural communication", () => {
+  const result = runtime.routeAndLoadSkills({
+    message: "ayam panggang nya masih ada kah",
+    history: [],
+    mode: "customer-auto-reply",
+    businessContext: {
+      products: [{
+        name: "Ayam Panggang Jumbo Dada/Paha",
+        description: "Pilihan dada atau paha, harga Rp20.000, gratis minuman",
+        price: "20000",
+        stock: "12",
+        available: true,
+        promo: "Gratis minuman"
+      }]
+    }
+  });
+  assert.equal(result.customerState, "availability");
+  assert.deepEqual(result.activeSkillIds, ["consumer-psychology", "business-context", "customer-communication"]);
+  assert.equal(result.productOfferCandidates.length, 1);
+  assert.match(result.marketingDirective, /respons pembelian/i);
+  assert.match(result.instructions, /MARKETING STRATEGY/);
+});
+
+test("selects a different psychology and persuasion combination for price objections", () => {
+  const result = runtime.routeAndLoadSkills({
+    message: "harganya agak mahal buat saya",
+    mode: "customer-auto-reply"
+  });
+  assert.equal(result.customerState, "price_objection");
+  assert.deepEqual(result.activeSkillIds, [
+    "human-behavior-decision-psychology",
+    "consumer-psychology",
+    "persuasive-communication-and-negotiation"
+  ]);
+});
+
+test("does not confuse availability questions with customer refusal", () => {
+  assert.equal(runtime.classifyCustomerState("ayam panggang ada gak"), "availability");
+  assert.equal(runtime.classifyCustomerState("gak jadi pesan dulu"), "refusal");
+});
+
+test("does not route complaints into promotional selling", () => {
+  const result = runtime.routeAndLoadSkills({
+    message: "ayamnya kemarin kering dan saya kecewa",
+    mode: "customer-auto-reply"
+  });
+  assert.equal(result.customerState, "complaint");
+  assert.ok(result.activeSkillIds.includes("service-recovery"));
+  assert.match(result.marketingDirective, /Jangan mengubah komplain menjadi promosi/);
+});
+
 test("rejects invalid proposals and cross-session review attempts", () => {
   assert.throws(() => runtime.createSkillChangeProposal({
     telegramId: "owner-4",
