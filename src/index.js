@@ -63,7 +63,12 @@ const logger = pino({
   }
 });
 const app = express();
-app.set("trust proxy", "loopback"); // [ADDED] Trust only a local reverse proxy for client IP resolution.
+// [MODIFIED] Trust only the explicitly configured reverse-proxy address/range or hop count.
+const configuredTrustProxy = String(process.env.TRUST_PROXY || "loopback").trim();
+const trustProxySetting = /^(0|[1-9]\\d*)$/.test(configuredTrustProxy)
+  ? Number(configuredTrustProxy)
+  : configuredTrustProxy.split(",").map((entry) => entry.trim()).filter(Boolean);
+app.set("trust proxy", trustProxySetting.length === 1 ? trustProxySetting[0] : trustProxySetting);
 app.use(helmet());
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
