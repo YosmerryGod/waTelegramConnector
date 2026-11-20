@@ -411,7 +411,8 @@ async function openRouterGenerate(contents, options = {}) {
         ...(options.responseMimeType === "application/json" ? { response_format: { type: "json_object" } } : {}),
         provider: options.provider || {
           order: String(process.env.WAGRAM_OPENROUTER_PROVIDER_ORDER || "DeepSeek").split(",").map((provider) => provider.trim()).filter(Boolean),
-          allow_fallbacks: false,
+          // [MODIFIED] Respect OpenRouter account guardrails and fall back to other eligible endpoints.
+          allow_fallbacks: true,
           require_parameters: true
         },
         ...(options.reasoning ? { reasoning: options.reasoning } : {}),
