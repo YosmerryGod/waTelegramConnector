@@ -65,8 +65,10 @@ const logger = pino({
 const app = express();
 // [MODIFIED] Trust only the explicitly configured reverse-proxy address/range or hop count.
 const configuredTrustProxy = String(process.env.TRUST_PROXY || "loopback").trim();
-const trustProxySetting = /^(0|[1-9]\\d*)$/.test(configuredTrustProxy)
-  ? Number(configuredTrustProxy)
+const numericTrustProxyHops = Number(configuredTrustProxy);
+const trustProxySetting = configuredTrustProxy !== "" &&
+  Number.isSafeInteger(numericTrustProxyHops) && numericTrustProxyHops >= 0
+  ? numericTrustProxyHops
   : configuredTrustProxy.split(",").map((entry) => entry.trim()).filter(Boolean);
 app.set("trust proxy", trustProxySetting.length === 1 ? trustProxySetting[0] : trustProxySetting);
 app.use(helmet());
