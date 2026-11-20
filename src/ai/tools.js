@@ -301,8 +301,19 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
             if (resource === "outlets" && updated.specialHours !== undefined) {
               if (!Array.isArray(updated.specialHours) || updated.specialHours.length > 60) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
               for (const entry of updated.specialHours) {
-                if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(entry?.date || ""))) throw new Error("TOOL_OUTLET_SPECIAL_DATE_INVALID");
-                if (entry.closed !== true && (!/^\\d{2}:\\d{2}$/.test(String(entry.openTime || "")) || !/^\\d{2}:\\d{2}$/.test(String(entry.closeTime || "")))) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+                const dateValue = String(entry?.date || "");
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || !Number.isFinite(Date.parse(dateValue + "T00:00:00.000Z")) || new Date(dateValue + "T00:00:00.000Z").toISOString().slice(0, 10) !== dateValue) {
+                  throw new Error("TOOL_OUTLET_SPECIAL_DATE_INVALID");
+                }
+                if (entry.closed !== true && (!/^\d{2}:\d{2}$/.test(String(entry.openTime || "")) || !/^\d{2}:\d{2}$/.test(String(entry.closeTime || "")))) {
+                  throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+                }
+                if (entry.closed !== true) {
+                  for (const value of [entry.openTime, entry.closeTime]) {
+                    const [hour, minute] = String(value).split(":").map(Number);
+                    if (hour > 23 || minute > 59) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+                  }
+                }
               }
             }
             items[index] = updated;
