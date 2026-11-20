@@ -92,6 +92,12 @@ export const WAGRAM_TOOL_DECLARATIONS = [
             closeTime: { type: "STRING", maxLength: 20 },
             timezone: { type: "STRING", maxLength: 80 },
             openDays: { type: "ARRAY", items: { type: "STRING", enum: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] } },
+            specialHours: { type: "ARRAY", maxItems: 60, items: { type: "OBJECT", properties: {
+              date: { type: "STRING", minLength: 10, maxLength: 10 },
+              closed: { type: "BOOLEAN" },
+              openTime: { type: "STRING", maxLength: 5 },
+              closeTime: { type: "STRING", maxLength: 5 }
+            }, required: ["date"] } },
             fullName: { type: "STRING", maxLength: 120 },
             aiRules: { type: "STRING", maxLength: 3000 }
           }
@@ -220,7 +226,8 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
               openTime: String(outlet?.openTime || outlet?.open_time || "").trim(),
               closeTime: String(outlet?.closeTime || outlet?.close_time || "").trim(),
               timezone: String(outlet?.timezone || outlet?.timeZone || "Asia/Jakarta").trim(),
-              openDays: Array.isArray(outlet?.openDays) ? outlet.openDays : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+              openDays: Array.isArray(outlet?.openDays) ? outlet.openDays : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+              specialHours: Array.isArray(outlet?.specialHours) ? outlet.specialHours : []
             }))
           : [];
       }
@@ -269,7 +276,8 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
               openTime: String(data.openTime || "").slice(0, 20),
               closeTime: String(data.closeTime || "").slice(0, 20),
               timezone: String(data.timezone || "Asia/Jakarta").slice(0, 80),
-              openDays: Array.isArray(data.openDays) ? data.openDays : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+              openDays: Array.isArray(data.openDays) ? data.openDays : ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+              specialHours: Array.isArray(data.specialHours) ? data.specialHours : []
             });
           }
           result = { saved: true, operation, resource, item: items[items.length - 1] };
@@ -283,12 +291,19 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
             const updated = { ...current };
             for (const [key, value] of Object.entries(data)) {
               if (resource === "products" && ["name", "description", "price", "stock"].includes(key)) updated[key] = value;
-              if (resource === "outlets" && ["name", "address", "phone", "openTime", "closeTime", "timezone", "openDays"].includes(key)) updated[key] = value;
+              if (resource === "outlets" && ["name", "address", "phone", "openTime", "closeTime", "timezone", "openDays", "specialHours"].includes(key)) updated[key] = value;
             }
             if (resource === "products") {
               if (updated.name === undefined || !String(updated.name).trim()) throw new Error("TOOL_PRODUCT_NAME_INVALID");
               if (updated.price !== undefined && (!Number.isSafeInteger(updated.price) || updated.price < 0)) throw new Error("TOOL_PRODUCT_PRICE_INVALID");
               if (updated.stock !== undefined && updated.stock !== null && (!Number.isSafeInteger(updated.stock) || updated.stock < 0)) throw new Error("TOOL_PRODUCT_STOCK_INVALID");
+            }
+            if (resource === "outlets" && updated.specialHours !== undefined) {
+              if (!Array.isArray(updated.specialHours) || updated.specialHours.length > 60) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+              for (const entry of updated.specialHours) {
+                if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(String(entry?.date || ""))) throw new Error("TOOL_OUTLET_SPECIAL_DATE_INVALID");
+                if (entry.closed !== true && (!/^\\d{2}:\\d{2}$/.test(String(entry.openTime || "")) || !/^\\d{2}:\\d{2}$/.test(String(entry.closeTime || "")))) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+              }
             }
             items[index] = updated;
             result = { saved: true, operation, resource, item: updated };
