@@ -1002,6 +1002,37 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
   return { valid: true, reason: "customer_approval_and_summary_verified" };
 }
 
+// [ADDED] Build lightweight intent metadata locally; the main AI remains responsible for understanding context and deciding the next conversational move.
+export function buildConversationRecognition(message, history = []) {
+  const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID").normalize("NFKC");
+  const recentText = (Array.isArray(history) ? history.slice(-16) : [])
+    .map((item) => String(item?.content || ""))
+    .join("\n");
+  const currentText = String(message || "").trim();
+  const contextText = normalize(recentText + "\n" + currentText);
+  const lowerMessage = normalize(currentText);
+  const requestedFields = [];
+  if (/harga|berapa|price|biaya|tarif/.test(contextText)) requestedFields.push("price");
+  if (/stok|tersedia|ready|available/.test(contextText)) requestedFields.push("stock");
+  if (/menu|produk|jualan|daftar/.test(contextText)) requestedFields.push("product_list");
+  if (/alamat|lokasi|dimana|di mana|outlet|cabang/.test(contextText)) requestedFields.push("outlet_address");
+  if (/qris|qr\s*code|bayar|pembayaran|transfer/.test(contextText)) requestedFields.push("payment");
+  const purchaseIntent = /\b(pesan|pesen|order|beli|memesan|pesanan)\b/.test(contextText);
+  const availabilityIntent = /\b(bisa|tersedia|ready|ada)\b/.test(lowerMessage) && /ayam|menu|produk|makanan|minuman/.test(contextText);
+  const intent = purchaseIntent ? "purchase_intent" : availabilityIntent ? "availability_question" : "conversation";
+  return {
+    intent,
+    entity: null,
+    requested_fields: [...new Set(requestedFields)],
+    needs_business_data: purchaseIntent || requestedFields.length > 0,
+    confidence: 0.5,
+    clarification_needed: false,
+    clarification_question: null,
+    interpretation: currentText.slice(0, 500) || "Percakapan umum",
+    context_message_count: Array.isArray(history) ? Math.min(history.length, 16) : 0
+  };
+}
+
 // [MODIFIED] OpenRouter interprets the owner's request and may call read-only business tools.
 async function runOwnerAIAgent({ telegramId, sessionId, message, history, profile, customerChatId }) {
   const settings = profile?.settings && typeof profile.settings === "object" ? profile.settings : {};
@@ -1020,72 +1051,10 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     parts: [{ text: String(item?.content || "").slice(0, 1000) }]
   })).filter((item) => item.parts[0].text) : [];
 
-  const recognitionPrompt = [
-    "Pahami maksud pesan terbaru pengguna WAGRAM AI berdasarkan riwayat percakapan.",
-    "Jangan menjawab pertanyaan bisnis. Kembalikan JSON valid saja dengan field:",
-    '{"intent":"string","entity":"string|null","requested_fields":["string"],"needs_business_data":true,"confidence":0.0,"clarification_needed":false,"clarification_question":"string|null","interpretation":"string"}',
-    "intent adalah maksud yang dipahami, bukan sekadar menyalin kalimat.",
-    "entity adalah nama produk, orang, atau outlet yang dirujuk jika ada.",
-    "requested_fields dapat berisi price, stock, product_list, outlet_address, manager_name, payment, atau aiRules.",
-    "Jika bertanya menu atau produk yang dijual, requested_fields harus memuat product_list.",
-    "Jika bertanya harga, requested_fields harus memuat price. Jika bertanya stok, requested_fields harus memuat stock.",
-    "Jangan meminta klarifikasi jika maksud dan objek sudah dapat dipahami.",
-    "Riwayat: " + JSON.stringify(recentHistory),
-    "Pesan terbaru: " + String(message || "").slice(0, 4000)
-  ].join("\n");
-  // [MODIFIED] Recognition is an enhancement, not a hard dependency for answering.
-  // Some OpenRouter providers return an empty content field when JSON mode is requested.
-  // Retry without response_format and with a larger token budget before using a safe fallback.
-  let recognition = null;
-  let recognitionFailure = "";
-  for (let attempt = 0; attempt < 2 && !recognition; attempt += 1) {
-    try {
-      const recognitionResult = await openRouterGenerate(
-        [{ role: "user", parts: [{ text: recognitionPrompt }] }],
-        { temperature: 0.1, maxOutputTokens: attempt === 0 ? 600 : 800 }
-      );
-      const rawText = String(recognitionResult.text || "").trim()
-        .replace(/^\`\`\`(?:json)?\s*/i, "")
-        .replace(/\s*\`\`\`$/i, "");
-      if (!rawText) {
-        recognitionFailure = "empty_content";
-        continue;
-      }
-      const jsonStart = rawText.indexOf("{");
-      const jsonEnd = rawText.lastIndexOf("}");
-      const jsonText = jsonStart >= 0 && jsonEnd > jsonStart
-        ? rawText.slice(jsonStart, jsonEnd + 1)
-        : rawText;
-      const parsed = JSON.parse(jsonText);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) recognition = parsed;
-      else recognitionFailure = "invalid_result";
-    } catch (error) {
-      recognitionFailure = String(error?.message || "recognition_failed").slice(0, 180);
-    }
-  }
-  if (!recognition) {
-    // [ADDED] Continue with the actual user message and business database instead of
-    // failing the entire WAGRAM AI request because the optional classifier returned blank.
-    console.warn("[WAGRAM AI] Recognition fallback used:", recognitionFailure || "unknown");
-    const normalizedMessage = String(message || "").trim();
-    const lowerMessage = normalizedMessage.toLocaleLowerCase("id-ID");
-    const requestedFields = [];
-    if (/harga|berapa|price|biaya|tarif/.test(lowerMessage)) requestedFields.push("price");
-    if (/stok|tersedia|ready|available/.test(lowerMessage)) requestedFields.push("stock");
-    if (/menu|produk|jualan|daftar/.test(lowerMessage)) requestedFields.push("product_list");
-    if (/alamat|lokasi|dimana|di mana|outlet|cabang/.test(lowerMessage)) requestedFields.push("outlet_address");
-    if (/qris|qr|bayar|pembayaran|transfer/.test(lowerMessage)) requestedFields.push("payment");
-    recognition = {
-      intent: "business_question",
-      entity: null,
-      requested_fields: requestedFields,
-      needs_business_data: true,
-      confidence: 0.35,
-      clarification_needed: false,
-      clarification_question: null,
-      interpretation: normalizedMessage.slice(0, 500) || "Pertanyaan umum pengguna"
-    };
-  }
+  // [MODIFIED] Do not spend a separate model call on rigid classification.
+  // The main conversational model receives the full recent history and decides what to do next.
+  // This lightweight metadata is only a hint and must never override the actual conversation.
+  const recognition = buildConversationRecognition(message, history);
   recognition.intent = String(recognition.intent || "unknown").slice(0, 120);
   recognition.entity = recognition.entity == null ? null : String(recognition.entity).slice(0, 160);
   recognition.requested_fields = Array.isArray(recognition.requested_fields) ? recognition.requested_fields.map((field) => String(field).slice(0, 60)).slice(0, 10) : [];
@@ -1164,15 +1133,15 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "ATURAN PANJANG WAJIB: default 1 kalimat; maksimal 2 kalimat pendek dan sekitar 250 karakter. Gunakan satu paragraf saja.",
     "Jawab inti pertanyaan terlebih dahulu. Jangan menambahkan salam pembuka, penutup, rangkuman, atau informasi yang tidak relevan. Penawaran tambahan hanya boleh muncul jika memenuhi aturan upselling yang relevan di bawah.",
     "Jangan mengulang pertanyaan pelanggan atau mengulang fakta yang sama dengan kata berbeda.",
-    "Jika pelanggan bertanya bisa pesan, jawab bisa/tidak sesuai data dan tanyakan jumlah pesanan. Jangan otomatis memberikan nomor pengelola, alamat, stok, atau prosedur pemesanan kecuali diminta.",
+    "Jangan mengikuti urutan pertanyaan yang kaku. Perlakukan chat sebagai satu percakapan utuh: gabungkan informasi dari pesan terbaru dan riwayat, lalu tentukan satu langkah paling natural berdasarkan informasi yang sudah diketahui dan yang masih benar-benar diperlukan.",
     "Jika konteks pesan terakhir menyatakan pelanggan mengirim foto/video sekali lihat (View Once), pahami bahwa isi medianya tidak dapat dilihat oleh WAGRAM. Tentukan balasan berdasarkan konteks percakapan; bila isi media diperlukan untuk menjawab, minta pelanggan mengirim ulang sebagai foto/video biasa dengan ramah. Jangan mengklaim sudah melihat atau mengenali isi media, dan jangan memprosesnya sebagai bukti pembayaran.",
     "Jika pelanggan hanya menyapa, balas sapaan singkat dan tanyakan apa yang dibutuhkan. Jangan sertakan katalog, harga, stok, dan kontak.",
     "Jika pelanggan hanya meminta harga, berikan nama produk dan harga secara langsung tanpa upsell. Jika konteks jelas menunjukkan niat membeli dan pertanyaan harga sudah dijawab, AI boleh mempertimbangkan satu produk pelengkap yang relevan sesuai aturan upselling; jangan menambahkan tawaran jika tidak cocok.",
     "Jika pelanggan menanyakan ketersediaan atau ingin memesan, jawab secara natural dan langsung sesuai kondisi produk.",
-    "ALUR OPERASIONAL OUTLET WAJIB: Saat pelanggan menunjukkan niat memesan, periksa operatingStatus seluruh outlet pada DATA BISNIS. Status isOpen=true berarti buka; false berarti tutup; null berarti jam belum dapat dipastikan dan jangan menebak.",
-    "Jika pelanggan sudah memilih outlet, prioritaskan outlet itu. Jika outlet pilihannya tutup tetapi outlet lain buka, minta izin menawarkan outlet alternatif yang buka dan sebut nama/lokasi serta jamnya dari data. Jangan diam-diam memindahkan pilihan pelanggan.",
-    "Jika pelanggan belum memilih outlet, arahkan ke outlet yang buka. Jika semua outlet tutup, minta maaf dan tawarkan membuat pesanan terjadwal untuk waktu outlet buka berikutnya. Jika jam outlet tidak lengkap, tanyakan pengelola daripada mengarang waktu buka.",
-    "PESANAN TERJADWAL: Kumpulkan secara percakapan nama pelanggan bila tersedia, nomor WhatsApp dari chat, menu dan jumlah, tanggal serta jam pengambilan, outlet pilihan, dan status pembayaran. Jika belum dibayar, catat sebagai bayar di tempat pada outlet yang dipilih hanya setelah pelanggan menyetujuinya. Jika pelanggan mengaku sudah membayar, statusnya perlu verifikasi pengelola; jangan tandai lunas tanpa verifikasi.",
+    "Jika pelanggan bertanya apakah bisa memesan, jawab berdasarkan fakta bisnis. Tanyakan jumlah hanya jika jumlah belum disebutkan atau belum dapat disimpulkan dari konteks. Jangan mengulang pertanyaan yang sudah dijawab pelanggan.",
+    "Saat ada niat membeli, pahami dahulu produk, jumlah, outlet, waktu, dan kebutuhan pelanggan dari seluruh percakapan. Gunakan informasi yang sudah tersedia; jangan memulai ulang proses atau memaksa pelanggan melewati urutan tertentu.",
+    "Periksa status jam operasional seluruh outlet ketika relevan dengan pemenuhan pesanan. Prioritaskan outlet pilihan pelanggan. Jika outlet pilihan tutup dan ada outlet lain yang buka, minta persetujuan sebelum menawarkan perpindahan. Jika semua tutup, tawarkan waktu pengambilan berikutnya berdasarkan jam yang terverifikasi. Jika jam tidak diketahui, tanyakan pengelola.",
+    "Kumpulkan hanya detail pesanan yang masih kurang. Nama pelanggan boleh diminta jika memang dibutuhkan; nomor WhatsApp gunakan dari chat. Pertahankan pilihan menu, jumlah, outlet, waktu, dan status pembayaran yang telah disampaikan pelanggan selama belum dikoreksi. Pembayaran yang belum dilakukan dicatat sebagai bayar di tempat setelah persetujuan; klaim pembayaran yang sudah dilakukan tetap perlu verifikasi pengelola.",
     "Jangan menyatakan pesanan terjadwal sudah tercatat atau mengirim notifikasi pengelola kecuali sistem mengembalikan hasil penyimpanan pesanan yang berhasil. Sebelum penyimpanan, bacakan ringkasan dan minta persetujuan eksplisit pelanggan.",
     "Gunakan jumlah pesanan untuk mengecek kecukupan persediaan secara INTERNAL. Jika pelanggan meminta jumlah tertentu, bandingkan jumlah itu dengan persediaan produk yang tercatat. Jika cukup, jawab sederhana seperti 'Bisa, Kak' dan lanjutkan seperlunya. Jika tidak cukup, sampaikan jumlah yang bisa dipenuhi atau bahwa jumlah tersebut belum bisa dipenuhi.",
     "Jangan pernah menyebut kata 'data', 'database', 'tercatat', 'stok', 'field', 'sistem', atau menjelaskan sumber informasi internal kepada pelanggan.",
@@ -1180,6 +1149,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Persediaan hanya acuan internal untuk memastikan pesanan dalam jumlah besar bisa dipenuhi. Jangan menyebut angka persediaan kecuali pelanggan secara khusus menanyakan jumlah yang tersedia.",
     "Jika jumlah pesanan tidak disebutkan, jangan membahas persediaan; cukup jawab ketersediaan produk dan tanyakan jumlah bila memang dibutuhkan.",
     "Untuk daftar menu/produk, sebutkan nama menu secara ringkas tanpa membahas sumber informasinya.",
+    "Metadata interpretasi adalah petunjuk ringan, bukan keputusan final. Jika metadata tidak cocok dengan pesan atau riwayat, utamakan makna percakapan sebenarnya. Jangan pernah mengubah niat pelanggan menjadi pertanyaan bisnis umum hanya karena klasifikasi tidak tersedia.",
     "Gunakan interpretasi AI dan fakta bisnis sebagai konteks. Jangan mengarang harga, ketersediaan, kontak, jam buka, atau fakta bisnis.",
     "Jika informasi penting yang diminta pelanggan tidak tersedia atau tidak dapat dipastikan dari informasi bisnis, jangan menebak. Tandai needs_manager=true dan tulis manager_question yang jelas agar pengelola dapat menjawab. Jangan gunakan eskalasi untuk sapaan atau pertanyaan yang sebenarnya sudah terjawab.",
     "Jika needs_manager=true, reply harus berupa pemberitahuan singkat bahwa kamu sedang menanyakan hal tersebut ke pengelola. Jangan menyebut data, database, atau sumber internal.",
