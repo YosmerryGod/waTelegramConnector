@@ -2132,12 +2132,24 @@ router.post("/ai-business/chat", async (req, res) => {
   } catch (error) {
     const status = error.status || 500;
     console.error("[WAGRAM AI Business] Request failed:", error.message);
+    const errorCode = String(error.message || "AI_BUSINESS_FAILED");
+    const customerMessage = status === 403
+      ? "WAGRAM AI Business membutuhkan Premium 30 hari yang masih aktif."
+      : errorCode === "OPENROUTER_API_KEY_MISSING"
+        ? "Layanan AI belum dikonfigurasi. Hubungi pengelola aplikasi."
+        : /^OPENROUTER_HTTP_401\\b/.test(errorCode)
+          ? "Layanan AI sedang mengalami masalah autentikasi. Hubungi pengelola aplikasi."
+          : /^OPENROUTER_HTTP_402\\b/.test(errorCode)
+            ? "Layanan AI sedang tidak tersedia. Silakan coba lagi nanti."
+            : /^OPENROUTER_HTTP_429\\b/.test(errorCode)
+              ? "Layanan AI sedang menerima banyak permintaan. Coba lagi sebentar."
+              : /^OPENROUTER_HTTP_5\\d\\d\\b/.test(errorCode) || errorCode.includes("EMPTY_ANSWER")
+                ? "Maaf, layanan AI sedang mengalami gangguan sementara. Coba kirim pesan sekali lagi."
+                : "Maaf, pesan belum dapat diproses. Coba lagi sebentar.";
     return res.status(status).json({
       ok: false,
-      error: error.message || "AI_BUSINESS_FAILED",
-      message: status === 403
-        ? "WAGRAM AI Business membutuhkan Premium 30 hari yang masih aktif."
-        : "WAGRAM AI belum dapat menjawab. Periksa konfigurasi OPENROUTER_API_KEY di VPS."
+      error: errorCode,
+      message: customerMessage
     });
   }
 });
