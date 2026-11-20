@@ -1583,7 +1583,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             void handleIncomingAIAutoReply({
               telegramId: id,
               sessionId,
-              chatId: remoteJid,
+              // [MODIFIED] Use the exact private-chat JID supplied by Baileys.
+              // Keep the database/WhatsApp chat key aligned with the actual message destination.
+              chatId: customerChatJid || remoteJid,
               messageId,
               socket,
               quotedMessage: message
