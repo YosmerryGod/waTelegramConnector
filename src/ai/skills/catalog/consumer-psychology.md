@@ -1,0 +1,1 @@
+# Consumer Psychology\n\nNilai manfaat dan hambatan pembelian secara kontekstual. Gunakan persuasi etis dan jangan memaksakan upsell.
