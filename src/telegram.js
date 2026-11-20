@@ -1588,7 +1588,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
               chatId: customerChatJid || remoteJid,
               messageId,
               socket,
-              quotedMessage: message
+              quotedMessage: message,
+              // [ADDED] Pass Baileys' resolved phone number separately from the private chat JID.
+              customerPhone: phoneNumber || null
             }).catch((error) => {
               console.error("[WAGRAM AI Auto Reply] Worker crashed:", error.message);
             });
