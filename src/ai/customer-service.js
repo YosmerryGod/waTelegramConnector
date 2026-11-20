@@ -998,7 +998,9 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           if (!product || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000) throw new Error("SCHEDULED_ORDER_PRODUCT_OR_QUANTITY_INVALID");
           if (!Number.isSafeInteger(product.price) || product.price < 0) throw new Error("SCHEDULED_ORDER_PRODUCT_PRICE_INVALID");
           if (product.available === false || product.isAvailable === false) throw new Error("SCHEDULED_ORDER_PRODUCT_UNAVAILABLE");
-          if (Number.isSafeInteger(product.stock) && product.stock < quantity) throw new Error("SCHEDULED_ORDER_STOCK_INSUFFICIENT");
+          const stock = product.stock == null ? null : Number(product.stock);
+          if (stock !== null && (!Number.isSafeInteger(stock) || stock < 0)) throw new Error("SCHEDULED_ORDER_STOCK_INVALID");
+          if (stock !== null && stock < quantity) throw new Error("SCHEDULED_ORDER_STOCK_INSUFFICIENT");
           return { name: String(product.name).trim(), quantity, unitPrice: product.price, subtotal: product.price * quantity };
         });
         if (!items.length || items.some((item) => !Number.isSafeInteger(item.subtotal))) throw new Error("SCHEDULED_ORDER_ITEMS_INVALID");
