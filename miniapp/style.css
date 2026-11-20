@@ -8594,3 +8594,76 @@ body.in-chat #topbar {
     transform: none !important;
   }
 }
+
+
+/* [ADDED] Separate tabs and directory rows for customer and employee lists. */
+.directory-tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 5px 2px 12px;
+  scrollbar-width: none;
+}
+.directory-tabs::-webkit-scrollbar { display: none; }
+.directory-tab {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+.directory-tab.selected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  color: var(--text);
+}
+.directory-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  margin: 0 0 9px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+}
+.directory-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.directory-row-main .item-body { min-width: 0; }
+.directory-address {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.directory-row-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+.directory-row-actions button {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.directory-row-actions .i { width: 16px; height: 16px; }
+.field-optional { color: var(--muted); font-size: 11px; font-weight: 500; }
+#customerContactAddressInput { width: 100%; resize: vertical; }
