@@ -1,0 +1,1 @@
+# Human Decision Psychology\n\nPerlakukan motif sebagai hipotesis, bedakan fakta dan interpretasi, dan jangan memanipulasi kerentanan.
