@@ -11,7 +11,8 @@ import {
   createAIBusinessReply,
   analyzeAIPaymentProofImage,
   createAIPaymentProofCustomerReply,
-  createAIBusinessImageCustomerReply
+  createAIBusinessImageCustomerReply,
+  normalizeCustomerChatJid
 } from "./customer-service.js";
 
 // [ADDED] Drain the durable scheduled-order notification outbox with retry and stale-claim recovery.
@@ -58,7 +59,7 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
       return db.prepare(`
         SELECT o.order_id, o.attempts, s.customer_name, s.customer_chat_id,
           s.outlet_name, s.outlet_address, s.pickup_at, s.timezone,
-          s.items_json, s.total_amount, s.payment_status, s.payment_note
+          s.items_json, s.total_amount, s.payment_status, s.payment_note, s.is_simulation
         FROM ai_scheduled_order_outbox o
         JOIN ai_scheduled_orders s ON s.id = o.order_id
         WHERE o.order_id = ? AND o.telegram_id = ? AND o.session_id = ?
@@ -86,10 +87,10 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
         "- " + item.name + " x" + item.quantity + " = Rp" + Number(item.subtotal).toLocaleString("id-ID")
       );
       const managerNotice = [
-        "PESANAN TERJADWAL",
+        order.is_simulation ? "[SIMULASI] PESANAN TERJADWAL" : "PESANAN TERJADWAL",
         "ID: #" + order.order_id,
         "Pelanggan: " + order.customer_name,
-        "WhatsApp: " + (order.customer_chat_id.endsWith("@s.whatsapp.net")
+        "WhatsApp: " + (order.is_simulation ? "Simulasi — bukan nomor pelanggan" : order.customer_chat_id.endsWith("@s.whatsapp.net")
           ? "+" + order.customer_chat_id.replace(/@s\.whatsapp\.net$/, "")
           : "ID chat " + order.customer_chat_id),
         "Outlet: " + order.outlet_name,
@@ -137,6 +138,62 @@ export async function processPendingScheduledOrderNotifications({ telegramId, se
         telegramId: ownerId, sessionId: accountId, orderId: order.order_id,
         attempt, retryInMs: delay, error: String(error?.message || "NOTIFICATION_FAILED").slice(0, 200)
       });
+    }
+  }
+
+  // [ADDED] Drain failed-order reports independently; they remain durable without an order row.
+  for (let index = 0; index < maxItems; index += 1) {
+    const now = Date.now();
+    const failure = db.transaction(() => {
+      const row = db.prepare(`
+        SELECT id FROM ai_scheduled_order_failure_outbox
+        WHERE telegram_id = ? AND session_id = ?
+          AND ((status = 'pending' AND next_attempt_at <= ?) OR (status = 'sending' AND claimed_at <= ?))
+        ORDER BY created_at ASC LIMIT 1
+      `).get(ownerId, accountId, now, now - 5 * 60 * 1000);
+      if (!row) return null;
+      const changed = db.prepare(`
+        UPDATE ai_scheduled_order_failure_outbox
+        SET status = 'sending', attempts = attempts + 1, claimed_at = ?, updated_at = ?, last_error = NULL
+        WHERE id = ? AND telegram_id = ? AND session_id = ?
+          AND ((status = 'pending' AND next_attempt_at <= ?) OR (status = 'sending' AND claimed_at <= ?))
+      `).run(now, now, row.id, ownerId, accountId, now, now - 5 * 60 * 1000);
+      return changed.changes === 1 ? db.prepare("SELECT * FROM ai_scheduled_order_failure_outbox WHERE id = ?").get(row.id) : null;
+    })();
+    if (!failure) break;
+    try {
+      const managerDigits = normalizeManagerPhone(getAIBusinessProfile(ownerId, accountId)?.settings?.manager?.phone);
+      if (!managerDigits) throw new Error("SCHEDULED_ORDER_MANAGER_PHONE_NOT_CONFIGURED");
+      const report = JSON.parse(failure.report_json || "{}");
+      const itemLines = (Array.isArray(report.items) ? report.items : []).map((item) =>
+        "- " + item.name + " x" + item.quantity + " = " + (Number.isSafeInteger(item.subtotal) ? "Rp" + item.subtotal.toLocaleString("id-ID") : "harga belum dapat dipastikan")
+      );
+      const notice = [
+        report.isSimulation ? "[SIMULASI] PESANAN GAGAL DISIMPAN — CATAT MANUAL" : "PESANAN GAGAL DISIMPAN — CATAT MANUAL",
+        "Pelanggan: " + (report.customerName || "Tidak disebutkan"),
+        "Identitas chat: " + (report.isSimulation ? "Simulasi" : report.customerChatId || "Tidak tersedia"),
+        "Menu dan jumlah:", ...(itemLines.length ? itemLines : ["- Tidak lengkap dari percakapan"]),
+        "Total: " + (Number.isSafeInteger(report.totalAmount) ? "Rp" + report.totalAmount.toLocaleString("id-ID") : "Belum dapat dipastikan"),
+        "Outlet: " + (report.outletName || "Tidak diketahui"),
+        "Waktu ambil: " + (report.pickupAt || "Tidak diketahui"),
+        "Pembayaran: " + (report.paymentStatus || "Tidak diketahui"),
+        "Kode internal: " + failure.error_code,
+        "Instruksi: catat manual dan hubungi pelanggan melalui jalur yang tersedia."
+      ].join("\n").slice(0, 3500);
+      const sentMessage = await socket.sendMessage(managerDigits + "@s.whatsapp.net", { text: notice });
+      db.prepare(`UPDATE ai_scheduled_order_failure_outbox
+        SET status = 'sent', manager_message_id = ?, claimed_at = NULL, last_error = NULL, updated_at = ?
+        WHERE id = ? AND status = 'sending'`).run(sentMessage?.key?.id || null, Date.now(), failure.id);
+      sent += 1;
+      console.info("[WAGRAM Scheduled Order Outbox] Manager failure report sent:", JSON.stringify({ id: failure.id, managerMessageId: sentMessage?.key?.id || null }));
+    } catch (error) {
+      const attempt = Number(failure.attempts) || 1;
+      const delay = Math.min(30 * 60 * 1000, 30000 * (2 ** Math.min(attempt - 1, 6)));
+      db.prepare(`UPDATE ai_scheduled_order_failure_outbox
+        SET status = 'pending', next_attempt_at = ?, claimed_at = NULL, last_error = ?, updated_at = ?
+        WHERE id = ? AND status = 'sending'`).run(Date.now() + delay, String(error?.message || "NOTIFICATION_FAILED").slice(0, 300), Date.now(), failure.id);
+      failed += 1;
+      console.error("[WAGRAM Scheduled Order Outbox] Failure report delivery failed:", { id: failure.id, attempt, error: String(error?.message || "NOTIFICATION_FAILED") });
     }
   }
 
@@ -378,7 +435,7 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
   }
   const order = db.prepare(`
     SELECT id, customer_name, outlet_name, pickup_at, order_status,
-      payment_status, payment_verified_at, total_amount, customer_chat_id
+      payment_status, payment_verified_at, total_amount, customer_chat_id, is_simulation
     FROM ai_scheduled_orders
     WHERE id = ? AND telegram_id = ? AND session_id = ?
   `).get(orderId, ownerId, accountId);
@@ -411,7 +468,9 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
     `).run(now, managerJid, now, orderId, ownerId, accountId);
     await socket.sendMessage(managerJid, { text: "Verifikasi pembayaran pesanan #" + orderId + " dicatat. Pastikan mutasi dana benar-benar sudah masuk." });
     try {
-      await socket.sendMessage(order.customer_chat_id, { text: "Pembayaran untuk pesanan #" + orderId + " sudah diverifikasi oleh pengelola." });
+      if (order.is_simulation !== 1 && normalizeCustomerChatJid(order.customer_chat_id)) {
+        await socket.sendMessage(order.customer_chat_id, { text: "Pembayaran untuk pesanan #" + orderId + " sudah diverifikasi oleh pengelola." });
+      }
     } catch (error) {
       console.error("[WAGRAM Scheduled Order] Customer payment status notification failed:", error.message);
     }
@@ -441,7 +500,9 @@ async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJ
       completed: "Pesanan #" + orderId + " telah ditandai selesai. Terima kasih.",
       cancelled: "Pesanan #" + orderId + " telah dibatalkan oleh pengelola."
     };
-    await socket.sendMessage(order.customer_chat_id, { text: customerStatusMessages[transition.to] });
+    if (order.is_simulation !== 1 && normalizeCustomerChatJid(order.customer_chat_id)) {
+      await socket.sendMessage(order.customer_chat_id, { text: customerStatusMessages[transition.to] });
+    }
   } catch (error) {
     console.error("[WAGRAM Scheduled Order] Customer status notification failed:", error.message);
   }
@@ -488,6 +549,10 @@ export async function handleIncomingManagerReply({ telegramId, sessionId, chatId
     content.imageMessage?.caption || content.documentMessage?.caption || ""
   ).trim();
   if (!answer) return { handled: true, forwarded: false, reason: "empty_manager_reply" };
+  if (!normalizeCustomerChatJid(pending.customer_chat_id)) {
+    db.prepare("UPDATE ai_manager_escalations SET status = 'answered', answered_at = ? WHERE id = ? AND status = 'pending'").run(Date.now(), pending.id);
+    return { handled: true, forwarded: false, reason: "customer_chat_not_valid" };
+  }
   await socket.sendMessage(pending.customer_chat_id, {
     text: answer
   });
