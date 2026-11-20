@@ -8,9 +8,11 @@ on:
       - "src/ai/auto-reply.js"
       - "src/ai/customer-service.js"
       - "src/telegram.js"
+      - "src/whatsapp.js"
       - "src/database.js"
       - ".github/scripts/wagram-ai-auto-reply-idempotency-test.mjs"
       - ".github/scripts/wagram-scheduled-order-confirmation-test.mjs"
+      - ".github/scripts/wagram-scheduled-order-outbox-test.mjs"
       - ".github/workflows/wagram-ai-auto-reply-checks.yml"
   pull_request:
     paths:
@@ -42,12 +44,17 @@ jobs:
           node --check src/ai/auto-reply.js
           node --check src/ai/customer-service.js
           node --check src/telegram.js
+          node --check src/whatsapp.js
           node --check src/database.js
           node --check .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
           node --check .github/scripts/wagram-scheduled-order-confirmation-test.mjs
+          node --check .github/scripts/wagram-scheduled-order-outbox-test.mjs
 
       - name: Test durable auto-reply idempotency
         run: node .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
 
       - name: Test scheduled order customer confirmation
         run: node .github/scripts/wagram-scheduled-order-confirmation-test.mjs
+
+      - name: Test scheduled order notification outbox
+        run: node .github/scripts/wagram-scheduled-order-outbox-test.mjs
