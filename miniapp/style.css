@@ -8426,7 +8426,7 @@ body.in-chat #topbar {
   display: none !important;
 }
 
-/* [MODIFIED] Refined WAMO AI settings into a quiet, icon-first business control panel. */
+/* [MODIFIED] WAMO AI settings: three-column icon grid with row-scoped expansion. */
 .ai-business-section-heading {
   display: flex;
   align-items: baseline;
@@ -8448,7 +8448,7 @@ body.in-chat #topbar {
 .ai-business-settings-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-auto-rows: minmax(78px, auto);
+  grid-template-rows: repeat(2, minmax(78px, auto));
   gap: 10px;
   padding: 2px 0 6px;
 }
@@ -8469,43 +8469,33 @@ body.in-chat #topbar {
   color: var(--text);
   text-align: center;
   cursor: pointer;
-  transform: translateY(0);
   transition:
-    background-color .3s cubic-bezier(.22, 1, .36, 1),
-    border-color .3s cubic-bezier(.22, 1, .36, 1),
-    opacity .3s cubic-bezier(.22, 1, .36, 1),
-    transform .3s cubic-bezier(.22, 1, .36, 1);
+    background-color .28s cubic-bezier(.22, 1, .36, 1),
+    border-color .28s cubic-bezier(.22, 1, .36, 1),
+    opacity .28s cubic-bezier(.22, 1, .36, 1),
+    transform .28s cubic-bezier(.22, 1, .36, 1);
 }
 .ai-business-setting-tile:nth-child(-n+3) { grid-row: 1; }
 .ai-business-setting-tile:nth-child(n+4) { grid-row: 2; }
 .ai-business-setting-icon {
   display: grid;
-  flex: 0 0 44px;
   width: 44px;
   height: 44px;
   place-items: center;
   border-radius: 13px;
   background: color-mix(in srgb, var(--accent) 11%, var(--surface));
   color: var(--accent);
-  transition:
-    background-color .3s cubic-bezier(.22, 1, .36, 1),
-    transform .3s cubic-bezier(.22, 1, .36, 1);
+  transition: background-color .28s cubic-bezier(.22, 1, .36, 1), transform .28s cubic-bezier(.22, 1, .36, 1);
 }
-.ai-business-setting-icon svg {
-  width: 21px;
-  height: 21px;
-}
+.ai-business-setting-icon svg { width: 21px; height: 21px; }
 .ai-business-setting-copy,
-.ai-business-setting-arrow {
-  display: none;
-}
+.ai-business-setting-arrow { display: none; }
 .ai-business-setting-tile:hover,
-.ai-business-setting-tile:focus-visible {
-  z-index: 1;
-  display: grid;
+.ai-business-setting-tile:focus-visible,
+.ai-business-setting-tile.is-expanded {
+  z-index: 2;
   grid-column: 1 / -1;
   grid-template-columns: 44px minmax(0, 1fr) auto;
-  grid-template-rows: 1fr;
   justify-items: stretch;
   gap: 12px;
   padding: 12px 14px;
@@ -8515,16 +8505,16 @@ body.in-chat #topbar {
   transform: translateY(-1px);
 }
 .ai-business-setting-tile:hover .ai-business-setting-icon,
-.ai-business-setting-tile:focus-visible .ai-business-setting-icon {
-  transform: scale(.96);
-}
+.ai-business-setting-tile:focus-visible .ai-business-setting-icon,
+.ai-business-setting-tile.is-expanded .ai-business-setting-icon { transform: scale(.96); }
 .ai-business-setting-tile:hover .ai-business-setting-copy,
-.ai-business-setting-tile:focus-visible .ai-business-setting-copy {
+.ai-business-setting-tile:focus-visible .ai-business-setting-copy,
+.ai-business-setting-tile.is-expanded .ai-business-setting-copy {
   display: grid;
   min-width: 0;
   align-content: center;
   gap: 3px;
-  animation: aiSettingsLabelIn .3s cubic-bezier(.22, 1, .36, 1) both;
+  animation: aiSettingsLabelIn .28s cubic-bezier(.22, 1, .36, 1) both;
 }
 .ai-business-setting-copy strong {
   overflow: hidden;
@@ -8543,7 +8533,8 @@ body.in-chat #topbar {
   white-space: nowrap;
 }
 .ai-business-setting-tile:hover .ai-business-setting-arrow,
-.ai-business-setting-tile:focus-visible .ai-business-setting-arrow {
+.ai-business-setting-tile:focus-visible .ai-business-setting-arrow,
+.ai-business-setting-tile.is-expanded .ai-business-setting-arrow {
   display: block;
   align-self: center;
   color: var(--muted);
@@ -8565,54 +8556,34 @@ body.in-chat #topbar {
   visibility: hidden;
   pointer-events: none;
 }
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(1)) .ai-business-setting-tile:nth-child(2),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(1)) .ai-business-setting-tile:nth-child(3),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(2)) .ai-business-setting-tile:nth-child(1),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(2)) .ai-business-setting-tile:nth-child(3),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(3)) .ai-business-setting-tile:nth-child(1),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(3)) .ai-business-setting-tile:nth-child(2),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(4)) .ai-business-setting-tile:nth-child(5),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(4)) .ai-business-setting-tile:nth-child(6),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(5)) .ai-business-setting-tile:nth-child(4),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(5)) .ai-business-setting-tile:nth-child(6),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(6)) .ai-business-setting-tile:nth-child(4),
+.ai-business-settings-grid:has(.ai-business-setting-tile.is-expanded:nth-child(6)) .ai-business-setting-tile:nth-child(5) {
+  visibility: hidden;
+  pointer-events: none;
+}
 @keyframes aiSettingsLabelIn {
   from { opacity: 0; transform: translateX(-6px); }
   to { opacity: 1; transform: translateX(0); }
 }
-.ai-business-setting-tile:active {
-  transform: scale(.985);
-}
-.ai-business-setting-tile:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
+.ai-business-setting-tile:active { transform: scale(.985); }
+.ai-business-setting-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (hover: none) {
-  .ai-business-setting-tile:focus {
-    grid-column: 1 / -1;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
-    justify-items: stretch;
-    gap: 12px;
-    text-align: left;
-  }
-  .ai-business-setting-tile:focus .ai-business-setting-copy {
-    display: grid;
-    min-width: 0;
-    align-content: center;
-    gap: 3px;
-  }
-  .ai-business-setting-tile:focus .ai-business-setting-arrow {
-    display: block;
-  }
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):focus) .ai-business-setting-tile:nth-child(2),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):focus) .ai-business-setting-tile:nth-child(3),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(2):focus) .ai-business-setting-tile:nth-child(1),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(2):focus) .ai-business-setting-tile:nth-child(3),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(3):focus) .ai-business-setting-tile:nth-child(1),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(3):focus) .ai-business-setting-tile:nth-child(2),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(4):focus) .ai-business-setting-tile:nth-child(5),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(4):focus) .ai-business-setting-tile:nth-child(6),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(5):focus) .ai-business-setting-tile:nth-child(4),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(5):focus) .ai-business-setting-tile:nth-child(6),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):focus) .ai-business-setting-tile:nth-child(4),
-  .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):focus) .ai-business-setting-tile:nth-child(5) {
-    visibility: hidden;
-    pointer-events: none;
-  }
+  .ai-business-setting-tile:hover { transform: none; }
 }
 @media (max-width: 360px) {
   .ai-business-settings-grid { gap: 7px; }
   .ai-business-setting-tile { min-height: 70px; padding: 10px 5px; }
-  .ai-business-setting-icon { width: 40px; height: 40px; flex-basis: 40px; }
+  .ai-business-setting-icon { width: 40px; height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ai-business-setting-tile,
