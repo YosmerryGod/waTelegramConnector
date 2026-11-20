@@ -104,6 +104,21 @@ test("routes first-contact availability questions to marketing, business facts a
   assert.match(result.instructions, /MARKETING STRATEGY/);
 });
 
+
+test("does not offer products marked unavailable or out of stock", () => {
+  const result = runtime.routeAndLoadSkills({
+    message: "ayam panggang masih ada kah",
+    mode: "customer-auto-reply",
+    businessContext: {
+      products: [
+        { name: "Ayam Panggang Jumbo", price: "20000", stock: "0", available: true },
+        { name: "Ayam Panggang Paket", price: "25000", stock: "4", available: false }
+      ]
+    }
+  });
+  assert.equal(result.productOfferCandidates.length, 0);
+});
+
 test("selects a different psychology and persuasion combination for price objections", () => {
   const result = runtime.routeAndLoadSkills({
     message: "harganya agak mahal buat saya",
