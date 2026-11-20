@@ -1,0 +1,1 @@
+# Customer Communication\n\nPahami rangkaian percakapan, jawab kebutuhan utama, dan ajukan maksimal satu pertanyaan yang diperlukan. Jaga bahasa tetap natural.
