@@ -1037,6 +1037,16 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
   };
 }
 
+// [ADDED] Accept integer rupiah values and common Indonesian display strings from legacy business profiles.
+function normalizeRupiahPrice(value) {
+  if (Number.isSafeInteger(value) && value >= 0) return value;
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/^rp\s*/i, "").replace(/\s+/g, "");
+  if (!normalized || !/^(?:\d+|\d{1,3}(?:\.\d{3})+)$/.test(normalized)) return null;
+  const amount = Number(normalized.replace(/\./g, ""));
+  return Number.isSafeInteger(amount) && amount >= 0 ? amount : null;
+}
+
 // [ADDED] Normalize private WhatsApp JIDs, including Baileys device-qualified JIDs, before storing order recipients.
 export function normalizeCustomerChatJid(value) {
   const jid = String(value || "").trim();
@@ -1532,12 +1542,14 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           );
           const quantity = Number(item?.quantity);
           if (!product || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 1000) throw new Error("SCHEDULED_ORDER_PRODUCT_OR_QUANTITY_INVALID");
-          if (!Number.isSafeInteger(product.price) || product.price < 0) throw new Error("SCHEDULED_ORDER_PRODUCT_PRICE_INVALID");
+          // [MODIFIED] Convert legacy "15.000" / "Rp 15.000" profile values to integer rupiah.
+          const unitPrice = normalizeRupiahPrice(product.price);
+          if (unitPrice === null) throw new Error("SCHEDULED_ORDER_PRODUCT_PRICE_INVALID");
           if (product.available === false || product.isAvailable === false) throw new Error("SCHEDULED_ORDER_PRODUCT_UNAVAILABLE");
           const stock = product.stock == null ? null : Number(product.stock);
           if (stock !== null && (!Number.isSafeInteger(stock) || stock < 0)) throw new Error("SCHEDULED_ORDER_STOCK_INVALID");
           if (stock !== null && stock < quantity) throw new Error("SCHEDULED_ORDER_STOCK_INSUFFICIENT");
-          return { name: String(product.name).trim(), quantity, unitPrice: product.price, subtotal: product.price * quantity };
+          return { name: String(product.name).trim(), quantity, unitPrice, subtotal: unitPrice * quantity };
         });
         if (!items.length || items.some((item) => !Number.isSafeInteger(item.subtotal))) throw new Error("SCHEDULED_ORDER_ITEMS_INVALID");
         const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
