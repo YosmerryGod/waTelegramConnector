@@ -294,10 +294,13 @@ async function escalateToManager({ telegramId, sessionId, customerChatId, custom
   const managerDigits = normalizeManagerPhone(manager.phone);
   if (!managerDigits) throw new Error("AI_MANAGER_PHONE_NOT_CONFIGURED");
   const managerJid = managerDigits + "@s.whatsapp.net";
+  // [MODIFIED] Only display a verified phone number; never mistake a WhatsApp LID for a phone number.
+  const phoneDigits = String(customerPhone || "").replace(/\D/g, "");
+  const verifiedCustomerPhone = /^\d{8,15}$/.test(phoneDigits) ? phoneDigits : "";
   const managerText = [
     "🔔 *WAGRAM — Butuh Informasi Pengelola*",
     "",
-    "Pelanggan: " + (customerPhone ? "+" + customerPhone : customerChatId),
+    "Pelanggan: " + (verifiedCustomerPhone ? "+" + verifiedCustomerPhone : "WhatsApp (nomor tidak tersedia)"),
     "Pertanyaan pelanggan:",
     String(question || "").slice(0, 1000),
     "",
@@ -312,7 +315,7 @@ async function escalateToManager({ telegramId, sessionId, customerChatId, custom
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
   `).run(
     String(telegramId), String(sessionId || telegramId), String(customerChatId),
-    customerPhone ? String(customerPhone) : null, String(customerMessageId),
+    verifiedCustomerPhone || null, String(customerMessageId),
     managerJid, String(sent?.key?.id || ""), String(question || "").slice(0, 1000), now
   );
   return { managerJid, managerMessageId: sent?.key?.id || null };
@@ -606,7 +609,8 @@ export async function handleIncomingAIAutoReply({
   chatId,
   messageId,
   socket,
-  quotedMessage
+  quotedMessage,
+  customerPhone = null
 }) {
   const ownerId = String(telegramId || "");
   const accountId = String(sessionId || ownerId);
@@ -742,7 +746,8 @@ export async function handleIncomingAIAutoReply({
           telegramId: ownerId,
           sessionId: accountId,
           customerChatId: whatsappChatId,
-          customerPhone: String(whatsappChatId).replace(/\D/g, ""),
+          // [MODIFIED] Use the phone number resolved from Baileys contact/JID metadata.
+          customerPhone,
           customerMessageId: incomingId,
           question: managerQuestion,
           socket
