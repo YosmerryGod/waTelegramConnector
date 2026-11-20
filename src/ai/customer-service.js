@@ -733,7 +733,12 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
           description: String(product?.description || "").trim(),
           price: String(product?.price ?? "").trim(),
           stock: String(product?.stock ?? "").trim(),
-          available: product?.available ?? product?.isAvailable ?? null
+          available: product?.available ?? product?.isAvailable ?? null,
+          variants: Array.isArray(product?.variants) ? product.variants : [],
+          promotion: product?.promotion || product?.promo || null,
+          promo: product?.promo || null,
+          featured: product?.featured === true || product?.isFeatured === true,
+          recommended: product?.recommended === true
         })).filter((product) => product.name)
       : [],
     paymentMerchant: String(businessSettings?.payment?.merchant || "").trim(),
@@ -757,7 +762,8 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
   const customerSkillRuntime = routeAndLoadSkills({
     message: latest.body,
     history: messages.slice(-6).map((item) => ({ role: item.direction === "incoming" ? "customer" : "business", content: item.body })),
-    mode: options.autoReply ? "customer-auto-reply" : "customer-draft"
+    mode: options.autoReply ? "customer-auto-reply" : "customer-draft",
+    businessContext
   });
 
   const trainingExamplesText = relevantTrainingExamples.length
@@ -773,6 +779,9 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     // [ADDED] Keep skill selection bounded and inject only the selected customer-relevant guidance.
     "SKILL TERSEDIA: " + JSON.stringify(customerSkillRuntime.availableSkills.map(({ id, name, description }) => ({ id, name, description }))),
     "SKILL AKTIF: " + JSON.stringify(customerSkillRuntime.activeSkillIds),
+    "TAHAP PELANGGAN: " + String(customerSkillRuntime.customerState || "general"),
+    "ARAHAN MARKETING TERPILIH: " + String(customerSkillRuntime.marketingDirective || ""),
+    "KANDIDAT PRODUK UNTUK PENAWARAN: " + JSON.stringify(customerSkillRuntime.productOfferCandidates || []),
     "CONTEXT PACKET: " + JSON.stringify(customerSkillRuntime.contextPacket),
     "PANDUAN SKILL PROGRESIF:\\n" + customerSkillRuntime.instructions,
     options.autoReply
