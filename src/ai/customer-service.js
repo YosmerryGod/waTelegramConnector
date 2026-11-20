@@ -1,8 +1,9 @@
 import "dotenv/config";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import db from "../database.js";
-import { WAGRAM_TOOL_DECLARATIONS, executeWagramTool } from "./tools.js";
+
 import {
   getMembership,
   canonicalWhatsAppSessionId,
@@ -1003,7 +1004,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         if (!items.length || items.some((item) => !Number.isSafeInteger(item.subtotal))) throw new Error("SCHEDULED_ORDER_ITEMS_INVALID");
         const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
         if (!Number.isSafeInteger(totalAmount)) throw new Error("SCHEDULED_ORDER_TOTAL_INVALID");
-        const fingerprint = require("node:crypto").createHash("sha256").update(JSON.stringify({
+        const fingerprint = createHash("sha256").update(JSON.stringify({
           customerName, outletName, pickupAt, items, paymentStatus
         })).digest("hex");
         const now = Date.now();
