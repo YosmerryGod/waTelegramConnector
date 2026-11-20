@@ -3199,6 +3199,21 @@
     }
     const sectionButton = event.target.closest("[data-ai-settings-section]");
     if (sectionButton) {
+      // [ADDED] On touch screens, the first tap expands the tile; the second opens its settings.
+      const touchNavigation = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+      const alreadyExpanded = sectionButton.classList.contains("is-expanded");
+      if (touchNavigation && !alreadyExpanded) {
+        const grid = sectionButton.closest(".ai-business-settings-grid");
+        grid?.querySelectorAll(".ai-business-setting-tile").forEach((tile) => {
+          tile.classList.toggle("is-expanded", tile === sectionButton);
+          tile.setAttribute("aria-expanded", tile === sectionButton ? "true" : "false");
+        });
+        return;
+      }
+      sectionButton.closest(".ai-business-settings-grid")?.querySelectorAll(".ai-business-setting-tile").forEach((tile) => {
+        tile.classList.remove("is-expanded");
+        tile.setAttribute("aria-expanded", "false");
+      });
       renderAIBusinessSettingsSection(sectionButton.dataset.aiSettingsSection);
       return;
     }
@@ -3206,6 +3221,10 @@
       $("#aiBusinessSettingsDetail").classList.add("hidden");
       $("#aiBusinessSettingsMenu").classList.remove("hidden");
       $("#aiBusinessSettingsTitle").textContent = "Kelola bisnis";
+      $("#aiBusinessSettingsMenu").querySelectorAll(".ai-business-setting-tile").forEach((tile) => {
+        tile.classList.remove("is-expanded");
+        tile.setAttribute("aria-expanded", "false");
+      });
       return;
     }
     if (event.target.closest("[data-add-outlet]")) {
