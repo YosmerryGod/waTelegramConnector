@@ -13,6 +13,7 @@ on:
       - ".github/scripts/wagram-ai-auto-reply-idempotency-test.mjs"
       - ".github/scripts/wagram-scheduled-order-confirmation-test.mjs"
       - ".github/scripts/wagram-scheduled-order-outbox-test.mjs"
+      - ".github/scripts/wagram-outlet-operating-hours-test.mjs"
       - ".github/workflows/wagram-ai-auto-reply-checks.yml"
   pull_request:
     paths:
@@ -49,6 +50,7 @@ jobs:
           node --check .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
           node --check .github/scripts/wagram-scheduled-order-confirmation-test.mjs
           node --check .github/scripts/wagram-scheduled-order-outbox-test.mjs
+          node --check .github/scripts/wagram-outlet-operating-hours-test.mjs
 
       - name: Test durable auto-reply idempotency
         run: node .github/scripts/wagram-ai-auto-reply-idempotency-test.mjs
@@ -58,3 +60,6 @@ jobs:
 
       - name: Test scheduled order notification outbox
         run: node .github/scripts/wagram-scheduled-order-outbox-test.mjs
+
+      - name: Test outlet operating hours
+        run: node .github/scripts/wagram-outlet-operating-hours-test.mjs
