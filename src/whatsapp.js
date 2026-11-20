@@ -968,10 +968,17 @@ async function createSocket(id, ownerId, entry) {
             entry.lidCache
           );
 
+          // [ADDED] Pass the authoritative private-chat JID directly from Baileys.
+          // Do not reconstruct the customer identity from a display phone number.
+          const customerChatJid = typeof message?.key?.remoteJid === "string"
+            ? message.key.remoteJid
+            : null;
+
           await entry.callbacks.onMessage?.({
             telegramId: id,
             message,
-            socket
+            socket,
+            customerChatJid
           });
         } catch (error) {
           logger.error(
