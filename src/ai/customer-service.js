@@ -792,7 +792,7 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
     : Array.isArray(outlet?.days) ? outlet.days : [0, 1, 2, 3, 4, 5, 6];
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const parseTime = (value) => {
-    const match = String(value).match(/^(\\d{1,2}):(\\d{2})$/);
+    const match = String(value).match(/^(\d{1,2}):(\d{2})$/);
     if (!match) return null;
     const hour = Number(match[1]), minute = Number(match[2]);
     return hour <= 23 && minute <= 59 ? { hour, minute, minutes: hour * 60 + minute } : null;
