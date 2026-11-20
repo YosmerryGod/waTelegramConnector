@@ -830,10 +830,10 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
   const scheduledToday = openDayValues.has(todayIndex);
   const scheduledYesterday = openDayValues.has(yesterdayIndex);
 
-  const openFromToday = scheduledToday && currentMinutes >= open.minutes;
+  const openFromToday = scheduledToday && currentMinutes >= open.minutes &&
+    (overnight || currentMinutes < close.minutes);
   const openFromYesterday = overnight && scheduledYesterday && currentMinutes < close.minutes;
-  const isOpen = openFromToday || openFromYesterday ||
-    (!overnight && scheduledToday && currentMinutes >= open.minutes && currentMinutes < close.minutes);
+  const isOpen = openFromToday || openFromYesterday;
 
   let nextOpeningAt = null;
   if (!isOpen) {
