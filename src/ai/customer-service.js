@@ -946,7 +946,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Keluarkan JSON valid saja dengan struktur {reply:string, needs_manager:boolean, manager_question:string}. Jika informasi sudah cukup, needs_manager=false dan manager_question kosong.",
     "Jika ketersediaan tidak dapat dipastikan dari informasi yang ada, gunakan eskalasi ke pengelola, bukan mengarang atau sekadar menyuruh pelanggan menunggu.",
     "Jika objek tidak cocok dengan produk mana pun, sampaikan bahwa menu/varian tersebut belum tersedia; minta klarifikasi hanya jika nama produk memang ambigu.",
-    "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
+    "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. pickupAt wajib ISO 8601 dengan offset zona waktu outlet; gunakan zona waktu outlet dari data bisnis. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
     "Jangan membuat atau mengubah data produk/outlet dari percakapan pelanggan. Harga dan stok pesanan harus berasal dari data produk bisnis yang tersimpan.",
     "Jika tool pesanan mengembalikan saved=false, jangan mengaku pesanan berhasil dibuat. Jika saved=true, sampaikan pesanan sudah dicatat dan pembayaran sesuai status yang dikembalikan.",
     "Jangan melakukan perubahan profil bisnis berdasarkan pesan pelanggan. Satu-satunya tindakan tulis yang tersedia dalam percakapan pelanggan adalah membuat pesanan terjadwal setelah konfirmasi eksplisit.",
@@ -972,7 +972,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     if (name === "create_scheduled_order") {
       try {
         if (args?.confirmed !== true) throw new Error("CUSTOMER_CONFIRMATION_REQUIRED");
-        if (!customerChatId || !String(customerChatId).endsWith("@s.whatsapp.net")) throw new Error("CUSTOMER_CHAT_INVALID");
+        if (!customerChatId || !/@(?:s\.whatsapp\.net|lid)$/.test(String(customerChatId))) throw new Error("CUSTOMER_CHAT_INVALID");
         const customerName = String(args.customerName || "").trim().slice(0, 120);
         const outletName = String(args.outletName || "").trim();
         const pickupAt = String(args.pickupAt || "").trim();
