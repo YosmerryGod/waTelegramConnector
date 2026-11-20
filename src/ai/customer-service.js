@@ -1507,7 +1507,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Gunakan interpretasi AI dan fakta bisnis sebagai konteks. Jangan mengarang harga, ketersediaan, kontak, jam buka, atau fakta bisnis.",
     "Jika informasi penting yang diminta pelanggan tidak tersedia atau tidak dapat dipastikan dari informasi bisnis, jangan menebak. Tandai needs_manager=true dan tulis manager_question yang jelas agar pengelola dapat menjawab. Jangan gunakan eskalasi untuk sapaan atau pertanyaan yang sebenarnya sudah terjawab.",
     "Jika needs_manager=true, reply harus berupa pemberitahuan singkat bahwa kamu sedang menanyakan hal tersebut ke pengelola. Jangan menyebut data, database, atau sumber internal.",
-    "Keluarkan JSON valid saja dengan struktur {reply:string, needs_manager:boolean, manager_question:string, decision:{customerNeed:string, action:string, marketingProduct:string|null, saveToDatabase:boolean, saveReason:string, responseSummary:string}}. decision berisi ringkasan keputusan singkat, bukan private reasoning atau chain-of-thought. Jangan mengarang produk yang diperiksa atau data yang digunakan. Jika informasi sudah cukup, needs_manager=false dan manager_question kosong.",
+    "Keluarkan JSON valid saja: {reply, needs_manager, manager_question, decision:{action, marketingProduct}}. decision hanya metadata singkat, bukan penalaran internal.",
     "Jika ketersediaan tidak dapat dipastikan dari informasi yang ada, gunakan eskalasi ke pengelola, bukan mengarang atau sekadar menyuruh pelanggan menunggu.",
     "Jika objek tidak cocok dengan produk mana pun, sampaikan bahwa menu/varian tersebut belum tersedia; minta klarifikasi hanya jika nama produk memang ambigu.",
     "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. pickupAt wajib ISO 8601 dengan offset zona waktu outlet; gunakan zona waktu outlet dari data bisnis. Waktu pengambilan harus minimal 5 menit di masa depan berdasarkan waktu saat ini; jangan pernah merangkum atau meminta persetujuan untuk waktu yang sudah lewat. Jika waktu yang diminta sudah lewat, minta pelanggan memilih waktu baru terlebih dahulu. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
@@ -1797,7 +1797,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       if (!rawAnswer) {
         // [ADDED] Never turn a successful database write into a failed chat just because final wording generation is empty.
         const fallbackReply = buildScheduledOrderFallbackReply(createdScheduledOrder);
-        const safeReply = fallbackReply || "Maaf Kak, saya sedang mengalami kendala saat memproses pesan. Pesanan belum dapat saya pastikan tercatat. Boleh coba kirim sekali lagi?";
+        const safeReply = scheduledOrderFailure ? "Maaf Kak, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual." : fallbackReply || "Maaf Kak, saya sedang mengalami kendala saat memproses pesan. Pesanan belum dapat saya pastikan tercatat. Boleh coba kirim sekali lagi?";
         return {
           reply: safeReply,
           scheduledOrder: createdScheduledOrder,
@@ -1857,6 +1857,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       const conciseAnswer = !isOrderSummary && answer.length > 320
         ? answer.slice(0, 317).replace(/\s+\S*$/, "").replace(/[,:;\s]+$/, "") + "…"
         : answer;
+      const finalCustomerReply = scheduledOrderFailure ? "Maaf Kak, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual." : conciseAnswer;
       const decision = buildAIBusinessDecisionContext({
         message, history, businessData, recognition, toolAudit,
         decisionSummary: structuredAnswer?.decision || null, createdScheduledOrder
@@ -1879,7 +1880,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         decision.database.auditLogSaved = false;
         console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
       }
-      return { reply: conciseAnswer, scheduledOrder: createdScheduledOrder, orderFailure: scheduledOrderFailure, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
+      return { reply: finalCustomerReply, scheduledOrder: createdScheduledOrder, orderFailure: scheduledOrderFailure, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
         ...decision,
         recognition: decision.recognition.summary,
         intent: recognition.intent, entity: recognition.entity,
