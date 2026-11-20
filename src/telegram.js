@@ -88,6 +88,9 @@ const mediaLogger = pino({ level: "silent" });
 
 // Track QR messages to avoid flooding a chat.
 const lastQrSentAt = new Map();
+
+// [ADDED] Keep retrying due scheduled-order notifications while a WhatsApp session stays connected.
+const scheduledOrderOutboxTimers = new Map();
 const QR_COOLDOWN_MS = 3000;
 
 // [ADDED] Quiet reconnect handling: short drops reconnect silently and
@@ -1251,16 +1254,28 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           );
         }
 
-        // [ADDED] Resume due scheduled-order notifications whenever this WhatsApp session reconnects.
+        // [MODIFIED] Resume the outbox on reconnect and keep retrying due notifications while connected.
         if (status === "connected" && info?.socket) {
-          void processPendingScheduledOrderNotifications({
-            telegramId: id,
-            sessionId,
-            socket: info.socket,
-            limit: 10
-          }).catch((error) => {
-            console.error("[WAGRAM Scheduled Order Outbox] Reconnect recovery failed:", error.message);
-          });
+          const existingTimer = scheduledOrderOutboxTimers.get(stateKey);
+          if (existingTimer) clearInterval(existingTimer);
+          const drainOutbox = () => {
+            void processPendingScheduledOrderNotifications({
+              telegramId: id,
+              sessionId,
+              socket: info.socket,
+              limit: 10
+            }).catch((error) => {
+              console.error("[WAGRAM Scheduled Order Outbox] Scheduled delivery failed:", error.message);
+            });
+          };
+          drainOutbox();
+          const timer = setInterval(drainOutbox, 30 * 1000);
+          timer.unref?.();
+          scheduledOrderOutboxTimers.set(stateKey, timer);
+        } else if (["disconnected", "logged_out", "replaced"].includes(status)) {
+          const existingTimer = scheduledOrderOutboxTimers.get(stateKey);
+          if (existingTimer) clearInterval(existingTimer);
+          scheduledOrderOutboxTimers.delete(stateKey);
         }
 
         // [ADDED] Recover the previous data identity for the same verified WhatsApp number.
