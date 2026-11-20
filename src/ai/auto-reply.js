@@ -302,6 +302,117 @@ async function escalateToManager({ telegramId, sessionId, customerChatId, custom
   return { managerJid, managerMessageId: sent?.key?.id || null };
 }
 
+// [ADDED] Manager-only commands for scheduled order lifecycle and payment verification.
+function formatScheduledOrderManagerRow(order) {
+  const statusLabels = {
+    scheduled: "Terjadwal",
+    preparing: "Sedang disiapkan",
+    ready: "Siap diambil",
+    completed: "Selesai",
+    cancelled: "Dibatalkan"
+  };
+  const paymentLabel = order.payment_verified_at
+    ? "Terverifikasi pengelola"
+    : order.payment_status === "unpaid" ? "Belum dibayar" : "Menunggu verifikasi";
+  return [
+    "#" + order.id + " — " + (order.customer_name || "Pelanggan"),
+    order.outlet_name + " | " + order.pickup_at,
+    "Status: " + (statusLabels[order.order_status] || order.order_status),
+    "Pembayaran: " + paymentLabel,
+    "Total: Rp" + Number(order.total_amount).toLocaleString("id-ID")
+  ].join("\n");
+}
+
+async function handleScheduledOrderManagerCommand({ ownerId, accountId, managerJid, text, socket }) {
+  const command = String(text || "").trim();
+  if (!/^#(?:pesanan|order|status|proses|siap|selesai|batal|verifikasi)(?:\\s|$)/i.test(command)) {
+    return { handled: false };
+  }
+  const match = command.match(/^#(pesanan|order|status|proses|siap|selesai|batal|verifikasi)(?:\\s+(\\d+))?$/i);
+  if (!match) {
+    await socket.sendMessage(managerJid, { text: "Format perintah tidak valid. Gunakan #pesanan atau #proses 123, #siap 123, #selesai 123, #batal 123, #verifikasi 123." });
+    return { handled: true, success: false };
+  }
+  const action = match[1].toLowerCase();
+  const orderId = match[2] ? Number(match[2]) : null;
+  const now = Date.now();
+
+  if (["pesanan", "order"].includes(action)) {
+    const orders = db.prepare(`
+      SELECT id, customer_name, outlet_name, pickup_at, order_status,
+        payment_status, payment_verified_at, total_amount
+      FROM ai_scheduled_orders
+      WHERE telegram_id = ? AND session_id = ?
+        AND order_status NOT IN ('completed', 'cancelled')
+      ORDER BY pickup_at ASC LIMIT 10
+    `).all(ownerId, accountId);
+    const message = orders.length
+      ? "PESANAN TERJADWAL AKTIF\\n\\n" + orders.map(formatScheduledOrderManagerRow).join("\\n\\n")
+      : "Tidak ada pesanan terjadwal aktif.";
+    await socket.sendMessage(managerJid, { text: message.slice(0, 3500) });
+    return { handled: true, success: true, count: orders.length };
+  }
+
+  if (!orderId || !Number.isSafeInteger(orderId)) {
+    await socket.sendMessage(managerJid, { text: "Sertakan ID pesanan. Contoh: #" + action + " 123." });
+    return { handled: true, success: false };
+  }
+  const order = db.prepare(`
+    SELECT id, customer_name, outlet_name, pickup_at, order_status,
+      payment_status, payment_verified_at, total_amount
+    FROM ai_scheduled_orders
+    WHERE id = ? AND telegram_id = ? AND session_id = ?
+  `).get(orderId, ownerId, accountId);
+  if (!order) {
+    await socket.sendMessage(managerJid, { text: "Pesanan #" + orderId + " tidak ditemukan." });
+    return { handled: true, success: false };
+  }
+
+  const transitions = {
+    status: null,
+    proses: { from: ["scheduled"], to: "preparing", label: "Sedang disiapkan" },
+    siap: { from: ["scheduled", "preparing"], to: "ready", label: "Siap diambil" },
+    selesai: { from: ["scheduled", "preparing", "ready"], to: "completed", label: "Selesai" },
+    batal: { from: ["scheduled", "preparing", "ready"], to: "cancelled", label: "Dibatalkan" }
+  };
+  if (action === "status") {
+    await socket.sendMessage(managerJid, { text: formatScheduledOrderManagerRow(order) });
+    return { handled: true, success: true };
+  }
+  if (action === "verifikasi") {
+    if (order.payment_status !== "pending_verification" || order.payment_verified_at) {
+      await socket.sendMessage(managerJid, { text: "Pembayaran pesanan #" + orderId + " tidak sedang menunggu verifikasi atau sudah diverifikasi." });
+      return { handled: true, success: false };
+    }
+    db.prepare(`
+      UPDATE ai_scheduled_orders
+      SET payment_verified_at = ?, payment_verified_by = ?, updated_at = ?
+      WHERE id = ? AND telegram_id = ? AND session_id = ?
+        AND payment_status = 'pending_verification' AND payment_verified_at IS NULL
+    `).run(now, managerJid, now, orderId, ownerId, accountId);
+    await socket.sendMessage(managerJid, { text: "Verifikasi pembayaran pesanan #" + orderId + " dicatat. Pastikan mutasi dana benar-benar sudah masuk." });
+    return { handled: true, success: true };
+  }
+
+  const transition = transitions[action];
+  if (!transition || !transition.from.includes(order.order_status)) {
+    await socket.sendMessage(managerJid, { text: "Status pesanan #" + orderId + " saat ini " + order.order_status + " dan tidak dapat diubah dengan perintah tersebut." });
+    return { handled: true, success: false };
+  }
+  const timestampColumn = action === "selesai" ? ", completed_at = ?" : action === "batal" ? ", cancelled_at = ?" : "";
+  const values = [transition.to, now];
+  if (timestampColumn) values.push(now);
+  values.push(orderId, ownerId, accountId, ...transition.from);
+  db.prepare(`
+    UPDATE ai_scheduled_orders
+    SET order_status = ?, updated_at = ? ${timestampColumn}
+    WHERE id = ? AND telegram_id = ? AND session_id = ?
+      AND order_status IN (${transition.from.map(() => "?").join(", ")})
+  `).run(...values);
+  await socket.sendMessage(managerJid, { text: "Pesanan #" + orderId + " diperbarui: " + transition.label + "." });
+  return { handled: true, success: true, status: transition.to };
+}
+
 // Called for incoming private text messages; only a reply to a pending escalation from
 // the configured manager is forwarded to the original customer.
 export async function handleIncomingManagerReply({ telegramId, sessionId, chatId, message, socket }) {
@@ -320,6 +431,11 @@ export async function handleIncomingManagerReply({ telegramId, sessionId, chatId
   ].map((value) => normalizeManagerPhone(value));
   if (!managerDigits || !senderCandidates.includes(managerDigits)) return { handled: false };
   const content = message?.message || {};
+  const incomingText = String(content.conversation || content.extendedTextMessage?.text || "").trim();
+  const managerCommand = await handleScheduledOrderManagerCommand({
+    ownerId, accountId, managerJid, text: incomingText, socket
+  });
+  if (managerCommand.handled) return managerCommand;
   const context = content.extendedTextMessage?.contextInfo ||
     content.imageMessage?.contextInfo || content.videoMessage?.contextInfo ||
     content.documentMessage?.contextInfo || {};
