@@ -25,6 +25,8 @@
 - Penyimpanan media lokal dengan direktori per pemilik dan sesi.
 - Paket membership dan pengelolaan status sesi.
 - AI Business dan AI Customer Service melalui OpenRouter (DeepSeek untuk chat dan Gemini untuk vision, sesuai konfigurasi).
+- Progressive Skill Runtime untuk memilih skill marketing, psikologi, komunikasi, dan service recovery sesuai tahap keputusan pelanggan.
+- Penawaran produk kontekstual dengan penjelasan alami berdasarkan fakta varian, harga, stok, dan promo dari profil bisnis.
 
 ## Tech stack
 | Area | Teknologi |
