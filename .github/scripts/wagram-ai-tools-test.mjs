@@ -59,6 +59,53 @@ try {
     /TOOL_AUTH_REQUIRED/
   );
 
+  // [ADDED] Verify special outlet hours can be created, read, updated, and rejected when invalid.
+  const outletCreated = executeWagramTool("manage_business_data", {
+    resource: "outlets",
+    operation: "create",
+    data: {
+      name: "Outlet Khusus",
+      openTime: "08:00",
+      closeTime: "21:00",
+      timezone: "Asia/Jakarta",
+      openDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+      specialHours: [{ date: "2026-12-25", closed: true }]
+    }
+  }, ownerContext);
+  assert.equal(outletCreated.saved, true);
+  let outletProfile = executeWagramTool("get_business_profile", { sections: ["outlets"] }, ownerContext);
+  assert.deepEqual(outletProfile.outlets[0].specialHours, [{ date: "2026-12-25", closed: true }]);
+
+  const outletUpdated = executeWagramTool("manage_business_data", {
+    resource: "outlets",
+    operation: "update",
+    identifier: "Outlet Khusus",
+    data: {
+      specialHours: [{ date: "2026-12-25", openTime: "10:00", closeTime: "14:00" }]
+    }
+  }, ownerContext);
+  assert.equal(outletUpdated.saved, true);
+  outletProfile = executeWagramTool("get_business_profile", { sections: ["outlets"] }, ownerContext);
+  assert.deepEqual(outletProfile.outlets[0].specialHours, [{ date: "2026-12-25", openTime: "10:00", closeTime: "14:00" }]);
+
+  assert.throws(
+    () => executeWagramTool("manage_business_data", {
+      resource: "outlets",
+      operation: "update",
+      identifier: "Outlet Khusus",
+      data: { specialHours: [{ date: "2026-12-25", closed: true }, { date: "2026-12-25", closed: true }] }
+    }, ownerContext),
+    /TOOL_OUTLET_SPECIAL_DATE_INVALID/
+  );
+  assert.throws(
+    () => executeWagramTool("manage_business_data", {
+      resource: "outlets",
+      operation: "create",
+      data: { name: "Outlet Jam Salah", specialHours: [{ date: "2026-12-25", openTime: "25:00", closeTime: "26:00" }] }
+    }, ownerContext),
+    /TOOL_OUTLET_SPECIAL_HOURS_INVALID/
+  );
+
   const auditCount = database.default.prepare(
     "SELECT COUNT(*) AS count FROM ai_tool_audit_log WHERE telegram_id = ?"
   ).get(ownerContext.telegramId).count;
