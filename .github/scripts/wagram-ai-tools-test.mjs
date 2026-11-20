@@ -15,6 +15,14 @@ const ownerContext = { telegramId: "111111", sessionId: "111111" };
 const otherTenantContext = { telegramId: "222222", sessionId: "222222" };
 
 try {
+  const now = Date.now();
+  const insertUser = database.default.prepare(`
+    INSERT INTO telegram_users (telegram_id, username, first_name, created_at, updated_at, is_active)
+    VALUES (?, ?, ?, ?, ?, 1)
+  `);
+  insertUser.run(ownerContext.telegramId, "tools-owner-one", "Tools Owner One", now, now);
+  insertUser.run(otherTenantContext.telegramId, "tools-owner-two", "Tools Owner Two", now, now);
+
   database.saveAIBusinessProfile(ownerContext.telegramId, ownerContext.sessionId, {
     settings: {
       businessName: "Toko Satu",
