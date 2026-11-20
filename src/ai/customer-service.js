@@ -21,6 +21,24 @@ const OPENROUTER_MODEL = String(process.env.OPENROUTER_MODEL || "deepseek/deepse
 const OPENROUTER_TIMEOUT_MS = Math.max(10000, Number(process.env.OPENROUTER_TIMEOUT_MS || 60000));
 const MAX_HISTORY_MESSAGES = 24;
 const MAX_EXAMPLES = 8;
+// [ADDED] Correlate each OpenRouter request in logs without recording prompts or credentials.
+let openRouterRequestSequence = 0;
+function createOpenRouterRequestId() {
+  openRouterRequestSequence = (openRouterRequestSequence + 1) % 1000000;
+  return "wr-" + Date.now().toString(36) + "-" + openRouterRequestSequence.toString(36);
+}
+function summarizeOpenRouterErrorPayload(payload) {
+  const error = payload?.error && typeof payload.error === "object" ? payload.error : {};
+  const metadata = error.metadata && typeof error.metadata === "object" ? error.metadata : {};
+  return {
+    code: error.code ?? payload?.code ?? null,
+    type: error.type ?? null,
+    message: String(error.message || payload?.message || "Request failed").slice(0, 500),
+    provider: error.provider ?? payload?.provider ?? metadata.provider_name ?? null,
+    model: error.model ?? payload?.model ?? null,
+    requestId: payload?.id ?? null
+  };
+}
 
 
 // [ADDED] Store compact, privacy-minimized decision summaries; never persist private chain-of-thought or full customer messages.
@@ -346,7 +364,13 @@ async function openRouterGenerate(contents, options = {}) {
     : undefined;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS);
+  const requestId = createOpenRouterRequestId();
+  const startedAt = Date.now();
   timer.unref?.();
+  console.info("[WAGRAM OpenRouter] Request started:", JSON.stringify({
+    requestId, model: OPENROUTER_MODEL, messageCount: messages.length,
+    toolCount: tools?.length || 0, timeoutMs: OPENROUTER_TIMEOUT_MS
+  }));
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -367,9 +391,19 @@ async function openRouterGenerate(contents, options = {}) {
       signal: controller.signal
     });
     const payload = await response.json().catch(() => ({}));
+    const providerRequestId = response.headers.get("x-request-id") || response.headers.get("request-id") || null;
     if (!response.ok) {
+      const errorSummary = summarizeOpenRouterErrorPayload(payload);
+      console.error("[WAGRAM OpenRouter] Request rejected:", JSON.stringify({
+        requestId, providerRequestId, httpStatus: response.status,
+        durationMs: Date.now() - startedAt, ...errorSummary
+      }));
       const detail = String(payload?.error?.message || payload?.message || "Request failed").slice(0, 500);
-      throw new Error(`OPENROUTER_HTTP_${response.status}: ${detail}`);
+      const error = new Error(`OPENROUTER_HTTP_${response.status}: ${detail}`);
+      error.requestId = requestId;
+      error.httpStatus = response.status;
+      error.providerRequestId = providerRequestId;
+      throw error;
     }
     const message = payload?.choices?.[0]?.message || {};
     const parts = [];
@@ -383,6 +417,14 @@ async function openRouterGenerate(contents, options = {}) {
       catch { throw new Error("OPENROUTER_TOOL_ARGUMENTS_INVALID"); }
       parts.push({ functionCall: { id: call.id, name: call?.function?.name, args } });
     }
+    console.info("[WAGRAM OpenRouter] Request completed:", JSON.stringify({
+      requestId, providerRequestId, httpStatus: response.status,
+      durationMs: Date.now() - startedAt,
+      provider: String(payload?.provider || ""), model: String(payload?.model || OPENROUTER_MODEL),
+      finishReason: String(payload?.choices?.[0]?.finish_reason || ""),
+      hasText: Boolean(responseText), toolCallCount: parts.filter((part) => part.functionCall).length,
+      usage: payload?.usage || null
+    }));
     return {
       text: parts.filter((part) => part.text).map((part) => part.text).join("").trim(),
       parts,
@@ -392,6 +434,15 @@ async function openRouterGenerate(contents, options = {}) {
       provider: String(payload?.provider || ""),
       model: String(payload?.model || OPENROUTER_MODEL)
     };
+  } catch (error) {
+    if (!error?.httpStatus) {
+      console.error("[WAGRAM OpenRouter] Request transport failure:", JSON.stringify({
+        requestId, durationMs: Date.now() - startedAt,
+        errorName: String(error?.name || "Error"),
+        error: String(error?.message || "OPENROUTER_REQUEST_FAILED").slice(0, 500)
+      }));
+    }
+    throw error;
   } finally {
     clearTimeout(timer);
   }
@@ -1446,6 +1497,12 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   let createdScheduledOrder = null;
   const executeTool = (name, args) => {
     if (name === "create_scheduled_order") {
+      const orderAttemptId = createOpenRouterRequestId();
+      console.info("[WAGRAM Scheduled Order] Tool execution started:", JSON.stringify({
+        orderAttemptId, telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+        customerChatId: String(customerChatId || ""), paymentStatus: String(args?.paymentStatus || ""),
+        itemCount: Array.isArray(args?.items) ? args.items.length : 0
+      }));
       try {
         if (args?.confirmed !== true) throw new Error("CUSTOMER_CONFIRMATION_REQUIRED");
         const normalizedCustomerChatId = normalizeCustomerChatJid(customerChatId);
@@ -1534,9 +1591,18 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           notificationStatus: order.notification_status,
           newlyCreated: insert.changes === 1
         };
+        console.info("[WAGRAM Scheduled Order] Database save succeeded:", JSON.stringify({
+          orderAttemptId, orderId: order.id, newlyCreated: insert.changes === 1,
+          paymentStatus: order.payment_status, totalAmount: order.total_amount,
+          notificationStatus: order.notification_status
+        }));
         toolAudit.push({ tool: name, resultSummary: { saved: true, orderId: order.id, newlyCreated: insert.changes === 1 } });
         return { saved: true, orderId: order.id, newlyCreated: insert.changes === 1, paymentStatus };
       } catch (error) {
+        console.error("[WAGRAM Scheduled Order] Tool execution rejected:", JSON.stringify({
+          orderAttemptId, errorName: String(error?.name || "Error"),
+          error: String(error?.message || "SCHEDULED_ORDER_FAILED").slice(0, 500)
+        }));
         toolAudit.push({ tool: name, resultSummary: "rejected: " + String(error?.message || "order_error") });
         return { saved: false, error: String(error?.message || "SCHEDULED_ORDER_FAILED") };
       }
