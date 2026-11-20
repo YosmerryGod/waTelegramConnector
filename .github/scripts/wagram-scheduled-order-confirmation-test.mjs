@@ -25,7 +25,7 @@ const approvedSummary = {
 
 try {
   assert.equal(normalizeOpenRouterMessageContent("  respons teks  "), "respons teks");
-  assert.equal(normalizeOpenRouterMessageContent([{ text: "bagian satu" }, { type: "text", text: "bagian dua" }]), "bagian satu\\nbagian dua");
+  assert.equal(normalizeOpenRouterMessageContent([{ text: "bagian satu" }, { type: "text", text: "bagian dua" }]), "bagian satu\nbagian dua");
   assert.equal(normalizeOpenRouterMessageContent(null), "");
   assert.equal(buildScheduledOrderFallbackReply({ id: 42, paymentStatus: "unpaid" }), "Pesanan #42 sudah berhasil dicatat, Kak. Pembayaran di tempat.");
   assert.equal(buildScheduledOrderFallbackReply({ id: 43, paymentStatus: "pending_verification" }), "Pesanan #43 sudah berhasil dicatat, Kak. Pembayaran menunggu verifikasi pengelola.");
