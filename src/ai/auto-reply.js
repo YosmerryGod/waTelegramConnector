@@ -14,6 +14,122 @@ import {
   createAIBusinessImageCustomerReply
 } from "./customer-service.js";
 
+// [ADDED] Drain the durable scheduled-order notification outbox with retry and stale-claim recovery.
+export async function processPendingScheduledOrderNotifications({ telegramId, sessionId, socket, limit = 10 } = {}) {
+  const ownerId = String(telegramId || "");
+  const accountId = String(sessionId || telegramId || "");
+  if (!ownerId || !accountId || !socket || typeof socket.sendMessage !== "function") {
+    return { sent: 0, failed: 0, skipped: true };
+  }
+
+  let sent = 0;
+  let failed = 0;
+  const maxItems = Math.max(1, Math.min(25, Number(limit) || 10));
+
+  for (let index = 0; index < maxItems; index += 1) {
+    const now = Date.now();
+    const claim = db.transaction(() => {
+      const candidate = db.prepare(`
+        SELECT o.order_id
+        FROM ai_scheduled_order_outbox o
+        WHERE o.telegram_id = ? AND o.session_id = ?
+          AND (
+            (o.status = 'pending' AND o.next_attempt_at <= ?)
+            OR (o.status = 'sending' AND o.claimed_at <= ?)
+          )
+        ORDER BY o.created_at ASC
+        LIMIT 1
+      `).get(ownerId, accountId, now, now - 5 * 60 * 1000);
+      if (!candidate) return null;
+      const changed = db.prepare(`
+        UPDATE ai_scheduled_order_outbox
+        SET status = 'sending', attempts = attempts + 1,
+            claimed_at = ?, updated_at = ?, last_error = NULL
+        WHERE order_id = ? AND telegram_id = ? AND session_id = ?
+          AND (
+            (status = 'pending' AND next_attempt_at <= ?)
+            OR (status = 'sending' AND claimed_at <= ?)
+          )
+      `).run(now, now, candidate.order_id, ownerId, accountId, now, now - 5 * 60 * 1000);
+      if (changed.changes !== 1) return null;
+      return db.prepare(`
+        SELECT o.order_id, o.attempts, s.customer_name, s.customer_chat_id,
+          s.outlet_name, s.outlet_address, s.pickup_at, s.timezone,
+          s.items_json, s.total_amount, s.payment_status, s.payment_note
+        FROM ai_scheduled_order_outbox o
+        JOIN ai_scheduled_orders s ON s.id = o.order_id
+        WHERE o.order_id = ? AND o.telegram_id = ? AND o.session_id = ?
+      `).get(candidate.order_id, ownerId, accountId);
+    });
+
+    const order = claim();
+    if (!order) break;
+
+    try {
+      const managerDigits = normalizeManagerPhone(
+        getAIBusinessProfile(ownerId, accountId)?.settings?.manager?.phone
+      );
+      if (!managerDigits) throw new Error("SCHEDULED_ORDER_MANAGER_PHONE_NOT_CONFIGURED");
+      const items = JSON.parse(order.items_json || "[]");
+      const paymentLabel = order.payment_status === "unpaid"
+        ? "Belum dibayar — bayar di tempat di outlet"
+        : "Mengaku sudah dibayar — WAJIB verifikasi pengelola";
+      const itemLines = items.map((item) =>
+        "- " + item.name + " x" + item.quantity + " = Rp" + Number(item.subtotal).toLocaleString("id-ID")
+      );
+      const managerNotice = [
+        "PESANAN TERJADWAL",
+        "ID: #" + order.order_id,
+        "Pelanggan: " + order.customer_name,
+        "WhatsApp: " + (order.customer_chat_id.endsWith("@s.whatsapp.net")
+          ? "+" + order.customer_chat_id.replace(/@s\.whatsapp\.net$/, "")
+          : "ID chat " + order.customer_chat_id),
+        "Outlet: " + order.outlet_name,
+        "Alamat: " + (order.outlet_address || "Belum tersedia"),
+        "Waktu ambil: " + order.pickup_at + " (" + order.timezone + ")",
+        "Menu:",
+        ...itemLines,
+        "Total: Rp" + Number(order.total_amount).toLocaleString("id-ID"),
+        "Pembayaran: " + paymentLabel,
+        "Catatan: " + order.payment_note
+      ].join("\n").slice(0, 3500);
+
+      const result = await socket.sendMessage(managerDigits + "@s.whatsapp.net", { text: managerNotice });
+      const messageId = result?.key?.id || null;
+      db.transaction(() => {
+        db.prepare(`
+          UPDATE ai_scheduled_order_outbox
+          SET status = 'sent', manager_message_id = ?, claimed_at = NULL,
+              last_error = NULL, updated_at = ?
+          WHERE order_id = ? AND telegram_id = ? AND session_id = ? AND status = 'sending'
+        `).run(messageId, Date.now(), order.order_id, ownerId, accountId);
+        db.prepare(`
+          UPDATE ai_scheduled_orders SET notification_status = 'sent'
+          WHERE id = ? AND telegram_id = ? AND session_id = ?
+        `).run(order.order_id, ownerId, accountId);
+      })();
+      sent += 1;
+    } catch (error) {
+      const attempt = Number(order.attempts) || 1;
+      const delay = Math.min(30 * 60 * 1000, 30 * 1000 * (2 ** Math.min(attempt - 1, 6)));
+      db.prepare(`
+        UPDATE ai_scheduled_order_outbox
+        SET status = 'pending', next_attempt_at = ?, claimed_at = NULL,
+            last_error = ?, updated_at = ?
+        WHERE order_id = ? AND telegram_id = ? AND session_id = ? AND status = 'sending'
+      `).run(Date.now() + delay, String(error?.message || "NOTIFICATION_FAILED").slice(0, 300),
+        Date.now(), order.order_id, ownerId, accountId);
+      failed += 1;
+      console.error("[WAGRAM Scheduled Order Outbox] Delivery failed:", {
+        telegramId: ownerId, sessionId: accountId, orderId: order.order_id,
+        attempt, retryInMs: delay, error: String(error?.message || "NOTIFICATION_FAILED").slice(0, 200)
+      });
+    }
+  }
+
+  return { sent, failed, skipped: false };
+}
+
 // [ADDED] Durable at-most-once processing guard for WhatsApp auto replies.
 // A claimed job is never automatically retried: this prevents duplicate sends
 // after reconnects, repeated Baileys events, or a process restart.
@@ -442,40 +558,11 @@ export async function handleIncomingAIAutoReply({
         );
     const reply = String(suggestion?.reply || suggestion?.draft || "").trim();
 
-    // [ADDED] Notify the configured manager only after a scheduled order is durably saved.
-    const scheduledOrder = useBusinessAI ? suggestion?.scheduledOrder : null;
-    if (scheduledOrder?.id && scheduledOrder.notificationStatus === "pending") {
-      const managerDigits = normalizeManagerPhone(getAIBusinessProfile(ownerId, accountId)?.settings?.manager?.phone);
-      if (!managerDigits) throw new Error("SCHEDULED_ORDER_MANAGER_PHONE_NOT_CONFIGURED");
-      const managerJid = managerDigits + "@s.whatsapp.net";
-      const paymentLabel = scheduledOrder.paymentStatus === "unpaid"
-        ? "Belum dibayar — bayar di tempat di outlet"
-        : "Mengaku sudah dibayar — WAJIB verifikasi pengelola";
-      const itemLines = (Array.isArray(scheduledOrder.items) ? scheduledOrder.items : []).map((item) =>
-        "- " + item.name + " x" + item.quantity + " = Rp" + Number(item.subtotal).toLocaleString("id-ID")
-      );
-      const managerOrderNotice = [
-        "PESANAN TERJADWAL BARU",
-        "ID: #" + scheduledOrder.id,
-        "Pelanggan: " + scheduledOrder.customerName,
-        "WhatsApp: " + (whatsappChatId.endsWith("@s.whatsapp.net") ? "+" + whatsappChatId.replace(/@s\.whatsapp\.net$/, "") : "ID chat " + whatsappChatId),
-        "Outlet: " + scheduledOrder.outletName,
-        "Alamat: " + (scheduledOrder.outletAddress || "Belum tersedia"),
-        "Waktu ambil: " + scheduledOrder.pickupAt + " (" + scheduledOrder.timezone + ")",
-        "Menu:",
-        ...itemLines,
-        "Total: Rp" + Number(scheduledOrder.totalAmount).toLocaleString("id-ID"),
-        "Pembayaran: " + paymentLabel,
-        "Catatan: " + scheduledOrder.paymentNote
-      ].join("\n").slice(0, 3500);
-      await socket.sendMessage(managerJid, { text: managerOrderNotice });
-      db.prepare(`
-        UPDATE ai_scheduled_orders
-        SET notification_status = 'sent'
-        WHERE id = ? AND telegram_id = ? AND session_id = ? AND notification_status = 'pending'
-      `).run(
-        Number(scheduledOrder.id), ownerId, accountId
-      );
+    // [MODIFIED] Process due outbox notifications independently from the current reply.
+    if (useBusinessAI) {
+      await processPendingScheduledOrderNotifications({
+        telegramId: ownerId, sessionId: accountId, socket, limit: 10
+      });
     }
 
     if (useBusinessAI && suggestion?.needsManager) {
