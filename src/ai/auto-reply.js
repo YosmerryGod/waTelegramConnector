@@ -458,7 +458,7 @@ export async function handleIncomingAIAutoReply({
         "PESANAN TERJADWAL BARU",
         "ID: #" + scheduledOrder.id,
         "Pelanggan: " + scheduledOrder.customerName,
-        "WhatsApp: " + whatsappChatId.replace(/@s\.whatsapp\.net$/, ""),
+        "WhatsApp: " + (whatsappChatId.endsWith("@s.whatsapp.net") ? "+" + whatsappChatId.replace(/@s\.whatsapp\.net$/, "") : "ID chat " + whatsappChatId),
         "Outlet: " + scheduledOrder.outletName,
         "Alamat: " + (scheduledOrder.outletAddress || "Belum tersedia"),
         "Waktu ambil: " + scheduledOrder.pickupAt + " (" + scheduledOrder.timezone + ")",
