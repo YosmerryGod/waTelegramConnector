@@ -1128,7 +1128,7 @@ export function buildAIBusinessDecisionContext({ message, history, businessData,
       products.length ? "Katalog aktif diperiksa; AI hanya boleh memilih produk yang relevan dan tercatat." :
       "Katalog produk belum tersedia.",
     catalogCount: products.length,
-    availableProducts: products.filter((product) => product.available !== false && product.isAvailable !== false)
+    availableProducts: products.filter((product) => product.available !== false && product.isAvailable !== false && (product.stock == null || Number(product.stock) > 0))
       .slice(0, 40).map((product) => ({
         name: String(product.name || ""),
         price: product.price ?? null,
@@ -1201,15 +1201,15 @@ function persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, m
   );
   db.prepare(`
     DELETE FROM ai_business_decision_logs
-    WHERE telegram_id = ? AND session_id = ? AND customer_chat_id = ?
+    WHERE telegram_id = ? AND session_id = ?
       AND id NOT IN (
         SELECT id FROM ai_business_decision_logs
-        WHERE telegram_id = ? AND session_id = ? AND customer_chat_id = ?
-        ORDER BY created_at DESC LIMIT 200
+        WHERE telegram_id = ? AND session_id = ?
+        ORDER BY created_at DESC LIMIT 2000
       )
   `).run(
-    String(telegramId), String(sessionId || telegramId), String(customerChatId),
-    String(telegramId), String(sessionId || telegramId), String(customerChatId)
+    String(telegramId), String(sessionId || telegramId),
+    String(telegramId), String(sessionId || telegramId)
   );
 }
 
@@ -1565,8 +1565,13 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
               decisionSummary: { action: "Respons aman digunakan karena model tidak mengembalikan teks setelah percobaan ulang." },
               createdScheduledOrder
             });
-            try { persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision }); }
-            catch (error) { console.error("[WAGRAM AI] Decision audit persistence failed:", error.message); }
+            try {
+              persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision });
+              decision.database.auditLogSaved = true;
+            } catch (error) {
+              decision.database.auditLogSaved = false;
+              console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
+            }
             return {
               ...decision, recognition: decision.recognition.summary,
               intent: recognition.intent, entity: recognition.entity,
@@ -1607,7 +1612,9 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       }
       try {
         persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision });
+        decision.database.auditLogSaved = true;
       } catch (error) {
+        decision.database.auditLogSaved = false;
         console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
       }
       return { reply: conciseAnswer, scheduledOrder: createdScheduledOrder, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
