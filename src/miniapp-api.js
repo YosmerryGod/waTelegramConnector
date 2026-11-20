@@ -2205,7 +2205,7 @@ router.post("/ai-business/chat", async (req, res) => {
           ? "Pesanan #" + result.scheduledOrder.id + " sudah berhasil dicatat."
           : "Maaf, saya belum bisa memastikan informasi tersebut. Pengelola perlu membantu memastikannya."
         : generatedReply;
-    // [ADDED] Never return raw model JSON, tool errors, stack traces, or internal traces to the Mini App chat.
+    // [MODIFIED] Return the structured decision audit summary; never expose private reasoning, raw model JSON, or stack traces.
     res.setHeader("Cache-Control", "no-store");
     return res.json({
       ok: true,
@@ -2214,6 +2214,7 @@ router.post("/ai-business/chat", async (req, res) => {
       needsManager: result.needsManager === true || Boolean(result.orderFailure),
       managerQuestion: String(result.managerQuestion || ""),
       managerWarning,
+      trace: result.trace && typeof result.trace === "object" ? result.trace : null, // [ADDED] Restore the AI inspection panel in Mini App chat.
       intent: result.intent || "agent",
       model: result.model,
       createdAt: result.createdAt
