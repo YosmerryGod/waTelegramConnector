@@ -84,12 +84,17 @@ export function classifyCustomerState(message = "", history = []) {
   if (has("banding", "beda", "perbedaan", "yang lebih", "mending", "mana enak")) return "product_comparison";
   if (has("berapa", "harganya", "harga", "rp")) return "price_question";
   if (has("masih ada", "tersedia", "ready", "ada kah", "ada gak", "ada nggak", "stok")) return "availability";
-  if (has("pesan", "order", "mau", "ambil", "beli", "booking", "pesenin")) return "purchase_intent";
+  if (has("pesan", "order", "mau", "ambil", "beli", "booking", "pesenin", "dada", "paha")) return "purchase_intent";
   if (has("halo", "hai", "assalamualaikum", "permisi", "pagi", "siang", "sore", "malam")) return "greeting";
-  const recentCustomerText = Array.isArray(history)
-    ? history.slice(-HISTORY_WINDOW).filter((item) => item?.role === "customer" || item?.direction === "incoming")
-      .map((item) => item?.content || item?.text || item?.body || "").join(" ")
-    : "";
+  const recentHistory = Array.isArray(history) ? history.slice(-HISTORY_WINDOW) : [];
+  const recentCustomerText = recentHistory
+    .filter((item) => item?.role === "customer" || item?.direction === "incoming")
+    .map((item) => item?.content || item?.text || item?.body || "").join(" ");
+  const recentBusinessText = normalizeText(recentHistory
+    .filter((item) => item?.role === "business" || item?.role === "assistant" || item?.direction === "outgoing")
+    .map((item) => item?.content || item?.text || item?.body || "").join(" "));
+  // [ADDED] Keep the buying state when the customer is answering the business's latest choice/quantity question.
+  if (recentBusinessText && /(mau yang|pilih dada|pilih paha|berapa porsi|mau pesan|ingin pesan|jumlah porsi)/.test(recentBusinessText)) return "purchase_intent";
   if (normalizeText(recentCustomerText).includes("pesan")) return "purchase_intent";
   return "general";
 }
