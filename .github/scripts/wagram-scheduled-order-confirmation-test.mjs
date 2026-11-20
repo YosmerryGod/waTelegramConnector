@@ -8,7 +8,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "wagram-order-confirmation
 process.env.SQLITE_PATH = path.join(tempDir, "test.sqlite");
 
 const database = await import("../../src/database.js");
-const { validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
+const { normalizeCustomerChatJid, validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
 
 const order = {
   outletName: "Outlet Banjarbaru",
@@ -24,6 +24,16 @@ const approvedSummary = {
 };
 
 try {
+  assert.equal(normalizeCustomerChatJid("6281234567890@s.whatsapp.net"), "6281234567890@s.whatsapp.net");
+  assert.equal(normalizeCustomerChatJid("6281234567890:17@s.whatsapp.net"), "6281234567890@s.whatsapp.net");
+  assert.equal(normalizeCustomerChatJid("123456789012345@lid"), "123456789012345@lid");
+  assert.equal(normalizeCustomerChatJid("123456789012345:4@lid"), "123456789012345@lid");
+  assert.equal(normalizeCustomerChatJid("6281234567890@g.us"), null, "Group JIDs must not be accepted.");
+  assert.equal(normalizeCustomerChatJid("status@broadcast"), null, "Broadcast JIDs must not be accepted.");
+  assert.equal(normalizeCustomerChatJid("6281234567890:device@s.whatsapp.net"), null, "Malformed device JIDs must be rejected.");
+  assert.equal(normalizeCustomerChatJid("12345@s.whatsapp.net"), null, "Invalid phone JIDs must be rejected.");
+  assert.equal(normalizeCustomerChatJid(""), null);
+
   assert.equal(
     validateScheduledOrderConfirmation({ ...order, message: "Iya", history: [approvedSummary] }).valid,
     true,
