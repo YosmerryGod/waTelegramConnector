@@ -2191,14 +2191,14 @@ router.post("/ai-business/chat", async (req, res) => {
       "",
       { isSimulation: true }
     );
-    const managerPhone = String(getAIBusinessProfile(req.telegramId, req.sessionId)?.settings?.manager?.phone || "").replace(/\\D/g, "");
+    const managerPhone = String(getAIBusinessProfile(req.telegramId, req.sessionId)?.settings?.manager?.phone || "").replace(/\D/g, "");
     const managerWarning = (result.orderFailure || result.scheduledOrder) && managerPhone.length < 8
       ? result.orderFailure
         ? "Nomor WhatsApp pengelola belum diatur. Pesanan belum berhasil dicatat; tambahkan nomor pengelola agar laporan dapat dikirim."
         : "Pesanan sudah tersimpan, tetapi nomor WhatsApp pengelola belum diatur sehingga laporan belum dapat dikirim."
       : "";
     const generatedReply = String(result.reply || "").trim();
-    const containsInternalOutput = /^\\s*[\\[{]/.test(generatedReply) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\\bJSON\\b|\\berror\\b/i.test(generatedReply);
+    const containsInternalOutput = /^\s*[\[{]/.test(generatedReply) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\bJSON\b|\berror\b/i.test(generatedReply);
     const safeReply = result.orderFailure || containsInternalOutput
       ? "Maaf, pesanan belum berhasil dicatat. Pengelola perlu membantu memastikan dan mencatat pesanan ini secara manual."
       : generatedReply;
