@@ -692,12 +692,57 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
   };
 }
 
+// [ADDED] Resolve each outlet's current operating status using its configured timezone and hours.
+function getOutletOperatingStatus(outlet, now = new Date()) {
+  const timezone = String(outlet?.timezone || outlet?.timeZone || "Asia/Jakarta").trim();
+  const openTime = String(outlet?.openTime || outlet?.open_time || outlet?.open || "").trim();
+  const closeTime = String(outlet?.closeTime || outlet?.close_time || outlet?.close || "").trim();
+  const days = Array.isArray(outlet?.openDays) ? outlet.openDays : Array.isArray(outlet?.days) ? outlet.days : [0, 1, 2, 3, 4, 5, 6];
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  let localParts;
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone, weekday: "long", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(now);
+    localParts = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  } catch {
+    return { isOpen: null, timezone, openTime, closeTime, reason: "invalid_timezone" };
+  }
+  const dayIndex = dayNames.indexOf(localParts.weekday);
+  const currentMinutes = Number(localParts.hour) * 60 + Number(localParts.minute);
+  const parseTime = (value) => {
+    const match = value.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return null;
+    const hour = Number(match[1]), minute = Number(match[2]);
+    return hour <= 23 && minute <= 59 ? hour * 60 + minute : null;
+  };
+  const openMinutes = parseTime(openTime);
+  const closeMinutes = parseTime(closeTime);
+  if (openMinutes === null || closeMinutes === null) {
+    return { isOpen: null, timezone, openTime, closeTime, reason: "hours_not_configured" };
+  }
+  const openDayValues = days.map((day) => typeof day === "number" ? day : dayNames.indexOf(String(day).trim()));
+  const scheduledToday = openDayValues.includes(dayIndex);
+  const isOpen = scheduledToday && (openMinutes <= closeMinutes
+    ? currentMinutes >= openMinutes && currentMinutes < closeMinutes
+    : currentMinutes >= openMinutes || currentMinutes < closeMinutes);
+  return {
+    isOpen, timezone, openTime, closeTime,
+    localDay: localParts.weekday,
+    localTime: String(localParts.hour).padStart(2, "0") + ":" + String(localParts.minute).padStart(2, "0"),
+    reason: scheduledToday ? "within_or_outside_hours" : "closed_day"
+  };
+}
+
 // [MODIFIED] OpenRouter interprets the owner's request and may call read-only business tools.
 async function runOwnerAIAgent({ telegramId, sessionId, message, history, profile }) {
   const settings = profile?.settings && typeof profile.settings === "object" ? profile.settings : {};
   const businessData = {
     manager: settings.manager || {},
-    outlets: Array.isArray(settings.outlets) ? settings.outlets.slice(0, 30) : [],
+    outlets: Array.isArray(settings.outlets) ? settings.outlets.slice(0, 30).map((outlet) => ({
+      ...outlet,
+      operatingStatus: getOutletOperatingStatus(outlet)
+    })) : [],
     products: Array.isArray(settings.products) ? settings.products.slice(0, 100) : [],
     payment: settings.payment ? { merchant: settings.payment.merchant || "", qrisConfigured: Boolean(settings.payment.qrisImage || settings.payment.qrisId) } : {},
     aiRules: String(settings.aiRules || "").slice(0, 3000)
@@ -842,6 +887,11 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Jika pelanggan hanya menyapa, balas sapaan singkat dan tanyakan apa yang dibutuhkan. Jangan sertakan katalog, harga, stok, dan kontak.",
     "Jika pelanggan hanya meminta harga, berikan nama produk dan harga secara langsung tanpa upsell. Jika konteks jelas menunjukkan niat membeli dan pertanyaan harga sudah dijawab, AI boleh mempertimbangkan satu produk pelengkap yang relevan sesuai aturan upselling; jangan menambahkan tawaran jika tidak cocok.",
     "Jika pelanggan menanyakan ketersediaan atau ingin memesan, jawab secara natural dan langsung sesuai kondisi produk.",
+    "ALUR OPERASIONAL OUTLET WAJIB: Saat pelanggan menunjukkan niat memesan, periksa operatingStatus seluruh outlet pada DATA BISNIS. Status isOpen=true berarti buka; false berarti tutup; null berarti jam belum dapat dipastikan dan jangan menebak.",
+    "Jika pelanggan sudah memilih outlet, prioritaskan outlet itu. Jika outlet pilihannya tutup tetapi outlet lain buka, minta izin menawarkan outlet alternatif yang buka dan sebut nama/lokasi serta jamnya dari data. Jangan diam-diam memindahkan pilihan pelanggan.",
+    "Jika pelanggan belum memilih outlet, arahkan ke outlet yang buka. Jika semua outlet tutup, minta maaf dan tawarkan membuat pesanan terjadwal untuk waktu outlet buka berikutnya. Jika jam outlet tidak lengkap, tanyakan pengelola daripada mengarang waktu buka.",
+    "PESANAN TERJADWAL: Kumpulkan secara percakapan nama pelanggan bila tersedia, nomor WhatsApp dari chat, menu dan jumlah, tanggal serta jam pengambilan, outlet pilihan, dan status pembayaran. Jika belum dibayar, catat sebagai bayar di tempat pada outlet yang dipilih hanya setelah pelanggan menyetujuinya. Jika pelanggan mengaku sudah membayar, statusnya perlu verifikasi pengelola; jangan tandai lunas tanpa verifikasi.",
+    "Jangan menyatakan pesanan terjadwal sudah tercatat atau mengirim notifikasi pengelola kecuali sistem mengembalikan hasil penyimpanan pesanan yang berhasil. Sebelum penyimpanan, bacakan ringkasan dan minta persetujuan eksplisit pelanggan."
     "Gunakan jumlah pesanan untuk mengecek kecukupan persediaan secara INTERNAL. Jika pelanggan meminta jumlah tertentu, bandingkan jumlah itu dengan persediaan produk yang tercatat. Jika cukup, jawab sederhana seperti 'Bisa, Kak' dan lanjutkan seperlunya. Jika tidak cukup, sampaikan jumlah yang bisa dipenuhi atau bahwa jumlah tersebut belum bisa dipenuhi.",
     "Jangan pernah menyebut kata 'data', 'database', 'tercatat', 'stok', 'field', 'sistem', atau menjelaskan sumber informasi internal kepada pelanggan.",
     "Jika produk/varian tidak tersedia dalam daftar bisnis, sampaikan secara alami bahwa menu atau variannya belum tersedia, tanpa mengatakan tidak ada di data atau meminta pelanggan menebak.",
