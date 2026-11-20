@@ -8426,46 +8426,130 @@ body.in-chat #topbar {
   display: none !important;
 }
 
-/* [ADDED] Compact three-column icon navigation for WAMO AI settings. */
-/* [MODIFIED] Show three icon-only options; reveal one horizontal label on hover or keyboard focus. */
+/* [MODIFIED] Refined WAMO AI settings into a quiet, icon-first business control panel. */
 .ai-business-section-heading {
-  display: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+.ai-business-section-heading h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.ai-business-section-heading > span {
+  color: var(--muted);
+  font-size: 11px;
 }
 .ai-business-settings-grid {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding: 4px 1px 8px;
+  grid-auto-rows: minmax(78px, auto);
+  gap: 10px;
+  padding: 2px 0 6px;
 }
 .ai-business-setting-tile {
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 82px;
+  min-height: 78px;
   grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
   align-items: center;
   justify-items: center;
   gap: 0;
-  padding: 12px;
-  border-radius: 18px;
+  padding: 12px 8px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--text);
   text-align: center;
-  transition: opacity .18s ease, background .18s ease, border-color .18s ease, min-height .2s ease;
+  cursor: pointer;
+  transform: translateY(0);
+  transition:
+    background-color .3s cubic-bezier(.22, 1, .36, 1),
+    border-color .3s cubic-bezier(.22, 1, .36, 1),
+    opacity .3s cubic-bezier(.22, 1, .36, 1),
+    transform .3s cubic-bezier(.22, 1, .36, 1);
 }
+.ai-business-setting-tile:nth-child(-n+3) { grid-row: 1; }
+.ai-business-setting-tile:nth-child(n+4) { grid-row: 2; }
 .ai-business-setting-icon {
-  flex: 0 0 46px;
-  width: 46px;
-  height: 46px;
-  border-radius: 15px;
+  display: grid;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--accent) 11%, var(--surface));
+  color: var(--accent);
+  transition:
+    background-color .3s cubic-bezier(.22, 1, .36, 1),
+    transform .3s cubic-bezier(.22, 1, .36, 1);
 }
 .ai-business-setting-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 21px;
+  height: 21px;
 }
 .ai-business-setting-copy,
 .ai-business-setting-arrow {
   display: none;
 }
-/* [ADDED] Row-scoped expansion: only neighboring icons in the active row are hidden. */
-/* Keep the other grid row visible; hide only the two neighbors in the hovered row. */
+.ai-business-setting-tile:hover,
+.ai-business-setting-tile:focus-visible {
+  z-index: 1;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-rows: 1fr;
+  justify-items: stretch;
+  gap: 12px;
+  padding: 12px 14px;
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-2));
+  text-align: left;
+  transform: translateY(-1px);
+}
+.ai-business-setting-tile:hover .ai-business-setting-icon,
+.ai-business-setting-tile:focus-visible .ai-business-setting-icon {
+  transform: scale(.96);
+}
+.ai-business-setting-tile:hover .ai-business-setting-copy,
+.ai-business-setting-tile:focus-visible .ai-business-setting-copy {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 3px;
+  animation: aiSettingsLabelIn .3s cubic-bezier(.22, 1, .36, 1) both;
+}
+.ai-business-setting-copy strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-business-setting-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-business-setting-tile:hover .ai-business-setting-arrow,
+.ai-business-setting-tile:focus-visible .ai-business-setting-arrow {
+  display: block;
+  align-self: center;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+}
 .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):hover) .ai-business-setting-tile:nth-child(2),
 .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):hover) .ai-business-setting-tile:nth-child(3),
 .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(2):hover) .ai-business-setting-tile:nth-child(1),
@@ -8478,44 +8562,37 @@ body.in-chat #topbar {
 .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(5):hover) .ai-business-setting-tile:nth-child(6),
 .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):hover) .ai-business-setting-tile:nth-child(4),
 .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):hover) .ai-business-setting-tile:nth-child(5) {
-  display: none;
-}
-.ai-business-setting-tile:hover,
-.ai-business-setting-tile:focus-visible {
-  display: flex;
-  min-height: 72px;
-  justify-content: flex-start;
-  gap: 14px;
-  padding: 12px 16px;
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
-  text-align: left;
-}
-.ai-business-setting-tile:hover .ai-business-setting-copy,
-.ai-business-setting-tile:focus-visible .ai-business-setting-copy {
-  display: grid;
-  flex: 1;
-  gap: 4px;
-  animation: aiSettingsLabelIn .18s ease both;
-}
-.ai-business-setting-tile:hover .ai-business-setting-copy strong,
-.ai-business-setting-tile:focus-visible .ai-business-setting-copy strong {
-  font-size: 13px;
-}
-.ai-business-setting-tile:hover .ai-business-setting-copy small,
-.ai-business-setting-tile:focus-visible .ai-business-setting-copy small {
-  font-size: 11px;
-}
-.ai-business-setting-tile:hover .ai-business-setting-arrow,
-.ai-business-setting-tile:focus-visible .ai-business-setting-arrow {
-  display: block;
+  visibility: hidden;
+  pointer-events: none;
 }
 @keyframes aiSettingsLabelIn {
-  from { opacity: 0; transform: translateX(-5px); }
+  from { opacity: 0; transform: translateX(-6px); }
   to { opacity: 1; transform: translateX(0); }
 }
+.ai-business-setting-tile:active {
+  transform: scale(.985);
+}
+.ai-business-setting-tile:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
 @media (hover: none) {
-  /* [MODIFIED] Touch selection hides only neighbors in the selected three-icon row. */
+  .ai-business-setting-tile:focus {
+    grid-column: 1 / -1;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    justify-items: stretch;
+    gap: 12px;
+    text-align: left;
+  }
+  .ai-business-setting-tile:focus .ai-business-setting-copy {
+    display: grid;
+    min-width: 0;
+    align-content: center;
+    gap: 3px;
+  }
+  .ai-business-setting-tile:focus .ai-business-setting-arrow {
+    display: block;
+  }
   .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):focus) .ai-business-setting-tile:nth-child(2),
   .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(1):focus) .ai-business-setting-tile:nth-child(3),
   .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(2):focus) .ai-business-setting-tile:nth-child(1),
@@ -8528,82 +8605,19 @@ body.in-chat #topbar {
   .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(5):focus) .ai-business-setting-tile:nth-child(6),
   .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):focus) .ai-business-setting-tile:nth-child(4),
   .ai-business-settings-grid:has(.ai-business-setting-tile:nth-child(6):focus) .ai-business-setting-tile:nth-child(5) {
-    display: none;
-  }
-  .ai-business-setting-tile:focus {
-    grid-column: 1 / -1;
-  }
-  .ai-business-setting-tile:focus .ai-business-setting-copy {
-    display: grid;
-  }
-  .ai-business-setting-tile:focus .ai-business-setting-arrow {
-    display: block;
-  }
-}@media (prefers-reduced-motion: reduce) {
-  .ai-business-setting-tile,
-  .ai-business-setting-tile:hover .ai-business-setting-copy {
-    animation: none;
-    transition: none;
+    visibility: hidden;
+    pointer-events: none;
   }
 }
-
-/* [ADDED] Smooth row expansion transitions for WAMO AI settings. */
-/* Animate row layout changes without changing the three-column interaction. */
-.ai-business-settings-grid {
-  transition: grid-template-columns .28s cubic-bezier(.22, 1, .36, 1);
-}
-.ai-business-setting-tile {
-  transform-origin: center;
-  will-change: transform, opacity;
-  transition:
-    min-height .28s cubic-bezier(.22, 1, .36, 1),
-    padding .28s cubic-bezier(.22, 1, .36, 1),
-    border-radius .28s cubic-bezier(.22, 1, .36, 1),
-    background-color .22s ease,
-    border-color .22s ease,
-    transform .28s cubic-bezier(.22, 1, .36, 1),
-    opacity .2s ease;
-}
-.ai-business-setting-tile:hover,
-.ai-business-setting-tile:focus-visible,
-.ai-business-setting-tile:focus {
-  transform: translateY(-1px);
-}
-.ai-business-setting-icon {
-  transition:
-    width .28s cubic-bezier(.22, 1, .36, 1),
-    height .28s cubic-bezier(.22, 1, .36, 1),
-    border-radius .28s cubic-bezier(.22, 1, .36, 1),
-    background-color .22s ease;
-}
-.ai-business-setting-copy {
-  min-width: 0;
-  animation: none;
-}
-.ai-business-setting-tile:hover .ai-business-setting-copy,
-.ai-business-setting-tile:focus-visible .ai-business-setting-copy,
-.ai-business-setting-tile:focus .ai-business-setting-copy {
-  animation: aiSettingsLabelSmooth .24s cubic-bezier(.22, 1, .36, 1) both;
-}
-.ai-business-setting-tile:hover .ai-business-setting-arrow,
-.ai-business-setting-tile:focus-visible .ai-business-setting-arrow,
-.ai-business-setting-tile:focus .ai-business-setting-arrow {
-  animation: aiSettingsArrowSmooth .22s ease both;
-}
-@keyframes aiSettingsLabelSmooth {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-@keyframes aiSettingsArrowSmooth {
-  from { opacity: 0; transform: translateX(-4px); }
-  to { opacity: 1; transform: translateX(0); }
+@media (max-width: 360px) {
+  .ai-business-settings-grid { gap: 7px; }
+  .ai-business-setting-tile { min-height: 70px; padding: 10px 5px; }
+  .ai-business-setting-icon { width: 40px; height: 40px; flex-basis: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ai-business-settings-grid,
   .ai-business-setting-tile,
   .ai-business-setting-icon,
-  .ai-business-setting-copy,
-  .ai-business-setting-arrow {
+  .ai-business-setting-copy {
     animation: none !important;
     transition: none !important;
     transform: none !important;
