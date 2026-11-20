@@ -11,22 +11,22 @@ const CATALOG_DIR = path.resolve(process.cwd(), "src/ai/skills/catalog");
 const SKILL_REGISTRY = [
   { id: "business-context", name: "Business Context", description: "Fakta bisnis tervalidasi: produk, harga, stok, promo, outlet, dan kebijakan.", domain: "business", priority: 100, triggers: ["produk", "menu", "harga", "stok", "outlet", "promo", "tersedia", "bisnis"], file: "business-context.md" },
   { id: "customer-communication", name: "Customer Communication", description: "Percakapan natural, relevansi, klarifikasi, dan kesinambungan dialog.", domain: "communication", priority: 80, triggers: ["pelanggan", "chat", "balas", "tanya", "jawab", "pesan"], file: "customer-communication.md" },
-  { id: "consumer-psychology-and-persuasion", name: "Consumer Psychology & Persuasion", description: "Membaca niat beli, persepsi nilai, hambatan, dan memilih penawaran etis.", domain: "marketing", priority: 90, triggers: ["beli", "pesan", "harga", "promo", "penawaran", "pilih", "tersedia", "masih ada", "mau"], file: "consumer-psychology-and-persuasion.md" },
+  { id: "consumer-psychology", name: "Consumer Psychology & Persuasion", description: "Membaca niat beli, persepsi nilai, hambatan, dan memilih penawaran etis.", domain: "marketing", priority: 90, triggers: ["beli", "pesan", "harga", "promo", "penawaran", "pilih", "tersedia", "masih ada", "mau"], file: "consumer-psychology.md" },
   { id: "human-behavior-decision-psychology", name: "Human Behavior & Decision Psychology", description: "Memahami kebutuhan, motivasi, keraguan, dan hambatan keputusan sebagai hipotesis.", domain: "psychology", priority: 70, triggers: ["bingung", "ragu", "takut", "khawatir", "keberatan", "belum yakin", "mahal"], file: "human-behavior-decision-psychology.md" },
   { id: "persuasive-communication-and-negotiation", name: "Persuasive Communication & Negotiation", description: "Menjelaskan manfaat, menangani keberatan, dan mengajak keputusan tanpa tekanan.", domain: "communication", priority: 65, triggers: ["yakinkan", "keberatan", "nego", "tawar", "bandingkan"], file: "persuasive-communication-and-negotiation.md" },
-  { id: "service-recovery-marketing-and-trust-building", name: "Service Recovery Marketing & Trust Building", description: "Menangani keluhan, remedy, goodwill, dan pemulihan kepercayaan.", domain: "marketing", priority: 110, triggers: ["komplain", "keluhan", "kecewa", "refund", "salah", "kering", "terlambat", "rusak", "ulasan", "review"], file: "service-recovery-marketing-and-trust-building.md" },
+  { id: "service-recovery", name: "Service Recovery Marketing & Trust Building", description: "Menangani keluhan, remedy, goodwill, dan pemulihan kepercayaan.", domain: "marketing", priority: 110, triggers: ["komplain", "keluhan", "kecewa", "refund", "salah", "kering", "terlambat", "rusak", "ulasan", "review"], file: "service-recovery.md" },
   { id: "message-design-and-storytelling", name: "Message Design & Storytelling", description: "Menyusun penjelasan yang mudah dipahami dan tidak seperti membaca katalog.", domain: "communication", priority: 55, triggers: ["jelaskan", "penjelasan", "susun pesan", "deskripsi"], file: "message-design-and-storytelling.md" },
   { id: "brand-awareness-and-brand-activation", name: "Brand Awareness & Brand Activation", description: "Memperkuat positioning, asosiasi produk, dan ingatan merek.", domain: "marketing", priority: 50, triggers: ["branding", "citra merek", "brand", "keunikan"], file: "brand-awareness-and-brand-activation.md" },
   { id: "human-decision-psychology", name: "Human Decision Psychology", description: "Panduan keputusan manusia umum untuk konteks non-pelanggan.", domain: "psychology", priority: 60, triggers: ["keputusan", "pertimbangan", "alasan"], file: "human-decision-psychology.md" }
 ];
 
 const CUSTOMER_STATE_SKILLS = {
-  availability: ["consumer-psychology-and-persuasion", "business-context", "customer-communication"],
-  purchase_intent: ["consumer-psychology-and-persuasion", "business-context", "customer-communication"],
-  price_question: ["business-context", "consumer-psychology-and-persuasion", "customer-communication"],
-  price_objection: ["human-behavior-decision-psychology", "consumer-psychology-and-persuasion", "persuasive-communication-and-negotiation"],
-  product_comparison: ["consumer-psychology-and-persuasion", "message-design-and-storytelling", "business-context"],
-  complaint: ["service-recovery-marketing-and-trust-building", "customer-communication", "business-context"],
+  availability: ["consumer-psychology", "business-context", "customer-communication"],
+  purchase_intent: ["consumer-psychology", "business-context", "customer-communication"],
+  price_question: ["business-context", "consumer-psychology", "customer-communication"],
+  price_objection: ["human-behavior-decision-psychology", "consumer-psychology", "persuasive-communication-and-negotiation"],
+  product_comparison: ["consumer-psychology", "message-design-and-storytelling", "business-context"],
+  complaint: ["service-recovery", "customer-communication", "business-context"],
   refusal: ["customer-communication", "human-behavior-decision-psychology"],
   greeting: ["customer-communication"],
   general: ["customer-communication", "business-context"]
@@ -201,7 +201,7 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner",
       customerState,
       activeSkills: loadedSkills.map((skill) => skill.id)
     },
-    instructions: loadedSkills.map((skill) => "SKILL: " + skill.name + " (" + skill.domain + ")\\n" + skill.instructions).join("\\n\\n")
+    instructions: strategyInstructions + "\\n\\n" + loadedSkills.map((skill) => "SKILL: " + skill.name + " (" + skill.domain + ")\\n" + skill.instructions).join("\\n\\n")
   };
 }
 
