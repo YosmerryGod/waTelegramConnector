@@ -43,7 +43,7 @@ try {
     new Date("2026-11-21T04:00:00.000Z") // Saturday, 11:00 WIB
   );
   assert.equal(weekend.isOpen, false);
-  assert.equal(weekend.nextOpeningAt, "2026-11-22T02:00:00.000Z"); // Sunday? no Monday expected below
+  assert.equal(weekend.nextOpeningAt, "2026-11-23T02:00:00.000Z"); // Monday at 09:00 WIB below
 
   const overnight = {
     ...outlet,
