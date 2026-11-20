@@ -409,7 +409,11 @@ async function openRouterGenerate(contents, options = {}) {
         temperature: options.temperature ?? 0.25,
         max_tokens: options.maxOutputTokens ?? 700,
         ...(options.responseMimeType === "application/json" ? { response_format: { type: "json_object" } } : {}),
-        provider: options.provider || { order: ["DeepSeek"], allow_fallbacks: true, require_parameters: true },
+        provider: options.provider || {
+          order: String(process.env.WAGRAM_OPENROUTER_PROVIDER_ORDER || "DeepSeek").split(",").map((provider) => provider.trim()).filter(Boolean),
+          allow_fallbacks: false,
+          require_parameters: true
+        },
         ...(options.reasoning ? { reasoning: options.reasoning } : {}),
         ...(tools?.length ? { tools, tool_choice: "auto" } : {})
       }),
@@ -1861,7 +1865,11 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       const conciseAnswer = !isOrderSummary && answer.length > 320
         ? answer.slice(0, 317).replace(/\s+\S*$/, "").replace(/[,:;\s]+$/, "") + "…"
         : answer;
-      const finalCustomerReply = scheduledOrderFailure ? "Maaf Kak, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual." : conciseAnswer;
+      const finalCustomerReply = scheduledOrderFailure
+        ? "Maaf Kak, pesanan belum berhasil dicatat. Pengelola perlu membantu mencatat pesanan ini secara manual."
+        : /^\\s*[\\[{]/.test(conciseAnswer) || /CUSTOMER_CHAT_INVALID|SCHEDULED_ORDER_[A-Z_]+|OPENROUTER_HTTP_|\\bJSON\\b|\\berror\\b/i.test(conciseAnswer)
+          ? "Maaf Kak, saya belum bisa memastikan informasi tersebut. Pengelola perlu membantu memastikannya."
+          : conciseAnswer;
       const decision = buildAIBusinessDecisionContext({
         message, history, businessData, recognition, toolAudit,
         decisionSummary: structuredAnswer?.decision || null, createdScheduledOrder
