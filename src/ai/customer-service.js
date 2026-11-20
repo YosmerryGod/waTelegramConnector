@@ -982,14 +982,14 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
     "ya", "iya", "iua", "iyah", "yap", "yup", "oke", "ok", "okay",
     "setuju", "saya", "konfirmasi", "konfirmasikan", "betul", "benar",
     "sesuai", "lanjut", "boleh", "silakan", "gas", "sip", "cocok",
-    "pas", "deal", "fix", "sudah", "udah", "memang", "kak",
+    "pas", "deal", "fix", "siap", "baik", "sudah", "udah", "memang", "kak",
     "terima", "kasih", "makasih", "thanks"
   ]);
   const affirmativeWords = new Set([
     "ya", "iya", "iua", "iyah", "yap", "yup", "oke", "ok", "okay",
     "setuju", "konfirmasi", "konfirmasikan", "betul", "benar",
     "sesuai", "lanjut", "boleh", "silakan", "gas", "sip", "cocok",
-    "pas", "deal", "fix"
+    "pas", "deal", "fix", "siap", "baik"
   ]);
   const disallowedWords = new Set([
     "tidak", "enggak", "nggak", "gak", "ga", "jangan", "belum",
@@ -1035,6 +1035,7 @@ export function validateScheduledOrderConfirmation({ message, history, outletNam
       quantity + " pcs " + itemName,
       quantity + " buah " + itemName,
       itemName + " x " + quantity,
+      itemName + " x" + quantity,
       itemName + " " + quantity + " porsi"
     ].map(normalize);
     if (!Number.isSafeInteger(quantity) || quantity < 1 || !quantityPhrases.some((phrase) => summary.includes(phrase))) {
