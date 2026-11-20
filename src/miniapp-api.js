@@ -46,14 +46,6 @@ import {
   updateContact,
   deleteContact,
   listContacts,
-  listCustomerContacts,
-  saveCustomerContact,
-  updateCustomerContact,
-  deleteCustomerContact,
-  listEmployeeWhitelist,
-  saveEmployeeWhitelist,
-  updateEmployeeWhitelist,
-  deleteEmployeeWhitelist,
   listCalls,
   setCallFavorite,
   setCallArchived,
@@ -1502,25 +1494,12 @@ function sendContactError(res, error, message) {
 
 function readContactBody(req) {
   const body = req.body && typeof req.body === "object" ? req.body : {};
+
   return {
     name: typeof body.name === "string" ? body.name : "",
-    phone: typeof body.phone_number === "string" ? body.phone_number : typeof body.phone === "string" ? body.phone : ""
-  };
-}
-// [ADDED] Separate directory payload readers.
-function readCustomerContactBody(req) {
-  const body = req.body && typeof req.body === "object" ? req.body : {};
-  return {
-    name: typeof body.name === "string" ? body.name : "",
-    phone: typeof body.phone_number === "string" ? body.phone_number : typeof body.phone === "string" ? body.phone : "",
-    address: typeof body.address === "string" ? body.address : ""
-  };
-}
-function readEmployeeWhitelistBody(req) {
-  const body = req.body && typeof req.body === "object" ? req.body : {};
-  return {
-    name: typeof body.name === "string" ? body.name : "",
-    phone: typeof body.phone_number === "string" ? body.phone_number : typeof body.phone === "string" ? body.phone : ""
+    phone: typeof body.phone_number === "string"
+      ? body.phone_number
+      : typeof body.phone === "string" ? body.phone : ""
   };
 }
 
@@ -1602,55 +1581,6 @@ router.delete("/contacts/:id", (req, res) => {
 });
 
 
-
-// [ADDED] Customer contacts are separate from the existing personal contacts book.
-router.get("/customer-contacts", (req, res) => {
-  try { res.setHeader("Cache-Control", "no-store"); res.json({ ok: true, contacts: listCustomerContacts(req.telegramId, req.sessionId) }); }
-  catch (error) { sendServerError(res, error, "Could not list customer contacts"); }
-});
-router.post("/customer-contacts", (req, res) => {
-  try {
-    const result = saveCustomerContact(req.telegramId, readCustomerContactBody(req), req.sessionId);
-    res.status(result.created ? 201 : 200).json({ ok: true, ...result });
-  } catch (error) { sendContactError(res, error, "Could not save customer contact"); }
-});
-router.put("/customer-contacts/:id", (req, res) => {
-  try {
-    const contact = updateCustomerContact(req.telegramId, req.params.id, readCustomerContactBody(req), req.sessionId);
-    if (!contact) return res.status(404).json({ ok: false, error: "CUSTOMER_CONTACT_NOT_FOUND" });
-    res.json({ ok: true, contact });
-  } catch (error) { sendContactError(res, error, "Could not update customer contact"); }
-});
-router.delete("/customer-contacts/:id", (req, res) => {
-  try {
-    if (!deleteCustomerContact(req.telegramId, req.params.id, req.sessionId)) return res.status(404).json({ ok: false, error: "CUSTOMER_CONTACT_NOT_FOUND" });
-    res.json({ ok: true });
-  } catch (error) { sendServerError(res, error, "Could not delete customer contact"); }
-});
-// [ADDED] Only employee whitelist entries suppress AI replies.
-router.get("/employee-whitelist", (req, res) => {
-  try { res.setHeader("Cache-Control", "no-store"); res.json({ ok: true, employees: listEmployeeWhitelist(req.telegramId, req.sessionId) }); }
-  catch (error) { sendServerError(res, error, "Could not list employee whitelist"); }
-});
-router.post("/employee-whitelist", (req, res) => {
-  try {
-    const result = saveEmployeeWhitelist(req.telegramId, readEmployeeWhitelistBody(req), req.sessionId);
-    res.status(result.created ? 201 : 200).json({ ok: true, ...result });
-  } catch (error) { sendContactError(res, error, "Could not save employee whitelist entry"); }
-});
-router.put("/employee-whitelist/:id", (req, res) => {
-  try {
-    const contact = updateEmployeeWhitelist(req.telegramId, req.params.id, readEmployeeWhitelistBody(req), req.sessionId);
-    if (!contact) return res.status(404).json({ ok: false, error: "EMPLOYEE_WHITELIST_NOT_FOUND" });
-    res.json({ ok: true, contact });
-  } catch (error) { sendContactError(res, error, "Could not update employee whitelist entry"); }
-});
-router.delete("/employee-whitelist/:id", (req, res) => {
-  try {
-    if (!deleteEmployeeWhitelist(req.telegramId, req.params.id, req.sessionId)) return res.status(404).json({ ok: false, error: "EMPLOYEE_WHITELIST_NOT_FOUND" });
-    res.json({ ok: true });
-  } catch (error) { sendServerError(res, error, "Could not delete employee whitelist entry"); }
-});
 
 // [ADDED] Delete selected data belonging only to the authenticated Telegram user.
 router.post("/data/cleanup", (req, res) => {
