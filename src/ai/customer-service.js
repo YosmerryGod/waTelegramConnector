@@ -1645,9 +1645,21 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
   };
 
   for (let step = 0; step < 5; step += 1) {
+    console.info("[WAGRAM AI Agent] Generation step started:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, maxSteps: 5, historyMessageCount: recentHistory.length,
+      hasCustomerMessage: Boolean(String(message || "").trim()), availableToolCount: tools.length
+    }));
     // [MODIFIED] Retry an empty provider response once with tools still enabled so a confirmed order can still be saved.
     let result = await openRouterGenerate(contents, { temperature: 0.2, maxOutputTokens: 500, systemInstruction, tools });
     let calls = result.parts.filter((part) => part?.functionCall).map((part) => part.functionCall);
+    console.info("[WAGRAM AI Agent] Generation step completed:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, hasText: Boolean(String(result.text || "").trim()),
+      toolCalls: calls.map((call) => String(call?.name || "unknown")),
+      finishReason: result.finishReason || null, provider: result.provider || null,
+      model: result.model || OPENROUTER_MODEL
+    }));
     if (!calls.length && !String(result.text || "").trim()) {
       console.warn("[WAGRAM AI] Empty agent response; retrying with tools enabled:", JSON.stringify({
         model: result.model || OPENROUTER_MODEL,
@@ -1772,10 +1784,24 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         expectedAnswer: answer, toolCalls: toolAudit
       }};
     }
+    console.info("[WAGRAM AI Agent] Tool calls requested:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, tools: calls.map((call) => String(call?.name || "unknown"))
+    }));
     contents.push(result.candidate.content);
-    contents.push({ role: "user", parts: calls.map((call) => ({
+    const toolResponses = calls.map((call) => ({
       functionResponse: { name: String(call.name || ""), response: { result: executeTool(String(call.name || ""), call.args || {}) } }
-    })) });
+    }));
+    console.info("[WAGRAM AI Agent] Tool calls completed:", JSON.stringify({
+      telegramId: String(telegramId), sessionId: String(sessionId || telegramId),
+      step: step + 1, results: toolResponses.map((item) => ({
+        tool: item.functionResponse.name,
+        saved: item.functionResponse.response?.result?.saved,
+        orderId: item.functionResponse.response?.result?.orderId,
+        error: item.functionResponse.response?.result?.error || null
+      }))
+    }));
+    contents.push({ role: "user", parts: toolResponses });
   }
   throw new Error("OPENROUTER_AGENT_MAX_TOOL_STEPS");
 }
