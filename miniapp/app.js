@@ -3363,7 +3363,12 @@
               <strong>6. Tindakan</strong>
               <p>${escapeHTML(item.trace.action || "Tidak tersedia")}</p>
               <strong>7. Perlu menyimpan ke database?</strong>
-              <p>${escapeHTML(item.trace.database?.label || "Tidak") + " — " + escapeHTML(item.trace.database?.reason || "Tidak ada data permanen yang perlu disimpan.")}</p>
+              <p>${escapeHTML(item.trace.database?.label || "Tidak") + " — " + escapeHTML(item.trace.database?.reason || "Tidak ada data bisnis permanen yang perlu disimpan.")}</p>
+              <p>${escapeHTML(item.trace.database?.auditLogSaved === true
+                ? "Log audit ringkas: Ya — metadata proses disimpan tanpa isi percakapan atau private reasoning."
+                : item.trace.database?.auditLogSaved === false
+                  ? "Log audit ringkas: Gagal disimpan."
+                  : "Log audit ringkas: status belum tersedia.")}</p>
               <strong>8. Data yang digunakan</strong>
               <ul>${(Array.isArray(item.trace.dataUsed) ? item.trace.dataUsed : []).map((value) => `<li>${escapeHTML(value)}</li>`).join("")}</ul>
               <strong>Status pemeriksaan</strong>
