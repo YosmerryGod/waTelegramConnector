@@ -8,6 +8,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "test": "node --test",
+    "test:skills": "node --test tests/ai-skill-runtime.test.js",
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
   },
