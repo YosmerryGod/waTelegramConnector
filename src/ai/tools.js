@@ -156,8 +156,31 @@ function validateArguments(name, args) {
     if (args.confirmed !== undefined && typeof args.confirmed !== "boolean") throw new Error("TOOL_CONFIRMATION_INVALID");
     if (args.data !== undefined && (!args.data || typeof args.data !== "object" || Array.isArray(args.data))) throw new Error("TOOL_DATA_INVALID");
     const data = args.data || {};
-    const allowedData = new Set(["name", "description", "price", "stock", "address", "phone", "openTime", "closeTime", "timezone", "openDays", "fullName", "aiRules"]);
+    const allowedData = new Set(["name", "description", "price", "stock", "address", "phone", "openTime", "closeTime", "timezone", "openDays", "specialHours", "fullName", "aiRules"]); // [MODIFIED]
     if (Object.keys(data).some((key) => !allowedData.has(key))) throw new Error("TOOL_DATA_FIELD_INVALID");
+    // [ADDED] Validate date-specific outlet hours for both create and update operations.
+    if (resource === "outlets" && data.specialHours !== undefined) {
+      if (!Array.isArray(data.specialHours) || data.specialHours.length > 60) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+      const seenDates = new Set();
+      for (const entry of data.specialHours) {
+        const dateValue = String(entry?.date || "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue) ||
+          !Number.isFinite(Date.parse(dateValue + "T00:00:00.000Z")) ||
+          new Date(dateValue + "T00:00:00.000Z").toISOString().slice(0, 10) !== dateValue ||
+          seenDates.has(dateValue)) {
+          throw new Error("TOOL_OUTLET_SPECIAL_DATE_INVALID");
+        }
+        seenDates.add(dateValue);
+        if (entry.closed !== true) {
+          for (const value of [entry.openTime, entry.closeTime]) {
+            if (!/^\d{2}:\d{2}$/.test(String(value || ""))) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+            const [hour, minute] = String(value).split(":").map(Number);
+            if (hour > 23 || minute > 59) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+          }
+          if (entry.openTime === entry.closeTime) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
+        }
+      }
+    }
     return { resource, operation, identifier: String(args.identifier || "").trim(), data, confirmed: args.confirmed === true };
   }
 
@@ -297,24 +320,6 @@ export function executeWagramTool(name, rawArgs = {}, rawContext = {}) {
               if (updated.name === undefined || !String(updated.name).trim()) throw new Error("TOOL_PRODUCT_NAME_INVALID");
               if (updated.price !== undefined && (!Number.isSafeInteger(updated.price) || updated.price < 0)) throw new Error("TOOL_PRODUCT_PRICE_INVALID");
               if (updated.stock !== undefined && updated.stock !== null && (!Number.isSafeInteger(updated.stock) || updated.stock < 0)) throw new Error("TOOL_PRODUCT_STOCK_INVALID");
-            }
-            if (resource === "outlets" && updated.specialHours !== undefined) {
-              if (!Array.isArray(updated.specialHours) || updated.specialHours.length > 60) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
-              for (const entry of updated.specialHours) {
-                const dateValue = String(entry?.date || "");
-                if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue) || !Number.isFinite(Date.parse(dateValue + "T00:00:00.000Z")) || new Date(dateValue + "T00:00:00.000Z").toISOString().slice(0, 10) !== dateValue) {
-                  throw new Error("TOOL_OUTLET_SPECIAL_DATE_INVALID");
-                }
-                if (entry.closed !== true && (!/^\d{2}:\d{2}$/.test(String(entry.openTime || "")) || !/^\d{2}:\d{2}$/.test(String(entry.closeTime || "")))) {
-                  throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
-                }
-                if (entry.closed !== true) {
-                  for (const value of [entry.openTime, entry.closeTime]) {
-                    const [hour, minute] = String(value).split(":").map(Number);
-                    if (hour > 23 || minute > 59) throw new Error("TOOL_OUTLET_SPECIAL_HOURS_INVALID");
-                  }
-                }
-              }
             }
             items[index] = updated;
             result = { saved: true, operation, resource, item: updated };
