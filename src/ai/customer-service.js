@@ -21,6 +21,21 @@ const MAX_HISTORY_MESSAGES = 24;
 const MAX_EXAMPLES = 8;
 
 
+// [ADDED] Store compact, privacy-minimized decision summaries; never persist private chain-of-thought or full customer messages.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_business_decision_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    telegram_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    customer_chat_id TEXT NOT NULL,
+    message_fingerprint TEXT NOT NULL,
+    decision_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ai_business_decision_logs_owner
+    ON ai_business_decision_logs(telegram_id, session_id, customer_chat_id, created_at DESC);
+`);
+
 // [ADDED] Durable scheduled orders scoped to the owner, WhatsApp session and customer chat.
 db.exec(`
   CREATE TABLE IF NOT EXISTS ai_scheduled_orders (
@@ -602,6 +617,8 @@ const COMMUNICATION_PSYCHOLOGY_GUIDANCE = [
   "Gunakan maksimal satu tawaran tambahan dalam satu balasan, dengan kalimat singkat, natural, dan tidak memaksa. Jangan menyisipkan tawaran tambahan pada setiap giliran. Beri jeda percakapan; jika pelanggan mengabaikan tawaran atau langsung menjawab pertanyaan utama, ikuti jawaban pelanggan dan jangan mengulang promosi.",
   "Contoh pendekatan: setelah pelanggan memilih ayam panggang, tawarkan sambal atau minuman hanya jika item tersebut memang tersedia dan relevan. Jangan menganggap contoh ini sebagai katalog tetap.",
   "Jangan melakukan upsell ketika pelanggan sedang komplain, kecewa, meminta refund, menolak penawaran, sedang menyampaikan batas anggaran, atau hanya meminta informasi yang tidak menunjukkan niat membeli.",
+    "Pemeriksaan produk marketing: jika pelanggan menunjukkan niat membeli dan konteks sudah cukup, periksa katalog produk yang tersedia. Pilih maksimal satu produk pelengkap hanya jika benar-benar cocok dengan menu dan kebutuhan pelanggan. Sebut nama, harga, dan stok hanya jika tercatat. Jangan memaksakan penawaran; jika tidak ada produk relevan, nyatakan marketing tidak diperlukan. Jangan upsell saat komplain.",
+    "Skill yang digunakan harus dipilih sesuai konteks, bukan dipaksakan. Untuk memahami kebutuhan dan keputusan pelanggan gunakan Human Behavior & Decision Psychology bila relevan. Untuk keputusan pembelian dan penawaran gunakan Consumer Psychology & Persuasion. Untuk komplain gunakan Service Recovery Marketing & Trust Building sebagai skill marketing. Tampilkan hanya skill yang benar-benar berkontribusi.",
   "Jika pelanggan menolak atau mengabaikan tawaran tambahan, hormati keputusan tersebut dan lanjutkan pesanan tanpa mengulang penawaran.",
   "Jika tidak ada produk tambahan yang jelas relevan atau data produk tidak cukup, jangan upsell. Balasan tanpa penawaran lebih baik daripada promosi yang dipaksakan.",
   "HASILKAN BALASAN YANG TETAP FULL AI-DRIVEN: gunakan kerangka komunikasi, psikologi, dan marketing ini untuk memahami situasi dan memilih pendekatan; susun kalimat baru berdasarkan konteks aktual, fakta bisnis, riwayat, serta preferensi pemilik. Jangan menyalin contoh atau memaksakan satu teknik pada semua pelanggan."
@@ -1033,6 +1050,170 @@ export function buildConversationRecognition(message, history = []) {
   };
 }
 
+// [ADDED] Route only the psychology and marketing skills that materially affect this customer turn.
+const WAGRAM_DECISION_SKILLS = {
+  psychology: {
+    id: "human-behavior-decision-psychology",
+    name: "Human Behavior & Decision Psychology",
+    contribution: "Memahami kebutuhan, hambatan keputusan, kepercayaan, dan konteks perilaku tanpa menganggap dugaan sebagai fakta."
+  },
+  consumerMarketing: {
+    id: "consumer-psychology-and-persuasion",
+    name: "Consumer Psychology & Persuasion",
+    contribution: "Menilai kecocokan manfaat, persepsi nilai, pilihan produk, dan penawaran yang jujur tanpa tekanan."
+  },
+  serviceRecovery: {
+    id: "service-recovery-marketing-and-trust-building",
+    name: "Service Recovery Marketing & Trust Building",
+    contribution: "Menangani keluhan secara proporsional, memulihkan kepercayaan, dan menghindari promosi saat pelanggan kecewa."
+  }
+};
+
+function buildAIBusinessDecisionContext({ message, history, businessData, recognition, toolAudit, decisionSummary, createdScheduledOrder }) {
+  const fullText = [ ...(Array.isArray(history) ? history.slice(-10).map((item) => item?.content || "") : []), message ]
+    .join("\n").toLocaleLowerCase("id-ID");
+  const purchaseIntent = /\b(pesan|pesen|order|beli|memesan|pesanan|mau\s+ambil)\b/u.test(fullText);
+  const complaintIntent = /\b(komplain|keluhan|kecewa|kering|terlambat|salah|refund|pengembalian|buruk|tidak sesuai)\b/u.test(fullText);
+  const psychologySkill = WAGRAM_DECISION_SKILLS.psychology;
+  const marketingSkill = complaintIntent
+    ? WAGRAM_DECISION_SKILLS.serviceRecovery
+    : purchaseIntent ? WAGRAM_DECISION_SKILLS.consumerMarketing : null;
+
+  const outlets = Array.isArray(businessData?.outlets) ? businessData.outlets : [];
+  const outletMatch = outlets.find((outlet) =>
+    outlet.name && fullText.includes(String(outlet.name).toLocaleLowerCase("id-ID"))
+  );
+  const timeOutlet = outletMatch || (outlets.length === 1 ? outlets[0] : null);
+  let timeContext = {
+    status: timeOutlet ? "available" : "outlet_not_selected",
+    outlet: timeOutlet?.name || null,
+    timezone: timeOutlet?.timezone || null,
+    localDate: null,
+    localTime: null,
+    utcOffset: null
+  };
+  if (timeOutlet?.timezone) {
+    try {
+      const now = new Date();
+      const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+        timeZone: timeOutlet.timezone,
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"
+      }).formatToParts(now).map((part) => [part.type, part.value]));
+      const zoneLabel = timeOutlet.timezone === "Asia/Jakarta" ? "WIB"
+        : timeOutlet.timezone === "Asia/Makassar" ? "WITA"
+        : timeOutlet.timezone === "Asia/Jayapura" ? "WIT" : timeOutlet.timezone;
+      const offset = new Intl.DateTimeFormat("en-US", {
+        timeZone: timeOutlet.timezone, timeZoneName: "shortOffset", hour: "2-digit"
+      }).formatToParts(now).find((part) => part.type === "timeZoneName")?.value || "";
+      timeContext = {
+        status: "available",
+        outlet: String(timeOutlet.name || ""),
+        timezone: timeOutlet.timezone,
+        zoneLabel,
+        localDate: parts.day + "-" + parts.month + "-" + parts.year,
+        localTime: parts.hour + ":" + parts.minute,
+        utcOffset: offset
+      };
+    } catch {
+      timeContext.status = "invalid_outlet_timezone";
+    }
+  }
+
+  const products = Array.isArray(businessData?.products) ? businessData.products : [];
+  const productCheckRequired = purchaseIntent && !complaintIntent;
+  const productCheck = {
+    status: !productCheckRequired ? "not_required" : products.length ? "checked" : "catalog_unavailable",
+    reason: !productCheckRequired ? "Tidak ada konteks pembelian yang membutuhkan pemeriksaan produk pelengkap." :
+      products.length ? "Katalog aktif diperiksa; AI hanya boleh memilih produk yang relevan dan tercatat." :
+      "Katalog produk belum tersedia.",
+    catalogCount: products.length,
+    availableProducts: products.filter((product) => product.available !== false && product.isAvailable !== false)
+      .slice(0, 40).map((product) => ({
+        name: String(product.name || ""),
+        price: product.price ?? null,
+        stock: product.stock ?? null
+      }))
+  };
+
+  const action = String(decisionSummary?.action || "").trim().slice(0, 500) ||
+    (createdScheduledOrder ? "Pesanan terjadwal berhasil disimpan dan menunggu proses notifikasi." :
+      complaintIntent ? "Menangani keluhan dan menjaga kepercayaan; tidak menawarkan upsell." :
+      purchaseIntent ? "Melanjutkan kebutuhan pembelian dan hanya mempertimbangkan produk pelengkap yang relevan." :
+      "Menjawab kebutuhan pelanggan berdasarkan konteks dan fakta yang tersedia.");
+  const shouldSave = Boolean(createdScheduledOrder || decisionSummary?.saveToDatabase === true);
+  const saveReason = createdScheduledOrder
+    ? "Ya — pesanan terjadwal berhasil disimpan."
+    : shouldSave
+      ? String(decisionSummary?.saveReason || "Ya — ada informasi yang memang perlu disimpan.").slice(0, 300)
+      : "Tidak — analisis percakapan bersifat sementara; tidak ada perubahan bisnis atau data pelanggan yang perlu disimpan.";
+
+  const dataUsed = [
+    "Riwayat percakapan (" + (Array.isArray(history) ? Math.min(history.length, 10) : 0) + " pesan)",
+    "Pesan pelanggan saat ini",
+    "Profil bisnis sesi aktif",
+    ...(timeContext.status === "available" ? ["Waktu lokal outlet: " + timeContext.outlet + " (" + timeContext.zoneLabel + ")"] : []),
+    ...(productCheck.status === "checked" ? ["Katalog produk (" + productCheck.catalogCount + " produk)"] : []),
+    ...toolAudit.map((item) => item.tool)
+  ].filter((item, index, all) => all.indexOf(item) === index);
+
+  return {
+    recognition: {
+      status: recognition?.intent ? "completed" : "unavailable",
+      intent: recognition?.intent || "unknown",
+      summary: String(decisionSummary?.customerNeed || recognition?.interpretation || message || "").slice(0, 400)
+    },
+    time: timeContext,
+    psychologySkill: {
+      status: "used",
+      id: psychologySkill.id,
+      name: psychologySkill.name,
+      contribution: psychologySkill.contribution
+    },
+    marketingSkill: marketingSkill ? {
+      status: "used",
+      id: marketingSkill.id,
+      name: marketingSkill.name,
+      contribution: marketingSkill.contribution
+    } : {
+      status: "not_required",
+      name: "Tidak diperlukan",
+      contribution: "Tidak ada kebutuhan marketing yang relevan pada percakapan ini."
+    },
+    productCheck,
+    action,
+    database: { shouldSave, label: shouldSave ? "Ya" : "Tidak", reason: saveReason },
+    dataUsed,
+    responseSummary: String(decisionSummary?.responseSummary || "").trim().slice(0, 300)
+  };
+}
+
+function persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision }) {
+  if (!customerChatId || !decision) return;
+  const fingerprint = createHash("sha256").update(String(message || "")).digest("hex");
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO ai_business_decision_logs
+      (telegram_id, session_id, customer_chat_id, message_fingerprint, decision_json, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    String(telegramId), String(sessionId || telegramId), String(customerChatId),
+    fingerprint, JSON.stringify(decision), now
+  );
+  db.prepare(`
+    DELETE FROM ai_business_decision_logs
+    WHERE telegram_id = ? AND session_id = ? AND customer_chat_id = ?
+      AND id NOT IN (
+        SELECT id FROM ai_business_decision_logs
+        WHERE telegram_id = ? AND session_id = ? AND customer_chat_id = ?
+        ORDER BY created_at DESC LIMIT 200
+      )
+  `).run(
+    String(telegramId), String(sessionId || telegramId), String(customerChatId),
+    String(telegramId), String(sessionId || telegramId), String(customerChatId)
+  );
+}
+
 // [MODIFIED] OpenRouter interprets the owner's request and may call read-only business tools.
 async function runOwnerAIAgent({ telegramId, sessionId, message, history, profile, customerChatId }) {
   const settings = profile?.settings && typeof profile.settings === "object" ? profile.settings : {};
@@ -1153,7 +1334,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Gunakan interpretasi AI dan fakta bisnis sebagai konteks. Jangan mengarang harga, ketersediaan, kontak, jam buka, atau fakta bisnis.",
     "Jika informasi penting yang diminta pelanggan tidak tersedia atau tidak dapat dipastikan dari informasi bisnis, jangan menebak. Tandai needs_manager=true dan tulis manager_question yang jelas agar pengelola dapat menjawab. Jangan gunakan eskalasi untuk sapaan atau pertanyaan yang sebenarnya sudah terjawab.",
     "Jika needs_manager=true, reply harus berupa pemberitahuan singkat bahwa kamu sedang menanyakan hal tersebut ke pengelola. Jangan menyebut data, database, atau sumber internal.",
-    "Keluarkan JSON valid saja dengan struktur {reply:string, needs_manager:boolean, manager_question:string}. Jika informasi sudah cukup, needs_manager=false dan manager_question kosong.",
+    "Keluarkan JSON valid saja dengan struktur {reply:string, needs_manager:boolean, manager_question:string, decision:{customerNeed:string, action:string, marketingProduct:string|null, saveToDatabase:boolean, saveReason:string, responseSummary:string}}. decision berisi ringkasan keputusan singkat, bukan private reasoning atau chain-of-thought. Jangan mengarang produk yang diperiksa atau data yang digunakan. Jika informasi sudah cukup, needs_manager=false dan manager_question kosong.",
     "Jika ketersediaan tidak dapat dipastikan dari informasi yang ada, gunakan eskalasi ke pengelola, bukan mengarang atau sekadar menyuruh pelanggan menunggu.",
     "Jika objek tidak cocok dengan produk mana pun, sampaikan bahwa menu/varian tersebut belum tersedia; minta klarifikasi hanya jika nama produk memang ambigu.",
     "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. pickupAt wajib ISO 8601 dengan offset zona waktu outlet; gunakan zona waktu outlet dari data bisnis. Waktu pengambilan harus minimal 5 menit di masa depan berdasarkan waktu saat ini; jangan pernah merangkum atau meminta persetujuan untuk waktu yang sudah lewat. Jika waktu yang diminta sudah lewat, minta pelanggan memilih waktu baru terlebih dahulu. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
@@ -1169,6 +1350,8 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "REFERENSI KOREKSI PEMILIK (contoh untuk dipelajari, bukan jawaban template):", ownerCorrectionsText,
     "Tetap full AI-driven: pahami pesan terbaru, riwayat, maksud, dan fakta bisnis terlebih dahulu. Gunakan koreksi pemilik sebagai referensi preferensi bahasa, nada, sapaan, dan pola keputusan. AI harus menyusun jawaban baru yang paling sesuai dengan konteks saat ini; jangan menyalin atau mengunci jawaban referensi secara otomatis, termasuk ketika pertanyaannya sama. Jika konteks dan fakta sama, jawaban boleh serupa secara alami, tetapi tetap hasil pemahaman AI. Koreksi pemilik lebih diutamakan daripada contoh gaya historis yang tidak disetujui.",
     "INTERPRETASI PERTANYAAN (hasil pemahaman OpenRouter):", JSON.stringify(recognition),
+    "WAKTU LOKAL OUTLET:", JSON.stringify(buildAIBusinessDecisionContext({ message, history, businessData, recognition, toolAudit: [], decisionSummary: null, createdScheduledOrder: null }).time),
+    "KATALOG PRODUK UNTUK PEMERIKSAAN PENAWARAN YANG RELEVAN:", JSON.stringify(businessData.products),
     "DATA BISNIS DARI DATABASE SESI AKTIF:", JSON.stringify(businessData)
   ].join("\n");
   const contents = [...recentHistory, { role: "user", parts: [{ text: String(message || "").slice(0, 4000) }] }];
@@ -1349,7 +1532,7 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           "RIWAYAT: " + JSON.stringify(recentHistory).slice(0, 7000),
           "FAKTA BISNIS: " + JSON.stringify(businessData).slice(0, 7000),
           "HASIL PENCARIAN INFORMASI: " + JSON.stringify(toolAudit).slice(0, 5000),
-          "Jika perlu eskalasi, keluarkan JSON dengan reply, needs_manager, manager_question. Jika tidak, keluarkan teks balasan saja."
+          "Keluarkan JSON {reply, needs_manager, manager_question, decision:{customerNeed, action, marketingProduct, saveToDatabase, saveReason, responseSummary}}. decision hanya ringkasan keputusan, bukan chain-of-thought. Jika gagal format, teks balasan tetap dapat diproses."
         ].join("\n");
         const retryResult = await openRouterGenerate(
           [{ role: "user", parts: [{ text: retryPrompt }] }],
@@ -1377,14 +1560,22 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
           scheduledOrder: createdScheduledOrder,
           needsManager: false,
           managerQuestion: "",
-          trace: {
-            recognition: recognition.interpretation, intent: recognition.intent, entity: recognition.entity,
-            requestedFields: recognition.requested_fields, confidence: recognition.confidence,
-            action: "Respons aman digunakan karena model tidak mengembalikan teks setelah percobaan ulang.",
-            dataUsed: toolAudit.map((item) => item.tool + ": " + JSON.stringify(item.resultSummary)),
-            status: "Respons cadangan digunakan; status penyimpanan pesanan mengikuti hasil database.",
-            expectedAnswer: safeReply, toolCalls: toolAudit
-          }
+          trace: (() => {
+            const decision = buildAIBusinessDecisionContext({
+              message, history, businessData, recognition, toolAudit,
+              decisionSummary: { action: "Respons aman digunakan karena model tidak mengembalikan teks setelah percobaan ulang." },
+              createdScheduledOrder
+            });
+            try { persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision }); }
+            catch (error) { console.error("[WAGRAM AI] Decision audit persistence failed:", error.message); }
+            return {
+              ...decision, recognition: decision.recognition.summary,
+              intent: recognition.intent, entity: recognition.entity,
+              requestedFields: recognition.requested_fields, confidence: recognition.confidence,
+              status: "Respons cadangan digunakan; status penyimpanan pesanan mengikuti hasil database.",
+              expectedAnswer: safeReply, toolCalls: toolAudit
+            };
+          })()
         };
       }
       let structuredAnswer = null;
@@ -1399,12 +1590,34 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
       const conciseAnswer = answer.length > 320
         ? answer.slice(0, 317).replace(/\s+\S*$/, "").replace(/[,:;\s]+$/, "") + "…"
         : answer;
+      const decision = buildAIBusinessDecisionContext({
+        message, history, businessData, recognition, toolAudit,
+        decisionSummary: structuredAnswer?.decision || null, createdScheduledOrder
+      });
+      if (decision.productCheck.status === "checked" && structuredAnswer?.decision?.marketingProduct) {
+        const selected = decision.productCheck.availableProducts.find((product) =>
+          product.name.toLocaleLowerCase("id-ID") === String(structuredAnswer.decision.marketingProduct).toLocaleLowerCase("id-ID")
+        );
+        decision.productCheck.selectedProduct = selected || null;
+        if (!selected) {
+          decision.productCheck.selectionStatus = "not_verified";
+          decision.productCheck.reason += " Model menyebut produk yang tidak cocok dengan katalog; produk tidak dianggap tervalidasi.";
+        } else {
+          decision.productCheck.selectionStatus = "verified";
+        }
+      }
+      try {
+        persistAIBusinessDecisionLog({ telegramId, sessionId, customerChatId, message, decision });
+      } catch (error) {
+        console.error("[WAGRAM AI] Decision audit persistence failed:", error.message);
+      }
       return { reply: conciseAnswer, scheduledOrder: createdScheduledOrder, needsManager: structuredAnswer?.needs_manager === true, managerQuestion: String(structuredAnswer?.manager_question || "").trim().slice(0, 1000), trace: {
-        recognition: recognition.interpretation, intent: recognition.intent, entity: recognition.entity,
+        ...decision,
+        recognition: decision.recognition.summary,
+        intent: recognition.intent, entity: recognition.entity,
         requestedFields: recognition.requested_fields, confidence: recognition.confidence,
-        action: "OpenRouter memahami pertanyaan, lalu menyusun jawaban berdasarkan data database sesi aktif.",
-        dataUsed: toolAudit.map((item) => item.tool + ": " + JSON.stringify(item.resultSummary)),
-        status: "Tahap pengenalan dan penyusunan jawaban selesai.", expectedAnswer: answer, toolCalls: toolAudit
+        status: "Ringkasan keputusan selesai; hanya metadata audit yang disimpan.",
+        expectedAnswer: answer, toolCalls: toolAudit
       }};
     }
     contents.push(result.candidate.content);
