@@ -1069,7 +1069,7 @@ const WAGRAM_DECISION_SKILLS = {
   }
 };
 
-function buildAIBusinessDecisionContext({ message, history, businessData, recognition, toolAudit, decisionSummary, createdScheduledOrder }) {
+export function buildAIBusinessDecisionContext({ message, history, businessData, recognition, toolAudit, decisionSummary, createdScheduledOrder }) {
   const fullText = [ ...(Array.isArray(history) ? history.slice(-10).map((item) => item?.content || "") : []), message ]
     .join("\n").toLocaleLowerCase("id-ID");
   const purchaseIntent = /\b(pesan|pesen|order|beli|memesan|pesanan|mau\s+ambil)\b/u.test(fullText);
@@ -1141,12 +1141,11 @@ function buildAIBusinessDecisionContext({ message, history, businessData, recogn
       complaintIntent ? "Menangani keluhan dan menjaga kepercayaan; tidak menawarkan upsell." :
       purchaseIntent ? "Melanjutkan kebutuhan pembelian dan hanya mempertimbangkan produk pelengkap yang relevan." :
       "Menjawab kebutuhan pelanggan berdasarkan konteks dan fakta yang tersedia.");
-  const shouldSave = Boolean(createdScheduledOrder || decisionSummary?.saveToDatabase === true);
+  // [MODIFIED] The model cannot authorize database writes; only a verified backend transaction counts as saved.
+  const shouldSave = Boolean(createdScheduledOrder);
   const saveReason = createdScheduledOrder
     ? "Ya — pesanan terjadwal berhasil disimpan."
-    : shouldSave
-      ? String(decisionSummary?.saveReason || "Ya — ada informasi yang memang perlu disimpan.").slice(0, 300)
-      : "Tidak — analisis percakapan bersifat sementara; tidak ada perubahan bisnis atau data pelanggan yang perlu disimpan.";
+    : "Tidak — analisis percakapan bersifat sementara; model tidak diberi kewenangan menyimpan data tanpa tindakan backend yang sah.";
 
   const dataUsed = [
     "Riwayat percakapan (" + (Array.isArray(history) ? Math.min(history.length, 10) : 0) + " pesan)",
