@@ -8547,3 +8547,65 @@ body.in-chat #topbar {
   }
 }
 
+/* [ADDED] Smooth row expansion transitions for WAMO AI settings. */
+/* Animate row layout changes without changing the three-column interaction. */
+.ai-business-settings-grid {
+  transition: grid-template-columns .28s cubic-bezier(.22, 1, .36, 1);
+}
+.ai-business-setting-tile {
+  transform-origin: center;
+  will-change: transform, opacity;
+  transition:
+    min-height .28s cubic-bezier(.22, 1, .36, 1),
+    padding .28s cubic-bezier(.22, 1, .36, 1),
+    border-radius .28s cubic-bezier(.22, 1, .36, 1),
+    background-color .22s ease,
+    border-color .22s ease,
+    transform .28s cubic-bezier(.22, 1, .36, 1),
+    opacity .2s ease;
+}
+.ai-business-setting-tile:hover,
+.ai-business-setting-tile:focus-visible,
+.ai-business-setting-tile:focus {
+  transform: translateY(-1px);
+}
+.ai-business-setting-icon {
+  transition:
+    width .28s cubic-bezier(.22, 1, .36, 1),
+    height .28s cubic-bezier(.22, 1, .36, 1),
+    border-radius .28s cubic-bezier(.22, 1, .36, 1),
+    background-color .22s ease;
+}
+.ai-business-setting-copy {
+  min-width: 0;
+  animation: none;
+}
+.ai-business-setting-tile:hover .ai-business-setting-copy,
+.ai-business-setting-tile:focus-visible .ai-business-setting-copy,
+.ai-business-setting-tile:focus .ai-business-setting-copy {
+  animation: aiSettingsLabelSmooth .24s cubic-bezier(.22, 1, .36, 1) both;
+}
+.ai-business-setting-tile:hover .ai-business-setting-arrow,
+.ai-business-setting-tile:focus-visible .ai-business-setting-arrow,
+.ai-business-setting-tile:focus .ai-business-setting-arrow {
+  animation: aiSettingsArrowSmooth .22s ease both;
+}
+@keyframes aiSettingsLabelSmooth {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes aiSettingsArrowSmooth {
+  from { opacity: 0; transform: translateX(-4px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-business-settings-grid,
+  .ai-business-setting-tile,
+  .ai-business-setting-icon,
+  .ai-business-setting-copy,
+  .ai-business-setting-arrow {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
