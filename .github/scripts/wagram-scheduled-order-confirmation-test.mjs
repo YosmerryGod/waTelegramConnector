@@ -125,6 +125,36 @@ try {
     true,
     "An explicit approval after a matching complete summary must pass."
   );
+
+  // [ADDED] Natural Indonesian acknowledgements from real WhatsApp conversations must pass.
+  for (const message of ["iya sudah kak", "iya sudah sesuai", "iua sudah sesuai", "iya sudah sesuai kak", "baik kak", "siap, sesuai", "oke kak terima kasih"]) {
+    assert.equal(
+      validateScheduledOrderConfirmation({ ...order, message, history: [approvedSummary] }).valid,
+      true,
+      "A clear natural acknowledgement should pass: " + message
+    );
+  }
+  assert.equal(
+    validateScheduledOrderConfirmation({
+      ...order,
+      message: "Iya",
+      history: [{ ...approvedSummary, content: approvedSummary.content.replace("Ayam Panggang x2", "Ayam Panggang") }]
+    }).valid,
+    false,
+    "The quantity must appear next to the matching product, not coincidentally in the date or total."
+  );
+
+  const failedSaveDecision = buildAIBusinessDecisionContext({
+    message: "iya sudah kak",
+    history: [approvedSummary],
+    businessData: { outlets: [], products: [] },
+    recognition: { intent: "purchase_intent", interpretation: "Pelanggan menyetujui ringkasan pesanan." },
+    toolAudit: [{ tool: "create_scheduled_order", resultSummary: "rejected: SCHEDULED_ORDER_OUTLET_CLOSED_OR_HOURS_UNKNOWN" }],
+    decisionSummary: null,
+    createdScheduledOrder: null
+  });
+  assert.equal(failedSaveDecision.database.label, "Gagal");
+  assert.match(failedSaveDecision.database.reason, /SCHEDULED_ORDER_OUTLET_CLOSED_OR_HOURS_UNKNOWN/);
   assert.equal(
     validateScheduledOrderConfirmation({ ...order, message: "Iya, tapi ganti outlet", history: [approvedSummary] }).valid,
     false,
