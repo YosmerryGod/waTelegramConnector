@@ -786,7 +786,7 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     "PENJELASAN PRODUK: Jangan menyalin nama menu panjang secara mentah. Pahami nama, deskripsi, pilihan/varian, harga, dan promo sebagai fakta produk, lalu jelaskan dengan bahasa percakapan yang mudah dipahami. Untuk pertanyaan ketersediaan dengan niat beli, tawarkan satu produk unggulan yang relevan sejak respons pertama bila kandidat produk tersedia dan faktanya cukup. Pisahkan harga produk dari benefit gratis agar tidak ambigu. Jangan menyebut benefit yang tidak tercantum dalam kandidat/fakta bisnis.",
     "KANDIDAT PRODUK UNTUK PENAWARAN: " + JSON.stringify(customerSkillRuntime.productOfferCandidates || []),
     "CONTEXT PACKET: " + JSON.stringify(customerSkillRuntime.contextPacket),
-    "PANDUAN SKILL PROGRESIF:\\n" + customerSkillRuntime.instructions,
+    "PANDUAN SKILL PROGRESIF:\n" + customerSkillRuntime.instructions,
     options.autoReply
       ? "TUJUAN: Tulis satu balasan final yang siap dikirim langsung kepada pelanggan melalui WhatsApp. Jangan menyebut bahwa ini draft, AI, atau hasil training."
       : "TUJUAN: Siapkan draft balasan WhatsApp untuk diperiksa manusia. Jangan mengirim pesan.",
