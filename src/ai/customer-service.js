@@ -1222,15 +1222,15 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
             INSERT OR IGNORE INTO ai_scheduled_orders (
               telegram_id, session_id, customer_chat_id, customer_name, outlet_name,
               outlet_address, pickup_at, timezone, items_json, total_amount,
-              payment_status, payment_note, fingerprint, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              payment_status, payment_note, fingerprint, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             String(telegramId), String(sessionId || telegramId), String(customerChatId),
             customerName, String(outlet.name).trim(), String(outlet.address || ""),
             pickupAt, String(outlet.timezone || outlet.timeZone || "Asia/Jakarta"),
             JSON.stringify(items), totalAmount, paymentStatus,
             paymentStatus === "unpaid" ? "Bayar di tempat — " + String(outlet.name).trim() : "Pelanggan mengaku sudah membayar; perlu verifikasi pengelola.",
-            fingerprint, now
+            fingerprint, now, now
           );
           const order = db.prepare(`
             SELECT id, customer_name, outlet_name, outlet_address, pickup_at, timezone,
