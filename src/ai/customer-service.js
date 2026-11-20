@@ -762,6 +762,53 @@ function getOutletOperatingStatus(outlet, now = new Date()) {
   };
 }
 
+// [ADDED] Independently verify customer approval against the latest incoming message and the exact summary shown immediately before it.
+export function validateScheduledOrderConfirmation({ message, history, outletName, pickupAt, timezone, items, totalAmount, paymentStatus }) {
+  const normalize = (value) => String(value || "").toLocaleLowerCase("id-ID").normalize("NFKC").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+  const confirmation = normalize(message);
+  const explicitApproval = /^(?:ya|iya|iy[a]?|oke|ok|okay|setuju|saya setuju|saya konfirmasi|konfirmasi|betul|benar|sesuai|lanjut|boleh|silakan|gas)(?: kak)?$/u.test(confirmation);
+  if (!explicitApproval) return { valid: false, reason: "customer_message_not_explicit_approval" };
+
+  const previousMessage = Array.isArray(history) ? history[history.length - 1] : null;
+  if (previousMessage?.role !== "assistant" || !String(previousMessage?.content || "").trim()) {
+    return { valid: false, reason: "approved_summary_not_found" };
+  }
+  const summary = normalize(previousMessage.content);
+  const summaryDigits = String(previousMessage.content).replace(/\D/g, "");
+  if (!summary.includes(normalize(outletName))) return { valid: false, reason: "summary_outlet_mismatch" };
+
+  let localParts;
+  try {
+    localParts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+      timeZone: String(timezone || "Asia/Jakarta"),
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).formatToParts(new Date(pickupAt)).map((part) => [part.type, part.value]));
+  } catch {
+    return { valid: false, reason: "summary_timezone_invalid" };
+  }
+  const expectedDate = localParts.day + "/" + localParts.month + "/" + localParts.year;
+  const expectedTime = localParts.hour + ":" + localParts.minute;
+  if (!summary.includes(expectedDate)) return { valid: false, reason: "summary_pickup_date_missing" };
+  if (!summary.includes(expectedTime)) return { valid: false, reason: "summary_pickup_time_missing" };
+
+  for (const item of Array.isArray(items) ? items : []) {
+    if (!summary.includes(normalize(item.name))) return { valid: false, reason: "summary_item_missing" };
+    const quantityPattern = new RegExp("(^|\\D)" + Number(item.quantity) + "(\\D|$)");
+    if (!quantityPattern.test(summary)) return { valid: false, reason: "summary_quantity_missing" };
+  }
+  if (!Number.isSafeInteger(totalAmount) || !summaryDigits.includes(String(totalAmount))) {
+    return { valid: false, reason: "summary_total_mismatch" };
+  }
+  if (paymentStatus === "unpaid" && !/(bayar di tempat|belum dibayar)/u.test(summary)) {
+    return { valid: false, reason: "summary_payment_status_missing" };
+  }
+  if (paymentStatus === "pending_verification" && !/(perlu verifikasi|menunggu verifikasi|belum terverifikasi)/u.test(summary)) {
+    return { valid: false, reason: "summary_payment_status_missing" };
+  }
+  return { valid: true, reason: "customer_approval_and_summary_verified" };
+}
+
 // [MODIFIED] OpenRouter interprets the owner's request and may call read-only business tools.
 async function runOwnerAIAgent({ telegramId, sessionId, message, history, profile, customerChatId }) {
   const settings = profile?.settings && typeof profile.settings === "object" ? profile.settings : {};
@@ -947,6 +994,8 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
     "Jika ketersediaan tidak dapat dipastikan dari informasi yang ada, gunakan eskalasi ke pengelola, bukan mengarang atau sekadar menyuruh pelanggan menunggu.",
     "Jika objek tidak cocok dengan produk mana pun, sampaikan bahwa menu/varian tersebut belum tersedia; minta klarifikasi hanya jika nama produk memang ambigu.",
     "PESANAN TERJADWAL: gunakan create_scheduled_order hanya setelah pelanggan secara eksplisit menyetujui ringkasan akhir berisi outlet, menu, jumlah, total, waktu pengambilan, dan status pembayaran. Jangan panggil tool ketika masih mengumpulkan detail atau sebelum persetujuan. pickupAt wajib ISO 8601 dengan offset zona waktu outlet; gunakan zona waktu outlet dari data bisnis. Jika pelanggan belum membayar, pilih unpaid. Jika mengaku sudah membayar, pilih pending_verification; jangan pernah menyatakan lunas.",
+    // [ADDED] Format ringkasan harus dapat diverifikasi backend sebelum pesanan disimpan.
+    "Saat meminta persetujuan akhir, tulis ringkasan yang mencantumkan nama outlet, setiap menu dan jumlahnya, total dalam angka rupiah, tanggal pengambilan format DD/MM/YYYY, jam format HH:mm sesuai zona waktu outlet, serta status pembayaran. Pelanggan harus membalas persetujuan singkat secara eksplisit. Jangan panggil tool pada pesan ambigu atau jika ringkasan terakhir tidak memuat seluruh detail tersebut.",
     "Jangan membuat atau mengubah data produk/outlet dari percakapan pelanggan. Harga dan stok pesanan harus berasal dari data produk bisnis yang tersimpan.",
     "Jika tool pesanan mengembalikan saved=false, jangan mengaku pesanan berhasil dibuat. Jika saved=true, sampaikan pesanan sudah dicatat dan pembayaran sesuai status yang dikembalikan.",
     "Jangan melakukan perubahan profil bisnis berdasarkan pesan pelanggan. Satu-satunya tindakan tulis yang tersedia dalam percakapan pelanggan adalah membuat pesanan terjadwal setelah konfirmasi eksplisit.",
@@ -1006,6 +1055,13 @@ async function runOwnerAIAgent({ telegramId, sessionId, message, history, profil
         if (!items.length || items.some((item) => !Number.isSafeInteger(item.subtotal))) throw new Error("SCHEDULED_ORDER_ITEMS_INVALID");
         const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0);
         if (!Number.isSafeInteger(totalAmount)) throw new Error("SCHEDULED_ORDER_TOTAL_INVALID");
+        // [ADDED] Never trust the model-provided confirmed flag on its own.
+        const confirmationCheck = validateScheduledOrderConfirmation({
+          message, history, outletName: outlet.name, pickupAt,
+          timezone: String(outlet.timezone || outlet.timeZone || "Asia/Jakarta"),
+          items, totalAmount, paymentStatus
+        });
+        if (!confirmationCheck.valid) throw new Error("SCHEDULED_ORDER_CONFIRMATION_REJECTED:" + confirmationCheck.reason);
         const fingerprint = createHash("sha256").update(JSON.stringify({
           customerName, outletName, pickupAt, items, paymentStatus
         })).digest("hex");
