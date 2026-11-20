@@ -1074,7 +1074,7 @@ export function buildAIBusinessDecisionContext({ message, history, businessData,
     .join("\n").toLocaleLowerCase("id-ID");
   const purchaseIntent = /\b(pesan|pesen|order|beli|memesan|pesanan|mau\s+ambil)\b/u.test(fullText);
   const complaintIntent = /\b(komplain|keluhan|kecewa|kering|terlambat|salah|refund|pengembalian|buruk|tidak sesuai)\b/u.test(fullText);
-  const psychologySkill = WAGRAM_DECISION_SKILLS.psychology;
+  const psychologySkill = purchaseIntent || complaintIntent ? WAGRAM_DECISION_SKILLS.psychology : null;
   const marketingSkill = complaintIntent
     ? WAGRAM_DECISION_SKILLS.serviceRecovery
     : purchaseIntent ? WAGRAM_DECISION_SKILLS.consumerMarketing : null;
@@ -1163,11 +1163,15 @@ export function buildAIBusinessDecisionContext({ message, history, businessData,
       summary: String(decisionSummary?.customerNeed || recognition?.interpretation || message || "").slice(0, 400)
     },
     time: timeContext,
-    psychologySkill: {
+    psychologySkill: psychologySkill ? {
       status: "used",
       id: psychologySkill.id,
       name: psychologySkill.name,
       contribution: psychologySkill.contribution
+    } : {
+      status: "not_required",
+      name: "Tidak diperlukan",
+      contribution: "Tidak ada keputusan perilaku pelanggan yang memerlukan skill psikologi khusus pada konteks ini."
     },
     marketingSkill: marketingSkill ? {
       status: "used",
