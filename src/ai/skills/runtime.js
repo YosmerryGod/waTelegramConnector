@@ -1,7 +1,7 @@
 // [ADDED] Hermes-inspired progressive skill runtime for WAGRAM AI.
 import fs from "node:fs";
 import path from "node:path";
-import db from "../database.js";
+import db from "../../database.js";
 
 const MAX_ACTIVE_SKILLS = 3;
 const SKILL_REGISTRY = [
@@ -81,7 +81,7 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner" 
     id: skill.id,
     name: skill.name,
     matchedTriggers: matched,
-    instructions: SKILL_CONTENT[skill.id]
+    instructions: (() => {\n      try {\n        const filePath = path.resolve(process.cwd(), "src/ai/skills/catalog", skill.file);\n        return fs.readFileSync(filePath, "utf8").slice(0, 5000);\n      } catch (error) {\n        console.warn("[WAGRAM AI] Skill file unavailable:", skill.id, error.message);\n        return SKILL_CONTENT[skill.id].join("\\n");\n      }\n    })()
   }));
   return {
     mode,
