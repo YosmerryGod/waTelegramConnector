@@ -807,8 +807,8 @@ function zonedDateTimeToDate(year, month, day, hour, minute, timezone) {
 
 export function getOutletOperatingStatus(outlet, now = new Date()) {
   const timezone = String(outlet?.timezone || outlet?.timeZone || "Asia/Jakarta").trim();
-  const openTime = String(outlet?.openTime || outlet?.open_time || outlet?.open || "").trim();
-  const closeTime = String(outlet?.closeTime || outlet?.close_time || outlet?.close || "").trim();
+  let openTime = String(outlet?.openTime || outlet?.open_time || outlet?.open || "").trim(); // [MODIFIED]
+  let closeTime = String(outlet?.closeTime || outlet?.close_time || outlet?.close || "").trim(); // [MODIFIED]
   const days = Array.isArray(outlet?.openDays)
     ? outlet.openDays
     : Array.isArray(outlet?.days) ? outlet.days : [0, 1, 2, 3, 4, 5, 6];
