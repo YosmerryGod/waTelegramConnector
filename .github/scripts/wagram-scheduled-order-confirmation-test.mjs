@@ -8,7 +8,7 @@ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "wagram-order-confirmation
 process.env.SQLITE_PATH = path.join(tempDir, "test.sqlite");
 
 const database = await import("../../src/database.js");
-const { buildScheduledOrderFallbackReply, normalizeOpenRouterMessageContent, normalizeCustomerChatJid, validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
+const { buildConversationRecognition, buildScheduledOrderFallbackReply, normalizeOpenRouterMessageContent, normalizeCustomerChatJid, validateScheduledOrderConfirmation } = await import("../../src/ai/customer-service.js");
 
 const order = {
   outletName: "Outlet Banjarbaru",
@@ -27,6 +27,24 @@ try {
   assert.equal(normalizeOpenRouterMessageContent("  respons teks  "), "respons teks");
   assert.equal(normalizeOpenRouterMessageContent([{ text: "bagian satu" }, { type: "text", text: "bagian dua" }]), "bagian satu\nbagian dua");
   assert.equal(normalizeOpenRouterMessageContent(null), "");
+
+  const orderContext = buildConversationRecognition("pesen ayam panggang apakah bisa kak", [
+    { role: "user", content: "saya mau pesan ayam panggang 3 porsi" },
+    { role: "assistant", content: "Maaf, saya sedang memeriksa pesanan." }
+  ]);
+  assert.equal(orderContext.intent, "purchase_intent", "The classifier hint must retain purchase intent from conversation history.");
+  assert.equal(orderContext.needs_business_data, true);
+  assert.equal(orderContext.context_message_count, 2);
+  assert.equal(
+    buildConversationRecognition("saya mau pesan ayam panggang 3 porsi", []).intent,
+    "purchase_intent",
+    "A direct order request must be recognized without a separate model call."
+  );
+  assert.equal(
+    buildConversationRecognition("halo kak", []).intent,
+    "conversation",
+    "A greeting must not be forced into a business-question intent."
+  );
   assert.equal(buildScheduledOrderFallbackReply({ id: 42, paymentStatus: "unpaid" }), "Pesanan #42 sudah berhasil dicatat, Kak. Pembayaran di tempat.");
   assert.equal(buildScheduledOrderFallbackReply({ id: 43, paymentStatus: "pending_verification" }), "Pesanan #43 sudah berhasil dicatat, Kak. Pembayaran menunggu verifikasi pengelola.");
   assert.equal(buildScheduledOrderFallbackReply(null), "");
