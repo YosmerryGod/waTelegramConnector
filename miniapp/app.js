@@ -3043,12 +3043,33 @@
   function renderAIBusinessSettingsSection(section) {
     const settings = getAIBusinessSettings();
     const host = $("#aiBusinessSettingsFormHost");
-    const titles = { manager: "Manager", outlets: "Outlet", payment: "Pembayaran QRIS", products: "Produk", ai: "Konfigurasi AI" };
+    const titles = { manager: "Manager", outlets: "Outlet", payment: "Pembayaran QRIS", products: "Produk", ai: "Konfigurasi AI", skillLearning: "Usulan Pembelajaran" };
     $("#aiBusinessSettingsTitle").textContent = titles[section] || "Kelola bisnis";
     $("#aiBusinessSettingsMenu").classList.add("hidden");
     $("#aiBusinessSettingsDetail").classList.remove("hidden");
 
-    if (section === "manager") {
+    if (section === "skillLearning") {
+      host.innerHTML = `
+        <div class="ai-business-data-form">
+          <p>Usulan ini hanya menjadi perubahan yang menunggu keputusan. Skill aktif tidak berubah otomatis setelah disetujui.</p>
+          <form data-ai-skill-proposal-form>
+            <label>Skill
+              <select name="skillId" required>
+                <option value="business-context">Business Context</option>
+                <option value="customer-communication">Customer Communication</option>
+                <option value="consumer-psychology">Consumer Psychology</option>
+                <option value="service-recovery">Service Recovery</option>
+                <option value="human-decision-psychology">Human Decision Psychology</option>
+              </select>
+            </label>
+            <label>Usulan perubahan<textarea name="proposal" maxlength="5000" rows="4" required placeholder="Apa yang perlu dipelajari atau diperbaiki WAGRAM AI?"></textarea></label>
+            <label>Bukti / contoh percakapan<textarea name="evidenceSummary" maxlength="3000" rows="3" required placeholder="Tuliskan contoh dan alasan usulan ini diperlukan."></textarea></label>
+            <button class="ai-business-save-button" type="submit">Kirim usulan</button>
+          </form>
+          <div id="aiSkillProposalList" aria-live="polite"><p>Memuat usulan…</p></div>
+        </div>`;
+      void loadAISkillProposals();
+    } else if (section === "manager") {
       host.innerHTML = `
         <form data-ai-settings-form="manager" class="ai-business-data-form">
           <label>Nama manager<input name="name" type="text" maxlength="100" placeholder="Nama penanggung jawab" value="${escapeHTML(settings.manager.name || "")}"></label>
@@ -3171,6 +3192,11 @@
       closeAIBusinessSettings();
       return;
     }
+    const proposalReviewButton = event.target.closest("[data-ai-skill-proposal-review]");
+    if (proposalReviewButton) {
+      void reviewAISkillProposal(Number(proposalReviewButton.dataset.aiSkillProposalReview), proposalReviewButton.dataset.approved === "true");
+      return;
+    }
     const sectionButton = event.target.closest("[data-ai-settings-section]");
     if (sectionButton) {
       renderAIBusinessSettingsSection(sectionButton.dataset.aiSettingsSection);
@@ -3227,6 +3253,27 @@
   }
 
   async function handleAIBusinessSettingsSubmit(event) {
+    const proposalForm = event.target.closest("[data-ai-skill-proposal-form]");
+    if (proposalForm) {
+      event.preventDefault();
+      const values = new FormData(proposalForm);
+      const submitButton = proposalForm.querySelector('button[type="submit"]');
+      if (submitButton) submitButton.disabled = true;
+      void api("/ai/skill-proposals", {
+        method: "POST",
+        body: JSON.stringify({
+          skillId: String(values.get("skillId") || ""),
+          proposal: String(values.get("proposal") || "").trim(),
+          evidenceSummary: String(values.get("evidenceSummary") || "").trim()
+        })
+      }).then(() => {
+        showToast("Usulan pembelajaran tersimpan.");
+        proposalForm.reset();
+        return loadAISkillProposals();
+      }).catch((error) => showToast(error.message || "Usulan gagal disimpan."))
+        .finally(() => { if (submitButton) submitButton.disabled = false; });
+      return;
+    }
     const form = event.target.closest("[data-ai-settings-form]");
     if (!form) return;
     event.preventDefault();
@@ -3291,6 +3338,52 @@
     }
     saveAIBusinessSettings(settings);
     closeAIBusinessSettings();
+  }
+
+  // [ADDED] Load owner-scoped skill learning proposals for the active WhatsApp session.
+  async function loadAISkillProposals() {
+    const host = $("#aiSkillProposalList");
+    if (!host) return;
+    host.innerHTML = "<p>Memuat usulan…</p>";
+    try {
+      const data = await api("/ai/skill-proposals");
+      const proposals = Array.isArray(data.proposals) ? data.proposals : [];
+      if (!proposals.length) {
+        host.innerHTML = "<p>Belum ada usulan pembelajaran untuk sesi ini.</p>";
+        return;
+      }
+      const labels = { pending: "Menunggu keputusan", approved: "Disetujui", rejected: "Ditolak", applied: "Diterapkan" };
+      host.innerHTML = proposals.map((item) => `
+        <article class="ai-business-data-form" style="margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:12px">
+          <strong>${escapeHTML(item.skill_id)}</strong>
+          <p>${escapeHTML(item.proposal)}</p>
+          <small>Bukti: ${escapeHTML(item.evidence_summary)}</small>
+          <p><strong>Status:</strong> ${escapeHTML(labels[item.status] || item.status)}</p>
+          ${item.status === "pending" ? `
+            <div class="ai-business-time-fields">
+              <button type="button" class="ai-business-save-button" data-ai-skill-proposal-review="${Number(item.id)}" data-approved="true">Setujui</button>
+              <button type="button" class="secondary-button" data-ai-skill-proposal-review="${Number(item.id)}" data-approved="false">Tolak</button>
+            </div>` : ""}
+        </article>`).join("");
+    } catch (error) {
+      host.innerHTML = `<p>${escapeHTML(error.message || "Usulan tidak dapat dimuat.")}</p><button type="button" class="secondary-button" id="retryAISkillProposals">Coba lagi</button>`;
+      $("#retryAISkillProposals")?.addEventListener("click", loadAISkillProposals, { once: true });
+    }
+  }
+
+  // [ADDED] Approve or reject a proposal; approval records owner consent but never edits skill files.
+  async function reviewAISkillProposal(proposalId, approved) {
+    if (!Number.isSafeInteger(proposalId) || proposalId <= 0) return;
+    try {
+      await api("/ai/skill-proposals/" + proposalId + "/review", {
+        method: "POST",
+        body: JSON.stringify({ approved })
+      });
+      showToast(approved ? "Usulan disetujui." : "Usulan ditolak.");
+      await loadAISkillProposals();
+    } catch (error) {
+      showToast(error.message || "Keputusan usulan gagal disimpan.");
+    }
   }
 
   // [ADDED] Keep WAMO AI conversation history locally per WhatsApp session.
