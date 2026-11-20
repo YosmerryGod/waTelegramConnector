@@ -819,8 +819,8 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
     const hour = Number(match[1]), minute = Number(match[2]);
     return hour <= 23 && minute <= 59 ? { hour, minute, minutes: hour * 60 + minute } : null;
   };
-  const open = parseTime(openTime);
-  const close = parseTime(closeTime);
+  let open = parseTime(openTime);
+  let close = parseTime(closeTime);
   if (!open || !close || open.minutes === close.minutes) {
     return { isOpen: null, timezone, openTime, closeTime, reason: "hours_not_configured" };
   }
@@ -831,6 +831,31 @@ export function getOutletOperatingStatus(outlet, now = new Date()) {
     local = getZonedDateTimeParts(now, timezone);
   } catch {
     return { isOpen: null, timezone, openTime, closeTime, reason: "invalid_timezone_or_date" };
+  }
+
+  const localDateKey = String(local.year) + "-" + String(local.month).padStart(2, "0") + "-" + String(local.day).padStart(2, "0");
+  // [ADDED] Date-specific closures and hours override the weekly schedule.
+  const specialHours = Array.isArray(outlet?.specialHours) ? outlet.specialHours : [];
+  const special = specialHours.find((entry) => String(entry?.date || "").trim() === localDateKey);
+  if (special?.closed === true) {
+    return {
+      isOpen: false, timezone, openTime, closeTime,
+      localDay: local.weekday, localDate: localDateKey.split("-").reverse().join("/"),
+      localTime: String(local.hour).padStart(2, "0") + ":" + String(local.minute).padStart(2, "0"),
+      nextOpeningAt: null, reason: "special_closure"
+    };
+  }
+  if (special && (special.openTime || special.closeTime)) {
+    if (!special.openTime || !special.closeTime) {
+      return { isOpen: null, timezone, openTime, closeTime, reason: "special_hours_incomplete" };
+    }
+    openTime = String(special.openTime).trim();
+    closeTime = String(special.closeTime).trim();
+    open = parseTime(openTime);
+    close = parseTime(closeTime);
+    if (!open || !close || open.minutes === close.minutes) {
+      return { isOpen: null, timezone, openTime, closeTime, reason: "special_hours_invalid" };
+    }
   }
 
   const openDayValues = new Set(days.map((day) => {
