@@ -45,7 +45,7 @@ import { saveWhatsAppMedia } from "./media-storage.js";
 import { recordAICustomerServiceMessage } from "./ai/customer-service.js";
 
 // [ADDED] Run one-time AI auto replies for eligible incoming private messages.
-import { handleIncomingAIAutoReply, handleIncomingAIPaymentProof, handleIncomingManagerReply, isAIAutoReplyMessage } from "./ai/auto-reply.js";
+import { handleIncomingAIAutoReply, handleIncomingAIPaymentProof, handleIncomingManagerReply, isAIAutoReplyMessage, processPendingScheduledOrderNotifications } from "./ai/auto-reply.js"; // [MODIFIED] Resume durable scheduled-order notifications after WhatsApp reconnects.
 
 import {
   connectWhatsApp,
@@ -1249,6 +1249,18 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
             status === "replaced" ? "disconnected" : status,
             phoneNumber || null
           );
+        }
+
+        // [ADDED] Resume due scheduled-order notifications whenever this WhatsApp session reconnects.
+        if (status === "connected" && info?.socket) {
+          void processPendingScheduledOrderNotifications({
+            telegramId: id,
+            sessionId,
+            socket: info.socket,
+            limit: 10
+          }).catch((error) => {
+            console.error("[WAGRAM Scheduled Order Outbox] Reconnect recovery failed:", error.message);
+          });
         }
 
         // [ADDED] Recover the previous data identity for the same verified WhatsApp number.
