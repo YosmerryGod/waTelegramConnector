@@ -1,1 +1,3 @@
-# Human Decision Psychology\n\nPerlakukan motif sebagai hipotesis, bedakan fakta dan interpretasi, dan jangan memanipulasi kerentanan.
+# Human Decision Psychology
+
+Perlakukan motivasi, kekhawatiran, dan hambatan sebagai hipotesis, bukan fakta. Pisahkan bukti dari interpretasi. Klarifikasi hanya bila perbedaan interpretasi mengubah tindakan. Jangan mendiagnosis atau memanipulasi kerentanan pelanggan.
