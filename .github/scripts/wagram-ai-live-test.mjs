@@ -102,9 +102,14 @@ if (process.env.OPENROUTER_API_KEY) {
   console.log("SKIP: truncated JSON test requires OPENROUTER_API_KEY.");
 }
 
-// [ADDED] Test durable simulated-order and failed-order reports using a mock socket.
+// [ADDED] Test durable simulated-order and failed-order reports in an isolated synthetic owner scope.
 if (String(manager.phone || "").trim()) {
   const now = Date.now();
+  const testOwnerId = "wagram-live-test-" + now;
+  const testSessionId = testOwnerId;
+  database.saveAIBusinessProfile(testOwnerId, testSessionId, {
+    settings: { manager: { phone: manager.phone } }
+  });
   const fingerprint = "wagram-live-sim-test-" + now;
   const inserted = db.prepare(`
     INSERT INTO ai_scheduled_orders (
@@ -113,7 +118,7 @@ if (String(manager.phone || "").trim()) {
       payment_status, payment_note, fingerprint, is_simulation, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
   `).run(
-    String(owner.telegram_id), String(sessionId), "sim-" + owner.telegram_id + "@sim",
+    testOwnerId, testSessionId, "sim-" + testOwnerId + "@sim",
     "WAGRAM Test Simulation", "Outlet Test", "Alamat Test",
     new Date(now + 86400000).toISOString(), "Asia/Jakarta",
     JSON.stringify([{ name: "Menu Test", quantity: 1, unitPrice: 1000, subtotal: 1000 }]),
@@ -123,13 +128,13 @@ if (String(manager.phone || "").trim()) {
   db.prepare(`
     INSERT INTO ai_scheduled_order_outbox (order_id, telegram_id, session_id, status, created_at, updated_at)
     VALUES (?, ?, ?, 'pending', ?, ?)
-  `).run(testOrderId, String(owner.telegram_id), String(sessionId), now, now);
+  `).run(testOrderId, testOwnerId, testSessionId, now, now);
   const failureInsert = db.prepare(`
     INSERT INTO ai_scheduled_order_failure_outbox (
       telegram_id, session_id, report_json, error_code, status, created_at, updated_at
     ) VALUES (?, ?, ?, ?, 'pending', ?, ?)
   `).run(
-    String(owner.telegram_id), String(sessionId),
+    testOwnerId, testSessionId,
     JSON.stringify({
       customerName: "WAGRAM Failure Test", customerChatId: "SIMULASI",
       items: [{ name: "Menu Test", quantity: 2, subtotal: 2000 }],
@@ -142,7 +147,7 @@ if (String(manager.phone || "").trim()) {
   const delivered = [];
   try {
     const drain = await autoReply.processPendingScheduledOrderNotifications({
-      telegramId: owner.telegram_id, sessionId,
+      telegramId: testOwnerId, sessionId: testSessionId,
       socket: { sendMessage: async (jid, payload) => { delivered.push({ jid, text: payload.text }); return { key: { id: "mock-" + delivered.length } }; } },
       limit: 10
     });
@@ -155,6 +160,7 @@ if (String(manager.phone || "").trim()) {
     db.prepare("DELETE FROM ai_scheduled_order_outbox WHERE order_id = ?").run(testOrderId);
     db.prepare("DELETE FROM ai_scheduled_orders WHERE id = ?").run(testOrderId);
     db.prepare("DELETE FROM ai_scheduled_order_failure_outbox WHERE id = ?").run(Number(failureInsert.lastInsertRowid));
+    db.prepare("DELETE FROM ai_business_profiles WHERE telegram_id = ? AND session_id = ?").run(testOwnerId, testSessionId);
   }
 } else {
   console.log("SKIP: outbox delivery regression tests require manager.phone in the selected profile.");
