@@ -87,8 +87,7 @@ const CUSTOMER_INTENT_WORKFLOWS = {
     marketing: "required"
   },
   complaint: {
-    skills: BASE_CUSTOMER_SKILLS,
-    optionalSkills: ["service-recovery"],
+    skills: [...BASE_CUSTOMER_SKILLS, "service-recovery"],
     data: ["order_history", "ordered_items", "business_policy", "previous_resolution"],
     marketing: "conditional"
   },
@@ -206,7 +205,12 @@ export function classifyCustomerState(message = "", history = []) {
     "price_question", "product_question", "information_question", "appreciation_feedback",
     "greeting", "general"
   ];
-  return priority.find((intent) => intents.includes(intent)) || "general";
+  const primary = priority.find((intent) => intents.includes(intent)) || "general";
+  const legacyAliases = {
+    objection: "price_objection",
+    comparison: "product_comparison"
+  };
+  return legacyAliases[primary] || primary;
 }
 
 function readSkillInstructions(skill) {
