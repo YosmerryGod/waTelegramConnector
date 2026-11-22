@@ -33,9 +33,10 @@ test("routes service recovery and caps active skills at three", () => {
   assert.ok(result.instructions.includes("Service Recovery"));
 });
 
-test("falls back to customer communication when no trigger matches", () => {
-  const result = runtime.routeAndLoadSkills({ message: "halo", history: [] });
-  assert.deepEqual(result.activeSkillIds, ["customer-communication"]);
+test("loads communication and psychology for greetings", () => {
+  const result = runtime.routeAndLoadSkills({ message: "halo", history: [], mode: "customer-auto-reply" });
+  assert.deepEqual(result.activeSkillIds, ["customer-communication", "consumer-psychology"]);
+  assert.deepEqual(result.customerIntents, ["greeting"]);
 });
 
 test("creates proposals and isolates them by owner and WhatsApp session", () => {
@@ -98,9 +99,10 @@ test("routes first-contact availability questions to marketing, business facts a
     }
   });
   assert.equal(result.customerState, "availability");
-  assert.deepEqual(result.activeSkillIds, ["consumer-psychology", "business-context", "customer-communication"]);
-  assert.equal(result.productOfferCandidates.length, 1);
-  assert.match(result.marketingDirective, /sinyal pembelian/i);
+  assert.deepEqual(result.activeSkillIds, ["customer-communication", "consumer-psychology"]);
+  assert.equal(result.productOfferCandidates.length, 0);
+  assert.ok(result.dataRequirements.includes("stock"));
+  assert.equal(result.requiresBusinessData, true);
   assert.match(result.instructions, /MARKETING STRATEGY/);
 });
 
@@ -125,11 +127,7 @@ test("selects a different psychology and persuasion combination for price object
     mode: "customer-auto-reply"
   });
   assert.equal(result.customerState, "price_objection");
-  assert.deepEqual(result.activeSkillIds, [
-    "human-behavior-decision-psychology",
-    "consumer-psychology",
-    "persuasive-communication-and-negotiation"
-  ]);
+  assert.deepEqual(result.activeSkillIds, ["customer-communication", "consumer-psychology"]);
 });
 
 
@@ -179,4 +177,92 @@ test("rejects invalid proposals and cross-session review attempts", () => {
   });
   assert.deepEqual(crossSession, { updated: false, status: "unchanged" });
   assert.equal(runtime.listSkillChangeProposals("owner-4", "session-d")[0].status, "pending");
+});
+
+
+// [ADDED] Workflow routing tests for all customer reply categories.
+test("routes information, price and product questions to the two base skills and database fields", () => {
+  const cases = [
+    ["Warungnya di mana?", "information_question", "outlet"],
+    ["Berapa harga ayam panggang?", "price_question", "price"],
+    ["Ayamnya rasanya seperti apa?", "product_question", "description"]
+  ];
+  for (const [message, intent, field] of cases) {
+    const result = runtime.routeAndLoadSkills({ message, mode: "customer-auto-reply" });
+    assert.ok(result.customerIntents.includes(intent), message);
+    assert.deepEqual(result.activeSkillIds, ["customer-communication", "consumer-psychology"]);
+    assert.ok(result.dataRequirements.includes(field), message);
+  }
+});
+
+test("routes purchase intent to communication, psychology and persuasion with complementary product data", () => {
+  const result = runtime.routeAndLoadSkills({
+    message: "Saya mau pesan ayam panggang 2 porsi",
+    mode: "customer-auto-reply",
+    businessContext: { products: [{ name: "Nasi putih", description: "Pelengkap ayam", price: 5000, stock: 10, available: true, featured: true }] }
+  });
+  assert.ok(result.customerIntents.includes("purchase_intent"));
+  assert.deepEqual(result.activeSkillIds, ["customer-communication", "consumer-psychology", "persuasive-communication-and-negotiation"]);
+  assert.ok(result.dataRequirements.includes("relevant_complements"));
+  assert.equal(result.productOfferCandidates.length, 1);
+});
+
+test("routes order changes and confirmations without automatically loading marketing", () => {
+  const changed = runtime.routeAndLoadSkills({ message: "Tolong tambahkan nasi dua", mode: "customer-auto-reply" });
+  assert.ok(changed.customerIntents.includes("order_change"));
+  assert.deepEqual(changed.activeSkillIds, ["customer-communication", "consumer-psychology"]);
+  assert.ok(changed.dataRequirements.includes("current_order"));
+
+  const confirmed = runtime.routeAndLoadSkills({ message: "Saya konfirmasi pesanan ini", mode: "customer-auto-reply" });
+  assert.ok(confirmed.customerIntents.includes("order_confirmation"));
+  assert.ok(confirmed.dataRequirements.includes("order_status"));
+});
+
+test("routes payment and delivery messages to the relevant database fields", () => {
+  const payment = runtime.routeAndLoadSkills({ message: "Saya mau bayar pakai QRIS", mode: "customer-auto-reply" });
+  assert.ok(payment.customerIntents.includes("payment"));
+  assert.ok(payment.dataRequirements.includes("qris_image"));
+  assert.ok(payment.dataRequirements.includes("payment_methods"));
+
+  const delivery = runtime.routeAndLoadSkills({ message: "Bisa diantar ke rumah?", mode: "customer-auto-reply" });
+  assert.ok(delivery.customerIntents.includes("delivery_pickup"));
+  assert.ok(delivery.dataRequirements.includes("delivery_options"));
+});
+
+test("routes objections and comparisons with optional versus required persuasion", () => {
+  const objection = runtime.routeAndLoadSkills({ message: "Harganya agak mahal", mode: "customer-auto-reply" });
+  assert.ok(objection.customerIntents.includes("objection"));
+  assert.deepEqual(objection.activeSkillIds, ["customer-communication", "consumer-psychology"]);
+
+  const comparison = runtime.routeAndLoadSkills({ message: "Mana yang lebih enak dibanding paket biasa?", mode: "customer-auto-reply" });
+  assert.ok(comparison.customerIntents.includes("comparison"));
+  assert.ok(comparison.activeSkillIds.includes("persuasive-communication-and-negotiation"));
+  assert.ok(comparison.dataRequirements.includes("compared_products"));
+});
+
+test("routes complaints through service recovery without promotional upselling", () => {
+  const result = runtime.routeAndLoadSkills({ message: "Saya kecewa, ayam yang datang kering", mode: "customer-auto-reply" });
+  assert.ok(result.customerIntents.includes("complaint"));
+  assert.ok(result.activeSkillIds.includes("service-recovery"));
+  assert.ok(result.dataRequirements.includes("order_history"));
+  assert.match(result.marketingDirective, /jangan melakukan upsell/i);
+});
+
+test("routes appreciation and feedback through the two base skills", () => {
+  const result = runtime.routeAndLoadSkills({ message: "Terima kasih, ayamnya enak", mode: "customer-auto-reply" });
+  assert.ok(result.customerIntents.includes("appreciation_feedback"));
+  assert.deepEqual(result.activeSkillIds, ["customer-communication", "consumer-psychology"]);
+});
+
+test("detects multiple intents in a single customer message", () => {
+  const result = runtime.routeAndLoadSkills({
+    message: "Ayam panggang masih ada? Saya mau pesan dua porsi dan sekalian nasi",
+    mode: "customer-auto-reply"
+  });
+  assert.ok(result.customerIntents.includes("availability"));
+  assert.ok(result.customerIntents.includes("purchase_intent"));
+  assert.ok(result.dataRequirements.includes("stock"));
+  assert.ok(result.dataRequirements.includes("relevant_complements"));
+  assert.equal(new Set(result.activeSkillIds).size, result.activeSkillIds.length);
+  assert.ok(result.activeSkillIds.length <= 3);
 });
