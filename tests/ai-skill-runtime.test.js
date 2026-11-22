@@ -208,7 +208,7 @@ test("routes purchase intent to communication, psychology and persuasion with co
 });
 
 test("routes order changes and confirmations without automatically loading marketing", () => {
-  const changed = runtime.routeAndLoadSkills({ message: "Tolong tambahkan nasi dua", mode: "customer-auto-reply" });
+  const changed = runtime.routeAndLoadSkills({ message: "Tolong ubah jumlah pesanan menjadi dua", mode: "customer-auto-reply" });
   assert.ok(changed.customerIntents.includes("order_change"));
   assert.deepEqual(changed.activeSkillIds, ["customer-communication", "consumer-psychology"]);
   assert.ok(changed.dataRequirements.includes("current_order"));
