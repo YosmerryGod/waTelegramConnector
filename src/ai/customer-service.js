@@ -862,10 +862,13 @@ export async function createAICustomerServiceSuggestion(telegramId, sessionId, c
     // [ADDED] Keep skill selection bounded and inject only the selected customer-relevant guidance.
     "SKILL TERSEDIA: " + JSON.stringify(customerSkillRuntime.availableSkills.map(({ id, name, description }) => ({ id, name, description }))),
     "SKILL AKTIF: " + JSON.stringify(customerSkillRuntime.activeSkillIds),
+    "KATEGORI PESAN: " + JSON.stringify(customerSkillRuntime.customerIntents || []),
+    "DATA YANG DIBUTUHKAN: " + JSON.stringify(customerSkillRuntime.dataRequirements || []),
+    "STATUS KEBUTUHAN DATABASE: " + (customerSkillRuntime.requiresBusinessData ? "Gunakan hanya fakta yang tersedia dari konteks bisnis terverifikasi; jangan menebak field yang kosong." : "Tidak perlu mengambil data bisnis tambahan untuk kategori ini."),
     "TAHAP PELANGGAN: " + String(customerSkillRuntime.customerState || "general"),
     "ARAHAN MARKETING TERPILIH: " + String(customerSkillRuntime.marketingDirective || ""),
     // [ADDED] Explain product options naturally; catalog labels are data, not customer-facing copy templates.
-    "PENJELASAN PRODUK: Jangan menyalin nama menu panjang secara mentah. Pahami nama, deskripsi, pilihan/varian, harga, dan promo sebagai fakta produk, lalu jelaskan dengan bahasa percakapan yang mudah dipahami. Untuk pertanyaan ketersediaan dengan niat beli, tawarkan satu produk unggulan yang relevan sejak respons pertama bila kandidat produk tersedia dan faktanya cukup. Pisahkan harga produk dari benefit gratis agar tidak ambigu. Jangan menyebut benefit yang tidak tercantum dalam kandidat/fakta bisnis.",
+    "PENJELASAN PRODUK: Jangan menyalin nama menu panjang secara mentah. Pahami nama, deskripsi, pilihan/varian, harga, dan promo sebagai fakta produk, lalu jelaskan dengan bahasa percakapan yang mudah dipahami. Untuk niat memesan, pertimbangkan maksimal satu produk serupa atau pelengkap yang relevan (misalnya nasi atau minuman) bila tersedia dan terverifikasi. Pertanyaan ketersediaan saja bukan izin untuk upsell. Pisahkan harga produk dari benefit gratis agar tidak ambigu. Jangan menyebut benefit yang tidak tercantum dalam fakta bisnis.",
     "KANDIDAT PRODUK UNTUK PENAWARAN: " + JSON.stringify(customerSkillRuntime.productOfferCandidates || []),
     "CONTEXT PACKET: " + JSON.stringify(customerSkillRuntime.contextPacket),
     "PANDUAN SKILL PROGRESIF:\n" + customerSkillRuntime.instructions,
