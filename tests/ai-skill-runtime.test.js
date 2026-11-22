@@ -149,7 +149,7 @@ test("does not route complaints into promotional selling", () => {
   });
   assert.equal(result.customerState, "complaint");
   assert.ok(result.activeSkillIds.includes("service-recovery"));
-  assert.match(result.marketingDirective, /Jangan mengubah komplain menjadi promosi/);
+  assert.match(result.marketingDirective, /jangan melakukan upsell/i);
 });
 
 test("rejects invalid proposals and cross-session review attempts", () => {
