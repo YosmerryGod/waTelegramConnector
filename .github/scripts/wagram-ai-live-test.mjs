@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const appDir = path.resolve(process.env.WAGRAM_APP_DIR || "/opt/waTelegramConnector");
+// [MODIFIED] Use the current checkout by default so the test also runs in GitHub Actions.
+const appDir = path.resolve(process.env.WAGRAM_APP_DIR || process.cwd());
 process.chdir(appDir);
 
 const databaseUrl = pathToFileURL(path.join(appDir, "src/database.js")).href;
