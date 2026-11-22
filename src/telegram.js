@@ -57,7 +57,7 @@ import {
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 // [ADDED] Public Telegram Mini App URL.
-const MINI_APP_URL = process.env.MINI_APP_URL || "https://chat.doodweb.tech";
+const MINI_APP_URL = process.env.MINI_APP_URL || "";
 
 const MESSAGE_LIMIT = Math.min(
   4000,
@@ -1856,7 +1856,7 @@ bot.onText(/^\/start(?:@\w+)?$/, async (msg) => {
 
 // [ADDED] Admin access is restricted to configured Telegram IDs.
 const ADMIN_TELEGRAM_IDS = new Set(
-  String(process.env.ADMIN_TELEGRAM_IDS || "6838814141")
+  String(process.env.ADMIN_TELEGRAM_IDS || "")
     .split(",")
     .map((id) => id.trim())
     .filter((id) => /^\d+$/.test(id))
