@@ -179,7 +179,8 @@ export function classifyCustomerIntents(message = "", history = []) {
   if (has(/\b(?:berapa|harganya|harga|rp)\b/)) intents.push("price_question");
   if (has(/\b(?:masih ada|tersedia|ready|ada kah|ada gak|ada nggak|stok|habis)\b/)) intents.push("availability");
   if (has(/\b(?:pesan|order|mau beli|mau pesan|ingin pesan|beli|booking|pesenin|pesan.*(?:porsi|ekor|pcs|buah))\b/)) intents.push("purchase_intent");
-  if (has(/\b(?:komposisi|isi|rasa|varian|menu|produk|ayam|nasi|minuman|sambal)\b/) && !intents.includes("purchase_intent")) intents.push("product_question");
+  // [MODIFIED] Match common Indonesian forms such as "rasanya" and "berasa".
+  if (has(/\b(?:komposisi|isi|rasa(?:nya)?|berasa|varian|menu|produk|ayam|nasi|minuman|sambal)\b/) && !intents.includes("purchase_intent")) intents.push("product_question");
   if (has(/\b(?:alamat|lokasi|dimana|di mana|jam operasional|jam buka|jam tutup|nomor|kontak|parkir|fasilitas)\b/)) intents.push("information_question");
   if (has(/\b(?:terima kasih|makasih|mantap|enak|puas|suka sekali|rekomendasi|bintang|ulasan|masukan|saran)\b/)) intents.push("appreciation_feedback");
   if (has(/\b(?:halo|hai|assalamualaikum|permisi|pagi|siang|sore|malam)\b/)) intents.push("greeting");
