@@ -587,7 +587,7 @@ router.post(
       });
     }
 
-    const adminIds = String(process.env.ADMIN_TELEGRAM_IDS || "6838814141")
+    const adminIds = String(process.env.ADMIN_TELEGRAM_IDS || "")
       .split(",")
       .map((id) => id.trim())
       .filter((id) => /^\d+$/.test(id));
