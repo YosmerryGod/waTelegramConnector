@@ -171,7 +171,7 @@ export function classifyCustomerIntents(message = "", history = []) {
   if (has(/\b(?:komplain|keluhan|kecewa|refund|salah|kering|terlambat|rusak|tidak sesuai|kurang matang|pesanan bermasalah)\b/)) intents.push("complaint");
   if (has(/\b(?:gak jadi|nggak jadi|tidak jadi|enggak usah|nggak usah|gak usah|ga usah|tidak mau|belum dulu|lain kali|skip|tidak berminat)\b/)) intents.push("refusal");
   if (has(/\b(?:qris|qr code|transfer|pembayaran|pembayaran|bayar|sudah transfer|bukti transfer|rekening)\b/)) intents.push("payment");
-  if (has(/\b(?:antar|diantar|delivery|kurir|ambil sendiri|pickup|ambil di|lokasi|alamat|jam buka|buka jam|tutup jam)\b/)) intents.push("delivery_pickup");
+  if (has(/\b(?:antar|diantar|delivery|kurir|ambil|diambil|pickup|lokasi|alamat|jam buka|buka jam|tutup jam|jam warung)\b/)) intents.push("delivery_pickup");
   if (has(/\b(?:ubah pesanan|ganti pesanan|tambahkan|tambah pesanan|kurangi|ganti jumlah|ubah jumlah|cancel item|hapus item)\b/)) intents.push("order_change");
   if (has(/\b(?:konfirmasi pesanan|pesanan sudah benar|order sudah benar|betul pesanannya|saya konfirmasi|konfirmasi order)\b/)) intents.push("order_confirmation");
   if (has(/\b(?:banding|beda|perbedaan|yang lebih|mending|mana enak|lebih enak|dibanding)\b/)) intents.push("comparison");
@@ -185,9 +185,10 @@ export function classifyCustomerIntents(message = "", history = []) {
   if (has(/\b(?:halo|hai|assalamualaikum|permisi|pagi|siang|sore|malam)\b/)) intents.push("greeting");
 
   // [ADDED] Short answers inherit the active workflow when the business asked a clear follow-up question.
-  if (intents.length === 0 && recentBusinessText && /(mau yang|pilih dada|pilih paha|berapa porsi|mau pesan|ingin pesan|jumlah porsi|metode pembayaran|alamat pengiriman)/.test(recentBusinessText)) {
-    if (/\b(?:dada|paha|iya|ya|betul|jadi|dua|satu|ambil)\b/.test(text)) intents.push("purchase_intent");
-    else if (/\b(?:sudah|belum|transfer|qris)\b/.test(text)) intents.push("payment");
+  if (intents.length === 0 && recentBusinessText && /(mau yang|pilih dada|pilih paha|berapa porsi|mau pesan|ingin pesan|jumlah porsi|metode pembayaran|alamat pengiriman|konfirmasi pesanan|pesanannya sudah benar)/.test(recentBusinessText)) {
+    if (/\b(?:konfirmasi pesanan|pesanannya sudah benar)/.test(recentBusinessText) && /\b(?:iya|ya|betul|benar|sesuai|oke|ok)\b/.test(text)) intents.push("order_confirmation");
+    else if (/\b(?:metode pembayaran|cara bayar|qris|transfer)\b/.test(recentBusinessText) && /\b(?:sudah|belum|transfer|qris)\b/.test(text)) intents.push("payment");
+    else if (/\b(?:dada|paha|iya|ya|betul|jadi|dua|satu|ambil)\b/.test(text)) intents.push("purchase_intent");
     else intents.push("general");
   }
   if (intents.length === 0) intents.push("general");
@@ -287,7 +288,7 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner",
     }, { skills: [], data: [], optionalSkills: [], marketingRequired: false, marketingConditional: false, marketingOptional: false });
     selectedIds = [...new Set(workflow.skills)];
     const normalizedMessage = normalizeText(currentMessage);
-    const marketingSignals = /\b(?:rekomendasi|tambahan|sekalian|paket|promo|alternatif|pilihan lain|upsell|produk serupa)\b/.test(normalizedMessage);
+    const marketingSignals = /\b(?:rekomendasi|tambahan|tambahkan|tambah|sekalian|paket|promo|alternatif|pilihan lain|upsell|produk serupa)\b/.test(normalizedMessage);
     if (workflow.marketingRequired || (workflow.marketingConditional && marketingSignals) || (workflow.marketingOptional && marketingSignals)) {
       selectedIds.push(...workflow.optionalSkills);
     }
