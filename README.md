@@ -82,6 +82,7 @@ Salin .env.example sebagai titik awal. Variabel yang tidak wajib memiliki nilai 
 | MINIAPP_API_HOST | 127.0.0.1 | Host bind API; gunakan 0.0.0.0 di container. |
 | MINIAPP_API_PORT | 3000 | Port API Mini App. |
 | MINIAPP_AUTH_MAX_AGE_SECONDS | 86400 | Umur maksimum Telegram initData. |
+| TRUST_PROXY | loopback | Proxy tepercaya; sesuaikan dengan topologi reverse proxy deployment. |
 | WHATSAPP_AUTH_DIR | ./auth | Lokasi kredensial sesi WhatsApp. |
 | WHATSAPP_MEDIA_DIR | ./data/media | Lokasi media WhatsApp. |
 | SQLITE_PATH | ./data/bridge.db | Path database SQLite. |
@@ -92,18 +93,19 @@ Salin .env.example sebagai titik awal. Variabel yang tidak wajib memiliki nilai 
 | OPENROUTER_TIMEOUT_MS | 60000 | Timeout request OpenRouter. |
 | OPENROUTER_SITE_URL | https://wagram.app | Referer metadata OpenRouter. |
 | OPENROUTER_APP_NAME | WAGRAM | Nama aplikasi pada metadata OpenRouter. |
+| WAGRAM_OPENROUTER_PROVIDER_ORDER | DeepSeek | Urutan prioritas provider OpenRouter, dipisahkan koma. |
 | WAGRAM_VISION_MODEL | google/gemini-2.5-flash | Model vision; prioritas sebelum alias fallback. |
 | OPENROUTER_VISION_MODEL | google/gemini-2.5-flash | Fallback konfigurasi model vision. |
 | FREE_PAUSE_HOUR | 8 | Jam pause harian paket Free, zona waktu WITA (0–23). |
 | RECONNECT_DELAY_MS | 3000 | Jeda awal reconnect WhatsApp. |
-| MAX_RECONNECT_DELAY_MS | 60000 | Batas jeda reconnect maksimum. |
-| WA_CONNECT_TIMEOUT_MS | 30000 | Timeout koneksi WhatsApp. |
+| MAX_RECONNECT_DELAY_MS | 30000 | Batas jeda reconnect maksimum. |
+| WA_CONNECT_TIMEOUT_MS | 60000 | Timeout koneksi WhatsApp. |
 | WA_KEEPALIVE_MS | 25000 | Interval keepalive WhatsApp. |
 | DISCONNECT_NOTICE_DELAY_MS | 45000 | Jeda sebelum notifikasi disconnect. |
 | WAGRAM_AUTO_REPLY_SETTLE_MS | 5000 | Jeda penggabungan pesan sebelum auto-reply. |
 | TELEGRAM_MESSAGE_LIMIT | 4000 | Batas panjang pesan Telegram. |
 | MAX_MEDIA_MB | 45 | Batas ukuran media Telegram (MB). |
-| DEFAULT_COUNTRY_CODE | — | Kode negara default untuk normalisasi nomor. |
+| DEFAULT_COUNTRY_CODE | 62 | Kode negara default untuk normalisasi nomor telepon. |
 | ADMIN_TELEGRAM_IDS | — | Daftar Telegram ID admin dipisahkan koma; tanpa nilai berarti tidak ada admin yang dipromosikan dari konfigurasi. |
 | DANA_PAYMENT_MONITOR_API_KEY | — | API key monitor pembayaran DANA jika digunakan. |
 | CALL_DEBUG | false | Flag diagnostik panggilan jika diaktifkan. |
@@ -113,7 +115,7 @@ Salin .env.example sebagai titik awal. Variabel yang tidak wajib memiliki nilai 
 ### Telegram bot commands
 | Command | Fungsi |
 |---|---|
-| /start | Registrasi awal dan membuka dashboard WAGRAM. |
+| /start | Registrasi awal dan membuka dashboard bot. |
 | /me | Menampilkan informasi akun Telegram terdaftar. |
 | /status | Memeriksa status koneksi WhatsApp. |
 | /help | Menampilkan panduan penggunaan singkat. |
