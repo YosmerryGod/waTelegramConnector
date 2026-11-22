@@ -266,3 +266,24 @@ test("detects multiple intents in a single customer message", () => {
   assert.equal(new Set(result.activeSkillIds).size, result.activeSkillIds.length);
   assert.ok(result.activeSkillIds.length <= 3);
 });
+
+
+test("inherits order confirmation from the active conversation when customer replies yes", () => {
+  const result = runtime.routeAndLoadSkills({
+    message: "Iya benar",
+    history: [{ role: "business", content: "Boleh saya konfirmasi pesanan ini sudah benar?" }],
+    mode: "customer-auto-reply"
+  });
+  assert.ok(result.customerIntents.includes("order_confirmation"));
+  assert.ok(result.dataRequirements.includes("order_summary"));
+});
+
+test("recognizes pickup questions and optional marketing for relevant order changes", () => {
+  const pickup = runtime.routeAndLoadSkills({ message: "Bisa saya ambil sendiri?", mode: "customer-auto-reply" });
+  assert.ok(pickup.customerIntents.includes("delivery_pickup"));
+  assert.ok(pickup.dataRequirements.includes("pickup_instructions"));
+
+  const changed = runtime.routeAndLoadSkills({ message: "Tolong tambahkan nasi dan minuman", mode: "customer-auto-reply" });
+  assert.ok(changed.customerIntents.includes("order_change"));
+  assert.ok(changed.activeSkillIds.includes("persuasive-communication-and-negotiation"));
+});
