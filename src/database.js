@@ -506,7 +506,7 @@ export function markPremiumPaymentReported(telegramId, orderId) {
 
 
 const configuredAdminIds = String(
-  process.env.ADMIN_TELEGRAM_IDS || "6838814141"
+  process.env.ADMIN_TELEGRAM_IDS || ""
 ).split(",").map((id) => id.trim()).filter((id) => /^\d+$/.test(id));
 
 if (configuredAdminIds.length > 0) {
