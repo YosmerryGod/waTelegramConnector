@@ -15,6 +15,7 @@ import {
   findAIBusinessExamples
 } from "../database.js";
 
+const OPENROUTER_API_URL = String(process.env.OPENROUTER_API_URL || "").trim();
 const OPENROUTER_API_KEY = String(process.env.OPENROUTER_API_KEY || "").trim();
 // [MODIFIED] Route every WAGRAM AI feature through OpenRouter.
 const OPENROUTER_MODEL = String(process.env.OPENROUTER_MODEL || "deepseek/deepseek-v4.1-flash-1017").trim();
@@ -395,13 +396,13 @@ async function openRouterGenerate(contents, options = {}) {
     toolCount: tools?.length || 0, timeoutMs: OPENROUTER_TIMEOUT_MS
   }));
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("OPENROUTER_API_URL", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": String(process.env.OPENROUTER_SITE_URL || "https://wagram.app"),
-        "X-Title": String(process.env.OPENROUTER_APP_NAME || "WAGRAM")
+        "HTTP-Referer": String(process.env.OPENROUTER_SITE_URL || ""),
+        "X-Title": String(process.env.OPENROUTER_APP_NAME || "")
       },
       body: JSON.stringify({
         model: OPENROUTER_MODEL,
@@ -1970,13 +1971,13 @@ export async function analyzeAIPaymentProofImage({
     JSON.stringify(conversation).slice(0, 9000)
   ].join("\n");
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const response = await fetch("OPENROUTER_API_URL", {
     method: "POST",
     headers: {
       "Authorization": "Bearer " + OPENROUTER_API_KEY,
       "Content-Type": "application/json",
-      "HTTP-Referer": String(process.env.OPENROUTER_SITE_URL || "https://wagram.app"),
-      "X-Title": String(process.env.OPENROUTER_APP_NAME || "WAGRAM")
+      "HTTP-Referer": String(process.env.OPENROUTER_SITE_URL || ""),
+      "X-Title": String(process.env.OPENROUTER_APP_NAME || "")
     },
     body: JSON.stringify({
       model: visionModel,
