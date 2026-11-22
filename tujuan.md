@@ -169,3 +169,48 @@ Kondisi di atas adalah baseline saat ini, bukan arsitektur target. Migrasi datab
 - Lokasi, retensi, enkripsi, dan jadwal backup.
 
 **Prinsip akhir:** WAGRAM harus tetap melayani pengguna ketika satu server aplikasi gagal, menjaga data tetap konsisten, mencegah sesi WhatsApp berjalan ganda, serta mampu memulihkan layanan dan data melalui prosedur yang teruji.
+
+
+## 11. Persyaratan penambahan server tanpa perombakan
+
+Arsitektur harus mendukung **scale-out**: kapasitas ditambah dengan mendaftarkan dan menyiapkan instance server baru, bukan mengubah kode inti, frontend, skema database, atau konfigurasi server yang sudah berjalan setiap kali jumlah server bertambah.
+
+Persyaratan desain:
+
+1. **Jumlah server tidak boleh di-hardcode.** Gateway menggunakan service discovery atau konfigurasi pool/registry yang dapat diperbarui. Penambahan Server 4, 5, dan seterusnya tidak memerlukan perubahan kode aplikasi.
+2. **Endpoint frontend stabil.** Frontend hanya mengenal domain/API gateway. Alamat IP dan jumlah backend tidak ditanam di frontend.
+3. **Backend sebisa mungkin stateless.** Session login pengguna, state request, rate-limit terdistribusi, dan state sementara yang diperlukan lintas instance disimpan pada komponen bersama yang sesuai, bukan hanya memori proses.
+4. **Stateful worker dipisahkan dari API umum.** Koneksi Baileys, bot Telegram, scheduler, dan pekerjaan latar harus memiliki model worker/ownership yang jelas. Menambah API server tidak boleh otomatis membuat duplikasi bot, scheduler, atau koneksi WhatsApp.
+5. **Kepemilikan sesi terpusat.** Penempatan sesi WhatsApp ditentukan oleh registry/lease bersama. Worker baru dapat mengambil sesi sesuai kapasitas dan aturan failover; tidak boleh ada dua pemilik aktif.
+6. **Pekerjaan latar menggunakan antrean bersama bila dibutuhkan.** Job memiliki identitas, retry terbatas, idempotensi, dan mekanisme dead-letter/penanganan kegagalan agar worker tambahan dapat mengambil pekerjaan tanpa menggandakan efek.
+7. **Database tidak bergantung pada identitas server aplikasi.** Semua instance menggunakan kontrak akses dan migrasi skema yang kompatibel. Penambahan instance tidak memerlukan database baru atau perubahan skema khusus per server.
+8. **Perubahan skema kompatibel bertahap.** Terapkan pola expand-and-contract: versi aplikasi lama dan baru dapat berjalan bersamaan selama rolling deployment. Hindari migrasi yang memaksa seluruh server berhenti bersamaan.
+9. **File dan kredensial persisten berada di storage bersama.** Tidak ada ketergantungan pada disk lokal instance untuk data yang dibutuhkan instance lain atau saat failover.
+10. **Konfigurasi terpusat dan terversi.** Rahasia tetap disimpan di secret manager/environment aman; konfigurasi operasional tidak mengharuskan edit manual yang berbeda pada setiap server.
+11. **Observabilitas per instance.** Setiap server memiliki identitas instance, health/readiness check, metrik, log terstruktur, dan alert. Instance hanya menerima trafik setelah readiness check lulus.
+12. **Deployment dapat diulang.** Server baru dibuat dari image/build dan konfigurasi yang sama melalui proses otomatis atau terdokumentasi; tidak ada langkah manual tersembunyi yang hanya diketahui satu server.
+
+### Prosedur penambahan server
+
+1. Buat instance dari image/build backend yang sudah dirilis.
+2. Berikan identitas instance, konfigurasi, secret, dan akses jaringan dengan hak minimum.
+3. Jalankan readiness check dan validasi koneksi ke database, antrean, serta storage bersama.
+4. Daftarkan instance ke service discovery/gateway.
+5. Gateway mulai mengirim trafik setelah instance dinyatakan sehat.
+6. Worker hanya mengambil job atau sesi WhatsApp melalui mekanisme antrean/lease yang sah.
+7. Pantau error, latensi, kapasitas, dan distribusi beban setelah penambahan.
+
+Prosedur ini tidak boleh membutuhkan perubahan kode frontend, perubahan endpoint publik, pembuatan database terpisah, atau perubahan manual pada instance lain.
+
+### Uji penerimaan skalabilitas
+
+- Menambah Server 4 cukup melalui provisioning dan registrasi; tidak ada perubahan kode aplikasi.
+- Frontend tetap memakai endpoint yang sama.
+- Server baru dapat menerima trafik setelah health/readiness check lulus.
+- Beban dapat didistribusikan tanpa kehilangan autentikasi dan state pengguna.
+- Tidak terjadi duplikasi bot, scheduler, job, atau koneksi sesi WhatsApp.
+- Menghapus satu instance dari pool tidak menghapus data atau menghentikan seluruh layanan.
+- Rolling deployment dapat mencampur versi aplikasi yang kompatibel tanpa downtime terencana.
+- Database dan storage tetap menjadi layanan bersama, bukan dibuat ulang per server.
+
+Penambahan server tetap dapat memerlukan peningkatan kapasitas database, antrean, storage, jaringan, atau gateway jika komponen tersebut menjadi bottleneck. Karena itu, scale-out aplikasi tidak boleh dianggap sebagai kapasitas tak terbatas; setiap lapisan harus dimonitor dan dapat ditingkatkan secara terencana.
