@@ -65,8 +65,26 @@ Intent ganda dapat aktif bersamaan. Contohnya, pertanyaan ketersediaan yang dise
 | AI | OpenRouter (DeepSeek + Gemini Vision) |
 | Realtime | WebSocket (ws) |
 | Logging | Pino |
-| Frontend | HTML, CSS, JavaScript |
+| Frontend | HTML, CSS, JavaScript, Vite (repository terpisah) |
 | QR code | qrcode |
+
+## Status frontend terpisah
+
+**Pengembangan frontend WAGRAM telah dipisahkan dan tahap migrasi awal dinyatakan selesai.** Repository frontend aktif:
+
+- Repository: [YosmerryGod/wagram-frontend](https://github.com/YosmerryGod/wagram-frontend)
+- Branch produksi kode: `main`
+- Teknologi build: Vite.
+- Antarmuka dan logika fitur tetap menggunakan HTML, CSS, dan JavaScript yang sudah ada agar perilaku Mini App tidak berubah selama pemisahan.
+- Mendukung Web App, Telegram Mini App, dan instalasi PWA melalui browser yang kompatibel.
+- Build produksi menggunakan `npm run build`; hasilnya berada di direktori `dist/`.
+- Pemeriksaan GitHub Actions pada repository frontend telah berhasil untuk commit yang sudah masuk ke `main`.
+
+Repository backend ini tetap menjadi pemilik API, autentikasi Telegram Mini App, koneksi WhatsApp, database, WebSocket, dan layanan AI. Frontend terpisah menggunakan kontrak API backend yang sama. Konfigurasi URL frontend Telegram diatur melalui `MINI_APP_URL`; konfigurasi alamat API frontend mengikuti pengaturan deployment frontend.
+
+Folder `miniapp/` di repository ini masih dipertahankan sebagai salinan frontend yang sebelumnya berada di dalam repository backend. Pengembangan frontend selanjutnya dilakukan di repository terpisah agar perubahan antarmuka tidak bercampur dengan perubahan backend.
+
+**Batas status:** migrasi kode dan validasi build frontend selesai. Deployment domain, konfigurasi DNS, dan pengujian end-to-end pada lingkungan produksi tidak dinyatakan selesai oleh pembaruan dokumentasi ini.
 
 ## Prerequisites
 - Node.js 20 atau lebih baru dan npm.
