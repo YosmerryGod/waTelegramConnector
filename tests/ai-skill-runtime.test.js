@@ -185,7 +185,8 @@ test("routes information, price and product questions to the two base skills and
   const cases = [
     ["Warungnya di mana?", "information_question", "outlet"],
     ["Berapa harga ayam panggang?", "price_question", "price"],
-    ["Ayamnya rasanya seperti apa?", "product_question", "description"]
+    ["Ayamnya rasanya seperti apa?", "product_question", "description"], // [ADDED] Covers the "rasanya" inflection.
+    ["Bagaimana rasa ayamnya?", "product_question", "description"]
   ];
   for (const [message, intent, field] of cases) {
     const result = runtime.routeAndLoadSkills({ message, mode: "customer-auto-reply" });
