@@ -26,7 +26,33 @@
 - Paket membership dan pengelolaan status sesi.
 - AI Business dan AI Customer Service melalui OpenRouter (DeepSeek untuk chat dan Gemini untuk vision, sesuai konfigurasi).
 - Progressive Skill Runtime untuk memilih skill marketing, psikologi, komunikasi, dan service recovery sesuai tahap keputusan pelanggan.
-- Penawaran produk kontekstual dengan penjelasan alami berdasarkan fakta varian, harga, stok, dan promo dari profil bisnis.
+- Workflow balasan pelanggan berbasis multi-intent: sapaan, informasi, harga, produk, ketersediaan, pemesanan, perubahan/konfirmasi pesanan, pembayaran, pengiriman/pengambilan, keberatan, perbandingan, komplain, serta apresiasi.
+- Setiap workflow memuat skill komunikasi dan psikologi sebagai dasar, lalu memuat skill spesialis hanya saat kategori membutuhkannya. Kebutuhan data bisnis dinyatakan terpisah agar harga, stok, QRIS, jam, lokasi, dan status pesanan bersumber dari database.
+- Penawaran produk kontekstual berdasarkan fakta varian, harga, stok, dan promo dari profil bisnis; pertanyaan ketersediaan saja tidak otomatis memicu upsell.
+
+## Customer reply workflow
+
+WAGRAM mengklasifikasikan pesan pelanggan sebagai satu atau beberapa intent. Workflow menggabungkan kebutuhan skill dan data dari semua intent, menghapus skill duplikat, lalu memuat maksimal tiga skill.
+
+| Intent | Skill khusus selain komunikasi dan psikologi | Data bisnis yang dibutuhkan |
+|---|---|---|
+| Sapaan | — | — |
+| Pertanyaan informasi | — | Informasi bisnis, outlet, jam, kebijakan |
+| Pertanyaan harga | — | Produk, harga, syarat promo |
+| Pertanyaan produk | — | Deskripsi, varian, harga |
+| Ketersediaan | — | Produk, stok, ketersediaan |
+| Niat memesan | Persuasi | Produk, harga, stok, pelengkap, promo |
+| Perubahan pesanan | Persuasi opsional | Pesanan aktif, produk, harga, stok |
+| Konfirmasi pesanan | — | Ringkasan dan status pesanan |
+| Pembayaran | — | Metode pembayaran, gambar QRIS, instruksi, status |
+| Pengiriman/pengambilan | — | Lokasi, jam, opsi dan biaya pengiriman |
+| Keberatan/keraguan | Persuasi opsional | Alternatif, harga, syarat promo |
+| Perbandingan | Persuasi | Produk pembanding, fitur, harga, varian |
+| Komplain | Service recovery | Riwayat pesanan, item, kebijakan, penyelesaian sebelumnya |
+| Penolakan | — | — |
+| Apresiasi/umpan balik | — | — |
+
+Intent ganda dapat aktif bersamaan. Contohnya, pertanyaan ketersediaan yang disertai niat memesan akan meminta data stok dan data produk pelengkap. Marketing tidak otomatis dijalankan untuk sapaan, pertanyaan harga, ketersediaan saja, atau komplain. Data yang dibutuhkan adalah daftar kebutuhan untuk dicocokkan dengan konteks bisnis terverifikasi; AI tidak boleh menebak jika data tidak tersedia.
 
 ## Tech stack
 | Area | Teknologi |
