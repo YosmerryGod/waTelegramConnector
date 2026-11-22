@@ -86,6 +86,7 @@ Salin .env.example sebagai titik awal. Variabel yang tidak wajib memiliki nilai 
 | WHATSAPP_MEDIA_DIR | ./data/media | Lokasi media WhatsApp. |
 | SQLITE_PATH | ./data/bridge.db | Path database SQLite. |
 | LOG_LEVEL | warn | Level log Pino. |
+| OPENROUTER_API_URL | https://openrouter.ai/api/v1/chat/completions | Endpoint OpenRouter. |
 | OPENROUTER_API_KEY | — | API key OpenRouter. |
 | OPENROUTER_MODEL | deepseek/deepseek-v4.1-flash-1017 | Model chat utama. |
 | OPENROUTER_TIMEOUT_MS | 60000 | Timeout request OpenRouter. |
@@ -103,7 +104,7 @@ Salin .env.example sebagai titik awal. Variabel yang tidak wajib memiliki nilai 
 | TELEGRAM_MESSAGE_LIMIT | 4000 | Batas panjang pesan Telegram. |
 | MAX_MEDIA_MB | 45 | Batas ukuran media Telegram (MB). |
 | DEFAULT_COUNTRY_CODE | — | Kode negara default untuk normalisasi nomor. |
-| ADMIN_TELEGRAM_IDS | — | Daftar Telegram ID admin dipisahkan koma. |
+| ADMIN_TELEGRAM_IDS | — | Daftar Telegram ID admin dipisahkan koma; tanpa nilai berarti tidak ada admin yang dipromosikan dari konfigurasi. |
 | DANA_PAYMENT_MONITOR_API_KEY | — | API key monitor pembayaran DANA jika digunakan. |
 | CALL_DEBUG | false | Flag diagnostik panggilan jika diaktifkan. |
 
