@@ -20,17 +20,99 @@ const SKILL_REGISTRY = [
   { id: "human-decision-psychology", name: "Human Decision Psychology", description: "Panduan keputusan manusia umum untuk konteks non-pelanggan.", domain: "psychology", priority: 60, triggers: ["keputusan", "pertimbangan", "alasan"], file: "human-decision-psychology.md" }
 ];
 
-const CUSTOMER_STATE_SKILLS = {
-  availability: ["consumer-psychology", "business-context", "customer-communication"],
-  purchase_intent: ["consumer-psychology", "business-context", "customer-communication"],
-  price_question: ["business-context", "consumer-psychology", "customer-communication"],
-  price_objection: ["human-behavior-decision-psychology", "consumer-psychology", "persuasive-communication-and-negotiation"],
-  product_comparison: ["consumer-psychology", "message-design-and-storytelling", "business-context"],
-  complaint: ["service-recovery", "customer-communication", "business-context"],
-  refusal: ["customer-communication", "human-behavior-decision-psychology"],
-  greeting: ["customer-communication"],
-  general: ["customer-communication", "business-context"]
+// [ADDED] Central workflow registry: each customer intent declares only the skills and business data it needs.
+const BASE_CUSTOMER_SKILLS = ["customer-communication", "consumer-psychology"];
+
+const CUSTOMER_INTENT_WORKFLOWS = {
+  greeting: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: [],
+    marketing: "none"
+  },
+  information_question: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: ["business_information", "outlet", "operating_hours", "policies"],
+    marketing: "none"
+  },
+  price_question: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: ["product", "price", "promotion_terms"],
+    marketing: "none"
+  },
+  product_question: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: ["product", "description", "variants", "price"],
+    marketing: "none"
+  },
+  availability: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: ["product", "stock", "availability"],
+    marketing: "none"
+  },
+  purchase_intent: {
+    skills: [...BASE_CUSTOMER_SKILLS, "persuasive-communication-and-negotiation"],
+    data: ["product", "price", "stock", "variants", "relevant_complements", "promotion_terms"],
+    marketing: "required"
+  },
+  order_change: {
+    skills: BASE_CUSTOMER_SKILLS,
+    optionalSkills: ["persuasive-communication-and-negotiation"],
+    data: ["current_order", "product", "price", "stock"],
+    marketing: "optional"
+  },
+  order_confirmation: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: ["current_order", "order_status", "order_summary"],
+    marketing: "none"
+  },
+  payment: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: ["payment_methods", "qris_image", "payment_instructions", "payment_status"],
+    marketing: "none"
+  },
+  delivery_pickup: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: ["outlet_location", "operating_hours", "delivery_options", "delivery_fee", "pickup_instructions"],
+    marketing: "none"
+  },
+  objection: {
+    skills: BASE_CUSTOMER_SKILLS,
+    optionalSkills: ["persuasive-communication-and-negotiation"],
+    data: ["relevant_product_options", "price", "promotion_terms"],
+    marketing: "optional"
+  },
+  comparison: {
+    skills: [...BASE_CUSTOMER_SKILLS, "persuasive-communication-and-negotiation"],
+    data: ["compared_products", "price", "variants", "product_features", "availability"],
+    marketing: "required"
+  },
+  complaint: {
+    skills: BASE_CUSTOMER_SKILLS,
+    optionalSkills: ["service-recovery"],
+    data: ["order_history", "ordered_items", "business_policy", "previous_resolution"],
+    marketing: "conditional"
+  },
+  refusal: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: [],
+    marketing: "none"
+  },
+  appreciation_feedback: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: [],
+    marketing: "none"
+  },
+  general: {
+    skills: BASE_CUSTOMER_SKILLS,
+    data: [],
+    marketing: "none"
+  }
 };
+
+// [ADDED] Backward-compatible primary-state mapping for existing customer-service consumers.
+const CUSTOMER_STATE_SKILLS = Object.fromEntries(
+  Object.entries(CUSTOMER_INTENT_WORKFLOWS).map(([intent, workflow]) => [intent, workflow.skills])
+);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS ai_skill_change_proposals (
@@ -73,30 +155,58 @@ function matchesTrigger(tokens, normalizedText, trigger) {
   return false;
 }
 
-// [ADDED] Classify the customer's current state before selecting specialist skills.
-export function classifyCustomerState(message = "", history = []) {
+// [ADDED] Detect multiple customer intents from the current message without losing the conversation context.
+export function classifyCustomerIntents(message = "", history = []) {
   const current = normalizeText(message);
-  const tokens = new Set(tokenize(current));
-  const has = (...words) => words.some((word) => tokens.has(word) || current.includes(normalizeText(word)));
-  if (has("komplain", "keluhan", "kecewa", "refund", "salah", "kering", "terlambat", "rusak", "tidak sesuai")) return "complaint";
-  if (has("gak jadi", "nggak jadi", "tidak jadi", "enggak usah", "nggak usah", "gak usah", "ga usah", "tidak mau", "belum dulu", "lain kali", "skip", "tidak berminat")) return "refusal";
-  if (has("mahal", "kemahalan", "budget", "anggaran", "uang pas-pasan")) return "price_objection";
-  if (has("banding", "beda", "perbedaan", "yang lebih", "mending", "mana enak")) return "product_comparison";
-  if (has("berapa", "harganya", "harga", "rp")) return "price_question";
-  if (has("masih ada", "tersedia", "ready", "ada kah", "ada gak", "ada nggak", "stok")) return "availability";
-  if (has("pesan", "order", "mau", "ambil", "beli", "booking", "pesenin", "dada", "paha")) return "purchase_intent";
-  if (has("halo", "hai", "assalamualaikum", "permisi", "pagi", "siang", "sore", "malam")) return "greeting";
   const recentHistory = Array.isArray(history) ? history.slice(-HISTORY_WINDOW) : [];
-  const recentCustomerText = recentHistory
+  const recentCustomerText = normalizeText(recentHistory
     .filter((item) => item?.role === "customer" || item?.direction === "incoming")
-    .map((item) => item?.content || item?.text || item?.body || "").join(" ");
+    .map((item) => item?.content || item?.text || item?.body || "").join(" "));
   const recentBusinessText = normalizeText(recentHistory
     .filter((item) => item?.role === "business" || item?.role === "assistant" || item?.direction === "outgoing")
     .map((item) => item?.content || item?.text || item?.body || "").join(" "));
-  // [ADDED] Keep the buying state when the customer is answering the business's latest choice/quantity question.
-  if (recentBusinessText && /(mau yang|pilih dada|pilih paha|berapa porsi|mau pesan|ingin pesan|jumlah porsi)/.test(recentBusinessText)) return "purchase_intent";
-  if (normalizeText(recentCustomerText).includes("pesan")) return "purchase_intent";
-  return "general";
+  const text = current || recentCustomerText;
+  const has = (pattern) => pattern.test(text);
+  const intents = [];
+
+  if (has(/\b(?:komplain|keluhan|kecewa|refund|salah|kering|terlambat|rusak|tidak sesuai|kurang matang|pesanan bermasalah)\b/)) intents.push("complaint");
+  if (has(/\b(?:gak jadi|nggak jadi|tidak jadi|enggak usah|nggak usah|gak usah|ga usah|tidak mau|belum dulu|lain kali|skip|tidak berminat)\b/)) intents.push("refusal");
+  if (has(/\b(?:qris|qr code|transfer|pembayaran|pembayaran|bayar|sudah transfer|bukti transfer|rekening)\b/)) intents.push("payment");
+  if (has(/\b(?:antar|diantar|delivery|kurir|ambil sendiri|pickup|ambil di|lokasi|alamat|jam buka|buka jam|tutup jam)\b/)) intents.push("delivery_pickup");
+  if (has(/\b(?:ubah pesanan|ganti pesanan|tambahkan|tambah pesanan|kurangi|ganti jumlah|ubah jumlah|cancel item|hapus item)\b/)) intents.push("order_change");
+  if (has(/\b(?:konfirmasi pesanan|pesanan sudah benar|order sudah benar|betul pesanannya|saya konfirmasi|konfirmasi order)\b/)) intents.push("order_confirmation");
+  if (has(/\b(?:banding|beda|perbedaan|yang lebih|mending|mana enak|lebih enak|dibanding)\b/)) intents.push("comparison");
+  if (has(/\b(?:mahal|kemahalan|budget|anggaran|uang pas|masih pikir|masih ragu|belum yakin|takut|khawatir|pertimbangkan dulu)\b/)) intents.push("objection");
+  if (has(/\b(?:berapa|harganya|harga|rp)\b/)) intents.push("price_question");
+  if (has(/\b(?:masih ada|tersedia|ready|ada kah|ada gak|ada nggak|stok|habis)\b/)) intents.push("availability");
+  if (has(/\b(?:pesan|order|mau beli|mau pesan|ingin pesan|beli|booking|pesenin|pesan.*(?:porsi|ekor|pcs|buah))\b/)) intents.push("purchase_intent");
+  if (has(/\b(?:komposisi|isi|rasa|varian|menu|produk|ayam|nasi|minuman|sambal)\b/) && !intents.includes("purchase_intent")) intents.push("product_question");
+  if (has(/\b(?:alamat|lokasi|dimana|di mana|jam operasional|jam buka|jam tutup|nomor|kontak|parkir|fasilitas)\b/)) intents.push("information_question");
+  if (has(/\b(?:terima kasih|makasih|mantap|enak|puas|suka sekali|rekomendasi|bintang|ulasan|masukan|saran)\b/)) intents.push("appreciation_feedback");
+  if (has(/\b(?:halo|hai|assalamualaikum|permisi|pagi|siang|sore|malam)\b/)) intents.push("greeting");
+
+  // [ADDED] Short answers inherit the active workflow when the business asked a clear follow-up question.
+  if (intents.length === 0 && recentBusinessText && /(mau yang|pilih dada|pilih paha|berapa porsi|mau pesan|ingin pesan|jumlah porsi|metode pembayaran|alamat pengiriman)/.test(recentBusinessText)) {
+    if (/\b(?:dada|paha|iya|ya|betul|jadi|dua|satu|ambil)\b/.test(text)) intents.push("purchase_intent");
+    else if (/\b(?:sudah|belum|transfer|qris)\b/.test(text)) intents.push("payment");
+    else intents.push("general");
+  }
+  if (intents.length === 0) intents.push("general");
+
+  // Preserve detection order while removing duplicate intent IDs.
+  return [...new Set(intents)];
+}
+
+// [ADDED] Select the primary state for legacy callers; the full intent list remains available separately.
+export function classifyCustomerState(message = "", history = []) {
+  const intents = classifyCustomerIntents(message, history);
+  const priority = [
+    "complaint", "payment", "order_change", "order_confirmation", "delivery_pickup",
+    "refusal", "objection", "comparison", "purchase_intent", "availability",
+    "price_question", "product_question", "information_question", "appreciation_feedback",
+    "greeting", "general"
+  ];
+  return priority.find((intent) => intents.includes(intent)) || "general";
 }
 
 function readSkillInstructions(skill) {
@@ -154,11 +264,31 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner",
   const normalizedContext = normalizeText(context);
   const tokens = new Set(tokenize(context));
   const isCustomerMode = String(mode).startsWith("customer");
+  const customerIntents = isCustomerMode ? classifyCustomerIntents(currentMessage, history) : [];
   const customerState = isCustomerMode ? classifyCustomerState(currentMessage, history) : null;
 
   let selectedIds;
+  let workflow = null;
   if (isCustomerMode) {
-    selectedIds = CUSTOMER_STATE_SKILLS[customerState] || CUSTOMER_STATE_SKILLS.general;
+    // [ADDED] Merge skills across all detected intents, then load each skill only once.
+    workflow = customerIntents.reduce((combined, intent) => {
+      const definition = CUSTOMER_INTENT_WORKFLOWS[intent] || CUSTOMER_INTENT_WORKFLOWS.general;
+      combined.skills.push(...definition.skills);
+      combined.data.push(...definition.data);
+      if (definition.optionalSkills?.length) combined.optionalSkills.push(...definition.optionalSkills);
+      if (definition.marketing === "required") combined.marketingRequired = true;
+      if (definition.marketing === "conditional") combined.marketingConditional = true;
+      if (definition.marketing === "optional") combined.marketingOptional = true;
+      return combined;
+    }, { skills: [], data: [], optionalSkills: [], marketingRequired: false, marketingConditional: false, marketingOptional: false });
+    selectedIds = [...new Set(workflow.skills)];
+    const normalizedMessage = normalizeText(currentMessage);
+    const marketingSignals = /\b(?:rekomendasi|tambahan|sekalian|paket|promo|alternatif|pilihan lain|upsell|produk serupa)\b/.test(normalizedMessage);
+    if (workflow.marketingRequired || (workflow.marketingConditional && marketingSignals) || (workflow.marketingOptional && marketingSignals)) {
+      selectedIds.push(...workflow.optionalSkills);
+    }
+    // [ADDED] Keep the existing three-skill runtime limit; mandatory workflow skills take precedence.
+    selectedIds = [...new Set(selectedIds)].slice(0, MAX_ACTIVE_SKILLS);
   } else {
     const ranked = SKILL_REGISTRY.map((skill) => {
       const matched = skill.triggers.filter((trigger) => matchesTrigger(tokens, normalizedContext, trigger));
@@ -180,23 +310,46 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner",
     instructions: readSkillInstructions(skill)
   }));
   const products = Array.isArray(businessContext?.products) ? businessContext.products : [];
-  const productOfferCandidates = isCustomerMode && ["availability", "purchase_intent", "product_comparison"].includes(customerState)
+  const wantsMarketingOffer = isCustomerMode && customerIntents.some((intent) =>
+    ["purchase_intent", "comparison"].includes(intent)
+  );
+  const productOfferCandidates = wantsMarketingOffer
     ? buildProductOfferCandidates(products, currentMessage)
     : [];
-  const marketingDirective = isCustomerMode && ["availability", "purchase_intent"].includes(customerState)
-    ? "Pelanggan menunjukkan sinyal pembelian. Jawab pertanyaan utama, lalu evaluasi satu penawaran produk utama/unggulan yang benar-benar relevan dari kandidat terverifikasi. Jelaskan isi dan pilihan produk dengan bahasa sendiri; jangan menyalin nama menu mentah. Sebut harga dan promo hanya jika tercantum di fakta produk. Tutup dengan satu pertanyaan pilihan atau jumlah yang memudahkan pemesanan."
-    : isCustomerMode && customerState === "price_objection"
-      ? "Pahami alasan keberatan harga. Jelaskan nilai atau pilihan alternatif yang benar-benar tersedia tanpa menekan atau menganggap pelanggan tidak mampu."
-      : isCustomerMode && customerState === "complaint"
-        ? "Prioritaskan pemahaman masalah dan penyelesaian yang adil. Jangan mengubah komplain menjadi promosi atau upsell."
-        : "Jangan memaksakan promosi. Pilih informasi atau langkah berikutnya yang paling relevan dengan keadaan pelanggan.";
+  const marketingDirective = isCustomerMode
+    ? customerIntents.includes("complaint")
+      ? "Tangani keluhan terlebih dahulu. Marketing hanya boleh berupa pemulihan kepercayaan yang faktual dan relevan; jangan melakukan upsell, promosi, atau menawarkan kompensasi tanpa persetujuan."
+      : wantsMarketingOffer
+        ? "Jawab kebutuhan utama terlebih dahulu. Untuk niat memesan, tawarkan maksimal satu produk serupa atau pelengkap yang benar-benar relevan (misalnya nasi atau minuman) berdasarkan produk, harga, dan stok terverifikasi. Untuk perbandingan, jelaskan perbedaan dan manfaat berdasarkan fakta. Jangan memaksa."
+        : customerIntents.includes("objection")
+          ? "Pahami alasan keraguan. Skill persuasi hanya digunakan bila dapat membantu; jelaskan nilai atau alternatif faktual tanpa tekanan, diskon otomatis, atau urgensi palsu."
+          : "Jangan memaksakan promosi. Jawab maksud utama pelanggan dengan bahasa natural dan gunakan fakta bisnis hanya bila diperlukan."
+    : "Pilih informasi atau langkah berikutnya yang paling relevan dengan keadaan pelanggan.";
 
-  const strategyInstructions = "CUSTOMER STATE: " + String(customerState || "not_applicable") + "\nMARKETING STRATEGY: " + marketingDirective;
+  const dataRequirements = isCustomerMode ? [...new Set(workflow?.data || [])] : [];
+  const businessDataAvailable = Boolean(businessContext && typeof businessContext === "object");
+  const strategyInstructions = [
+    "CUSTOMER STATE: " + String(customerState || "not_applicable"),
+    "CUSTOMER INTENTS: " + (customerIntents.join(", ") || "not_applicable"),
+    "REQUIRED BUSINESS DATA: " + (dataRequirements.join(", ") || "none"),
+    "BUSINESS DATA STATUS: " + (dataRequirements.length ? (businessDataAvailable ? "context provided; verify each requested field before answering" : "required; retrieve from business database before answering") : "not required"),
+    "MARKETING STRATEGY: " + marketingDirective,
+    "WORKFLOW RULE: Load and apply only the listed active skills. Do not invent missing database facts. If required data is unavailable, ask one concise clarification or escalate rather than guessing."
+  ].join("\n");
 
   return {
     mode: String(mode || "owner"),
     availableSkills: listAvailableSkills(),
     customerState,
+    customerIntents,
+    workflow: isCustomerMode ? {
+      intents: customerIntents,
+      activeSkills: loadedSkills.map((skill) => skill.id),
+      dataRequirements,
+      marketing: workflow?.marketingRequired ? "required" : workflow?.marketingConditional ? "conditional" : workflow?.marketingOptional ? "optional" : "none"
+    } : null,
+    dataRequirements,
+    requiresBusinessData: dataRequirements.length > 0,
     activeSkillIds: loadedSkills.map((skill) => skill.id),
     loadedSkills,
     productOfferCandidates,
@@ -206,7 +359,9 @@ export function routeAndLoadSkills({ message = "", history = [], mode = "owner",
       recentContext: context.slice(0, 3500),
       mode: String(mode || "owner"),
       customerState,
-      activeSkills: loadedSkills.map((skill) => skill.id)
+      customerIntents,
+      activeSkills: loadedSkills.map((skill) => skill.id),
+      dataRequirements
     },
     instructions: strategyInstructions + "\n\n" + loadedSkills.map((skill) => "SKILL: " + skill.name + " (" + skill.domain + ")\n" + skill.instructions).join("\n\n")
   };
