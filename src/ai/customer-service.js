@@ -396,7 +396,7 @@ async function openRouterGenerate(contents, options = {}) {
     toolCount: tools?.length || 0, timeoutMs: OPENROUTER_TIMEOUT_MS
   }));
   try {
-    const response = await fetch("OPENROUTER_API_URL", {
+    const response = await fetch(OPENROUTER_API_URL, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
@@ -1971,7 +1971,7 @@ export async function analyzeAIPaymentProofImage({
     JSON.stringify(conversation).slice(0, 9000)
   ].join("\n");
 
-  const response = await fetch("OPENROUTER_API_URL", {
+  const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
     headers: {
       "Authorization": "Bearer " + OPENROUTER_API_KEY,
