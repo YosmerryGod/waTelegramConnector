@@ -1705,14 +1705,17 @@
           : `<div class="message-sender">${escapeHTML(senderName)}</div>`)
         : "";
 
-      const lockedMedia = Boolean(message.media_locked && !deleted && !viewOnce);
+      const lockedMedia = Boolean(message.media_locked && !deleted);
       const media = lockedMedia
         ? lockedMediaHTML(message)
         : message.has_media ? mediaHTML(message) : "";
 
-      // [MODIFIED] Hide captions together with locked incoming media for Free accounts.
+      // [MODIFIED] View Once media downloaded by the server is shown inline,
+      // with a "sekali lihat" label instead of the WhatsApp handoff notice.
       const body = viewOnce
-        ? `<div class="view-once-content"><span class="view-once-symbol" aria-hidden="true">◉</span><div class="view-once-copy"><strong>Media Sekali Lihat</strong><span>Kontak mengirim media yang hanya dapat dilihat satu kali. Silakan buka WhatsApp untuk melihatnya.</span></div><button class="view-once-action" type="button" data-view-once-open="true">Buka WhatsApp</button></div>`
+        ? media
+          ? `<div class="message-text view-once-note"><span class="view-once-symbol" aria-hidden="true">◉</span> Media sekali lihat</div>`
+          : `<div class="view-once-content"><span class="view-once-symbol" aria-hidden="true">◉</span><div class="view-once-copy"><strong>Media Sekali Lihat</strong><span>Media ini sudah dibuka atau tidak lagi tersedia untuk diunduh. Silakan buka WhatsApp untuk melihatnya.</span></div><button class="view-once-action" type="button" data-view-once-open="true">Buka WhatsApp</button></div>`
         : lockedMedia
           ? ""
           : message.body
@@ -1730,7 +1733,7 @@
       const originalBubble = edited && !deleted && message.original_body != null
         ? `<div class="message original-version ${outgoing ? "outgoing" : ""}"><div class="message-text">${escapeHTML(message.original_body)}</div><div class="message-meta">Pesan sebelumnya</div></div><div class="edit-connector" aria-hidden="true"><span></span></div>`
         : "";
-      const currentBubble = `<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""} ${viewOnce ? "view-once" : ""}">${sender}${deletedLabel}${viewOnce ? "" : media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
+      const currentBubble = `<div class="message ${outgoing ? "outgoing" : ""} ${media ? "has-media" : ""} ${deleted ? "deleted" : ""} ${edited && !deleted ? "edited" : ""} ${viewOnce ? "view-once" : ""}">${sender}${deletedLabel}${media}${body}<div class="message-meta">${ms ? escapeHTML(timeOnly(ms)) : ""} ${editedLabel}</div></div>`;
 
       if (originalBubble) {
         return `${separator}<div class="message-history-group ${outgoing ? "outgoing" : ""}" data-edit-expandable="true">${originalBubble}${currentBubble}</div>`;
