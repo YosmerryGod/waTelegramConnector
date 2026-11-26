@@ -94,9 +94,24 @@ function toPublicMessage(message, membership) {
     ...rest
   } = message;
 
-  const kind = telegramKind || (
+  let kind = telegramKind || (
     rest.message_type === "image" ? "photo" : rest.message_type
   );
+
+  // [ADDED] View Once messages keep message_type "view_once"; derive the
+  // display kind from the stored mimetype so the Mini App can render them.
+  if (kind === "view_once") {
+    const mime = String(rest.media_mimetype || "").toLowerCase();
+    kind = mime.startsWith("image/")
+      ? "image"
+      : mime.startsWith("video/")
+        ? "video"
+        : mime.startsWith("audio/")
+          ? "audio"
+          : mime
+            ? "document"
+            : kind;
+  }
   const hasMedia = Boolean(fileId || storagePath);
   // [ADDED] Location messages contain sensitive coordinates even without a file attachment.
   const isLocation = kind === "location" || rest.message_type === "location";
