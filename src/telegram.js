@@ -911,6 +911,84 @@ function storeCallEvent({ call, socket, telegramId, sessionId = telegramId }) {
   });
 }
 
+// [ADDED] Persist a call-log protocol message so outgoing and phone-side
+// calls appear in the Mini App call history too.
+function storeCallLogMessage({
+  telegramId,
+  sessionId = telegramId,
+  messageId,
+  remoteJid,
+  log,
+  timestampMs
+}) {
+  if (!messageId || !log) {
+    return;
+  }
+
+  const isIncoming = log.isIncoming === true;
+  const outcome =
+    typeof log.callOutcome === "number"
+      ? log.callOutcome
+      : Number(log.callOutcome);
+
+  let status;
+
+  switch (outcome) {
+    case 0: // connected
+      status = "answered";
+      break;
+
+    case 1: // missed
+      status = isIncoming ? "missed" : "no_answer";
+      break;
+
+    case 3: // rejected
+      status = "rejected";
+      break;
+
+    case 4: // answered on another device
+      status = "answered";
+      break;
+
+    case 5: // ongoing
+      status = "ringing";
+      break;
+
+    default:
+      // failed / silenced / unknown outcomes count as unanswered.
+      status = isIncoming ? "missed" : "no_answer";
+      break;
+  }
+
+  const isGroup =
+    typeof remoteJid === "string" && remoteJid.endsWith("@g.us");
+
+  const participants = Array.isArray(log.participants)
+    ? log.participants
+    : [];
+
+  const peerJid = isGroup
+    ? (jidToPhone(log.callCreator) ? log.callCreator : remoteJid)
+    : remoteJid;
+
+  const phoneNumber = isGroup
+    ? jidToPhone(log.callCreator)
+    : jidToPhone(remoteJid) || jidToPhone(participants[0]);
+
+  recordCall({
+    telegramId,
+    sessionId,
+    callId: messageId,
+    direction: isIncoming ? "incoming" : "outgoing",
+    status,
+    isVideo: Boolean(log.isVideo),
+    isGroup,
+    peerJid: peerJid || null,
+    phoneNumber,
+    timestampMs
+  });
+}
+
 async function buildCallMessage({ call, socket, telegramId }) {
   const status = call?.status;
 
@@ -1445,8 +1523,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
           return;
         }
 
-        // [MODIFIED] Never attempt to download View Once media into WAGRAM.
-        const info = viewOnceInfo ? null : getMediaInfo(content);
+        // [MODIFIED] View Once media is also downloaded once (while its key is
+        // still valid) so it can be displayed in the Mini App.
+        const info = getMediaInfo(content);
         // [ADDED] Assign a non-null placeholder immediately so View Once messages
         // are not discarded by the normal unsupported-message/noise filter.
         let body = viewOnceInfo
@@ -1503,6 +1582,36 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
         const messageTimestamp = rawTimestamp > 0
           ? rawTimestamp * 1000
           : Date.now();
+
+        // [ADDED] Persist call-log protocol messages into the Mini App call
+        // history. Baileys only emits "call" socket events for calls offered
+        // to this linked device; calls started or answered on the primary
+        // phone (including all outgoing calls) arrive as callLogMesssage.
+        const callLog =
+          content.callLogMesssage || content.callLogMessage || null;
+
+        if (callLog) {
+          try {
+            storeCallLogMessage({
+              telegramId: id,
+              sessionId,
+              messageId,
+              remoteJid,
+              log: callLog,
+              timestampMs: messageTimestamp
+            });
+
+            publishToMiniApp(id, {
+              type: "calls.updated",
+              data: { sessionId, callId: messageId }
+            });
+          } catch (callLogError) {
+            console.error(
+              "Failed to store call log history:",
+              callLogError.message
+            );
+          }
+        }
 
         const messageType = viewOnceInfo
           ? "view_once"
@@ -1674,8 +1783,9 @@ export function createWhatsAppCallbacks(telegramId, options = {}) {
                     console.error("Failed to store WhatsApp media for Mini App:", storageError.message);
                   }
 
-                  // [MODIFIED] Analyze every downloaded incoming private image independently of Mini App storage.
-                  if (!isOutgoing && !isGroup && info.kind === "image") {
+                  // [MODIFIED] Analyze downloaded incoming private images independently of Mini App storage.
+                  // View Once images are excluded so they are never mistaken for payment proof.
+                  if (!isOutgoing && !isGroup && !viewOnceInfo && info.kind === "image") {
                     void handleIncomingAIPaymentProof({
                       telegramId: id,
                       sessionId,
